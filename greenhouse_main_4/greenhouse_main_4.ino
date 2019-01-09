@@ -423,11 +423,12 @@ void valuesDisplay() {
     SeeedOled.putString("Too warm!");                   //If measured temperature is higher than preset temperature threshold, "Too warm!" is printed to display.
   }
 
-  if(flowValue > 5 && flowValue < 70 && waterLevelValue == false && timeDiff > 7200 && timeDiff <= 9600) { //If flow sensor is turning but is less than a certain value without the water level sensor is giving an warning message, there is a problem with the water tank hose.
+  //INVALID WARNING MESSAGE CONNECTED TO WATER FLOW SENSOR. Problem is that pressure is built up in the water hoses since the soaking hose requires some pressure to let water pass through it. Because this is ocurring the only a tiny flow of water is passing the flow sensor, not enough for the flow sensor to be able to detect it.
+  if(flowValue > 2 && flowValue < 70 && waterLevelValue == false && timeDiff > 7200 && timeDiff <= 9600) { //If flow sensor is turning but is less than a certain value without the water level sensor is giving an warning message, there is a problem with the water tank hose.
     SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
     SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
     SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-    SeeedOled.putString("Chk tank hose!");              //If measured temperature is higher than preset temperature threshold, "Too warm!" is printed to display.
+    SeeedOled.putString("Check tank hose!");              //If measured temperature is higher than preset temperature threshold, "Too warm!" is printed to display.
   }
   if(timeDiff > 9600) {
     SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
@@ -486,7 +487,6 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
     }
   }
   aLastState = aState;                                              //Updates the previous state of outputA with current state.
-  Serial.println(tempPosition/2);
 }
 
 void lightStart() {
