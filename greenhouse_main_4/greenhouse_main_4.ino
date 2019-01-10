@@ -504,16 +504,16 @@ void lightStart() {
 
 int moistureMeanValue(int moistureValue1, int moistureValue2, int moistureValue3, int moistureValue4) {
   int moistureValues[4] = {moistureValue1, moistureValue2, moistureValue3, moistureValue4};
-  int moistureMax = 0;                      //Variable used to store a moisture value when comparing it to other moisture sensor values and finally store the highest moisture value.
-  int moistureMin = moistureValues[0];      //First value in array of values used as reference value. Variable used to store a moisture value when comparing it to other moisture sensor values and finally store the lowest moisture value.
+  int moistureMax = 0;                                      //Variable used to store a moisture value when comparing it to other moisture sensor values and finally store the highest moisture value.
+  int moistureMin = moistureValues[0];                      //First value in array of values used as reference value. Variable used to store a moisture value when comparing it to other moisture sensor values and finally store the lowest moisture value.
 
   //Since four different moisture sensors are used to measure soil moisture in the four different post and specific watering for each individual pots is not possible. The watering action is only based upon a mean value of the moisture readouts. Min and max value are sorted out and not used in case any sensor is not working correctly. 
-  for(int i; i<sizeof(moistureValues)/sizeof(int); i++) { //Looping through all measured moisture values to find the highest and lowest moisture values.
-    if(moistureValues[i] > moistureMax) {  //Finding the highest measured moisture value.
+  for(int i=0; i<sizeof(moistureValues)/sizeof(int); i++) { //Looping through all measured moisture values to find the highest and lowest moisture values.
+    if(moistureValues[i] > moistureMax) {                   //Finding the highest measured moisture value.
       moistureMax = moistureValues[i];
     }
 
-    if(moistureValues[i] < moistureMin) {   //Finding the lowest measured moisture value.
+    if(moistureValues[i] < moistureMin) {                   //Finding the lowest measured moisture value.
       moistureMin = moistureValues[i];
     }
   }
