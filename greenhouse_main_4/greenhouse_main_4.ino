@@ -44,7 +44,7 @@ int moistureValue1;                       //Individual moisture sensor value for
 int moistureValue2;                       //Individual moisture sensor value for moisture sensor 2.
 int moistureValue3;                       //Individual moisture sensor value for moisture sensor 3.
 int moistureValue4;                       //Individual moisture sensor value for moisture sensor 4.
-int meanMoistureValue;                    //Mean value of all 4 moisture sensors.
+int moistureValue;                    //Mean value of all 4 moisture sensors.
 bool moistureDry1 = false;                //Activates warning message on display. 'true' if soil sensor1 is too dry.
 bool moistureWet1 = false;                //Activates warning message on display. 'true' if soil sensor1 is too wet. 
 bool moistureDry2 = false;                //Activates warning message on display. 'true' if soil sensor2 is too dry.
@@ -53,6 +53,8 @@ bool moistureDry3 = false;                //Activates warning message on display
 bool moistureWet3 = false;                //Activates warning message on display. 'true' if soil sensor3 is too wet. 
 bool moistureDry4 = false;                //Activates warning message on display. 'true' if soil sensor4 is too dry.
 bool moistureWet4 = false;                //Activates warning message on display. 'true' if soil sensor4 is too wet. 
+bool moistureDry = false;
+bool moistureWet = false;
 
 //Temperature and humidity sensor.
 const uint8_t DHTTYPE = DHT11;            //DHT11 = Arduino UNO model is being used.
@@ -69,6 +71,7 @@ uint16_t uvValue;
 //Water pump and flow sensor.
 volatile int rotations;
 int flowValue;
+bool pumpState = false;                   //Variable is set to 'true' when water pump is running.
 
 //Water level switch.
 bool waterLevelValue;
@@ -336,7 +339,7 @@ void valuesDisplay() {
   SeeedOled.setTextXY(0, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Moisture: ");        //Print string to display.
   SeeedOled.setTextXY(0, 42);
-  SeeedOled.putNumber(moistureValue2);      //Print moisture value to display.
+  SeeedOled.putNumber(moistureValue);       //Print moisture value to display.
 
   /*
   ====================
@@ -396,7 +399,7 @@ void valuesDisplay() {
   timeNow = millis();                                   //Read millis() value to be used as delay to present multiple warning messages sharing display space.
   timeDiff = timeNow - timePrev;
   Serial.println(timeDiff);
-/*  if(timeDiff <= 2400) {
+  if(timeDiff <= 2400) {
     SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
     SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
     if(moistureDry == true) {                           //If moisture sensor measure a too low value, "To dry!" is printed to display.
@@ -408,7 +411,7 @@ void valuesDisplay() {
       SeeedOled.putString("Too wet!");
     }
   }
-*/
+
   if(waterLevelValue == true && timeDiff > 2400 && timeDiff <= 4800) {
     SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
     SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
@@ -416,19 +419,18 @@ void valuesDisplay() {
     SeeedOled.putString("Refill tank!");                //If water level switch measure that water tank is empty, "Refill tank!" is printed to display.
   }
 
-  if(tempValue > tempPosition/2 && timeDiff > 4800 && timeDiff <= 7200) { //RESET tempPosition to tempPosition / 2!!!!!!!!!!1
+  if(tempValue > tempPosition/2 && timeDiff > 4800 && timeDiff <= 7200) { 
     SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
     SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
     SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
     SeeedOled.putString("Too warm!");                   //If measured temperature is higher than preset temperature threshold, "Too warm!" is printed to display.
   }
 
-  //INVALID WARNING MESSAGE CONNECTED TO WATER FLOW SENSOR. Problem is that pressure is built up in the water hoses since the soaking hose requires some pressure to let water pass through it. Because this is ocurring the only a tiny flow of water is passing the flow sensor, not enough for the flow sensor to be able to detect it.
-  if(flowValue > 2 && flowValue < 70 && waterLevelValue == false && timeDiff > 7200 && timeDiff <= 9600) { //If flow sensor is turning but is less than a certain value without the water level sensor is giving an warning message, there is a problem with the water tank hose.
+if(pumpState == true && flowValue < 8 && waterLevelValue == false && timeDiff > 7200 && timeDiff <= 9600) { //If flow sensor value is but is less than a certain value without the water level sensor is giving an warning message, there is a problem with the water tank hose.
     SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
     SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
     SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-    SeeedOled.putString("Check tank hose!");              //If measured temperature is higher than preset temperature threshold, "Too warm!" is printed to display.
+    SeeedOled.putString("Check tank hose!");            //If measured water flow is below a certain value without the water level sensor indicating the water tank is empty, there is a problem with the water tank hose. "Check water hose!" is printed to display.
   }
   if(timeDiff > 9600) {
     SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
@@ -455,9 +457,11 @@ void pumpStart() {
   
   if(pushButton == true) {
     digitalWrite(pumpRelay, HIGH);      //Start water pump if button is being pressed.
+    pumpState = true;
   }
   else {
     digitalWrite(pumpRelay, LOW);       //Stop water pump if button not is being pressed.
+    pumpState = false;
   }
 }
 
@@ -496,6 +500,35 @@ void lightStart() {
   else {
     digitalWrite(lightRelay, LOW);      //Turn off LED light if measured UV value is above a certain value.
   }
+}
+
+int moistureMeanValue(int moistureValue1, int moistureValue2, int moistureValue3, int moistureValue4) {
+  int moistureValues[4] = {moistureValue1, moistureValue2, moistureValue3, moistureValue4};
+  int moistureMax = 0;                      //Variable used to store a moisture value when comparing it to other moisture sensor values and finally store the highest moisture value.
+  int moistureMin = moistureValues[0];      //First value in array of values used as reference value. Variable used to store a moisture value when comparing it to other moisture sensor values and finally store the lowest moisture value.
+
+  //Since four different moisture sensors are used to measure soil moisture in the four different post and specific watering for each individual pots is not possible. The watering action is only based upon a mean value of the moisture readouts. Min and max value are sorted out and not used in case any sensor is not working correctly. 
+  for(int i; i<sizeof(moistureValues)/sizeof(int); i++) { //Looping through all measured moisture values to find the highest and lowest moisture values.
+    if(moistureValues[i] > moistureMax) {  //Finding the highest measured moisture value.
+      moistureMax = moistureValues[i];
+    }
+
+    if(moistureValues[i] < moistureMin) {   //Finding the lowest measured moisture value.
+      moistureMin = moistureValues[i];
+    }
+  }
+  Serial.println(moistureValue1);
+  Serial.println(moistureValue2);
+  Serial.println(moistureValue3);
+  Serial.println(moistureValue4);
+  Serial.print("Max: ");
+  Serial.println(moistureMax);
+  Serial.print("Min: ");
+  Serial.println(moistureMin);
+  //hitta största och minsta värdet och ta bort dessa för att sedan göra mean-value på de två kvarvarande moisture sensorerna.
+  //Hur gör med member variables?
+  //moistureValue1(moistureValue1), moistureValue2(moistureValue2), moistureValue3(moistureValue3), moistureValue4(moistureValue4)
+  //moistureMeanValue.
 }
 
 void setup() {
@@ -543,10 +576,11 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   valuesDisplay();                                    //Printing read out values from the greenhouse to display.
-  moistureValue1 = moistureSensor1.moistureRead(moistureSensorPort1, &moistureDry1, &moistureWet1);    //Read moistureSensor1 value to check soil humidity.
-  moistureValue2 = moistureSensor2.moistureRead(moistureSensorPort2, &moistureDry2, &moistureWet2);    //Read moistureSensor2 value to check soil humidity.
-  moistureValue3 = moistureSensor3.moistureRead(moistureSensorPort3, &moistureDry3, &moistureWet3);    //Read moistureSensor3 value to check soil humidity.
-  moistureValue4 = moistureSensor4.moistureRead(moistureSensorPort4, &moistureDry4, &moistureWet4);    //Read moistureSensor4 value to check soil humidity.
+  moistureValue1 = moistureSensor1.moistureRead(moistureSensorPort1, &moistureDry1, &moistureWet1);     //Read moistureSensor1 value to check soil humidity.
+  moistureValue2 = moistureSensor2.moistureRead(moistureSensorPort2, &moistureDry2, &moistureWet2);     //Read moistureSensor2 value to check soil humidity.
+  moistureValue3 = moistureSensor3.moistureRead(moistureSensorPort3, &moistureDry3, &moistureWet3);     //Read moistureSensor3 value to check soil humidity.
+  moistureValue4 = moistureSensor4.moistureRead(moistureSensorPort4, &moistureDry4, &moistureWet4);     //Read moistureSensor4 value to check soil humidity.
+  moistureValue = moistureMeanValue(moistureValue1, moistureValue2, moistureValue3, moistureValue4);    //Mean value from all sensor readouts.
   tempValue = humiditySensor.readTemperature(false);  //Read temperature value from DHT-sensor. "false" gives the value in °C.
   //humidValue = humiditySensor.readHumidity();         //Read humidity value from DHT-sensor.
   lightRead();                                        //Read light sensor UV value.
