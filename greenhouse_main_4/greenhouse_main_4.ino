@@ -44,7 +44,7 @@ int moistureValue1;                       //Individual moisture sensor value for
 int moistureValue2;                       //Individual moisture sensor value for moisture sensor 2.
 int moistureValue3;                       //Individual moisture sensor value for moisture sensor 3.
 int moistureValue4;                       //Individual moisture sensor value for moisture sensor 4.
-int moistureValue;                    //Mean value of all 4 moisture sensors.
+int moistureValue;                        //Mean value of all 4 moisture sensors.
 bool moistureDry1 = false;                //Activates warning message on display. 'true' if soil sensor1 is too dry.
 bool moistureWet1 = false;                //Activates warning message on display. 'true' if soil sensor1 is too wet. 
 bool moistureDry2 = false;                //Activates warning message on display. 'true' if soil sensor2 is too dry.
@@ -506,29 +506,33 @@ int moistureMeanValue(int moistureValue1, int moistureValue2, int moistureValue3
   int moistureValues[4] = {moistureValue1, moistureValue2, moistureValue3, moistureValue4};
   int moistureMax = 0;                                      //Variable used to store a moisture value when comparing it to other moisture sensor values and finally store the highest moisture value.
   int moistureMin = moistureValues[0];                      //First value in array of values used as reference value. Variable used to store a moisture value when comparing it to other moisture sensor values and finally store the lowest moisture value.
-
+  int maxIndex;                                            
+  int minIndex;
+  int moistureSum = 0;
+  int moistureMean;
+  
   //Since four different moisture sensors are used to measure soil moisture in the four different post and specific watering for each individual pots is not possible. The watering action is only based upon a mean value of the moisture readouts. Min and max value are sorted out and not used in case any sensor is not working correctly. 
   for(int i=0; i<sizeof(moistureValues)/sizeof(int); i++) { //Looping through all measured moisture values to find the highest and lowest moisture values.
-    if(moistureValues[i] > moistureMax) {                   //Finding the highest measured moisture value.
+    if(moistureValues[i] > moistureMax) {                   //Identify the highest measured moisture value.
       moistureMax = moistureValues[i];
+      maxIndex = i;                                         //Identify which moisture sensor that has the max value to be able to delete it from mean moisture value calculation.
     }
 
-    if(moistureValues[i] < moistureMin) {                   //Finding the lowest measured moisture value.
+    if(moistureValues[i] < moistureMin) {                   //Identify the lowest measured moisture value.
       moistureMin = moistureValues[i];
+      minIndex = i;                                         //Identify which moisture sensor that has the min value to be able to delete it from mean moisture value calculation.
     }
   }
-  Serial.println(moistureValue1);
-  Serial.println(moistureValue2);
-  Serial.println(moistureValue3);
-  Serial.println(moistureValue4);
-  Serial.print("Max: ");
-  Serial.println(moistureMax);
-  Serial.print("Min: ");
-  Serial.println(moistureMin);
-  //hitta största och minsta värdet och ta bort dessa för att sedan göra mean-value på de två kvarvarande moisture sensorerna.
-  //Hur gör med member variables?
-  //moistureValue1(moistureValue1), moistureValue2(moistureValue2), moistureValue3(moistureValue3), moistureValue4(moistureValue4)
-  //moistureMeanValue.
+
+  //Remove maximum and minimum moisture value from moisture array.
+  moistureValues[minIndex] = 0;                             
+  moistureValues[maxIndex] = 0;                             
+
+  for(int i=0; i<sizeof(moistureValues)/sizeof(int); i++) {
+    moistureSum += moistureValues[i];                       //Sum the remaining moisture sensor values.
+  }
+  moistureMean = moistureSum / 2;                           //Calculate mean moisture value with max and min values excluded.
+  return moistureMean;
 }
 
 void setup() {

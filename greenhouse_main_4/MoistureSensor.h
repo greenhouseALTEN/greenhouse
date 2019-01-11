@@ -9,7 +9,6 @@ class MoistureSensor {
  public:
   //Declaring function below with all its variables.
   int moistureRead(int moistureSensor, bool *moistureDry, bool *moistureWet);
-  int moistureMeanValue(int moistureValue1, int moistureValue2, int moistureValue3, int moistureValue4);
  private:
 
 };
