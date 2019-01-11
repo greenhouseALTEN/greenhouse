@@ -38,13 +38,17 @@
 //Moisture sensors.
 MoistureSensor moistureSensor1;           //Create moistureSensor1 from the MoistureSensor class.
 MoistureSensor moistureSensor2;           //Create moistureSensor2 from the MoistureSensor class.
-MoistureSensor moistureSensor3;           //Create moistureSensor2 from the MoistureSensor class.
-MoistureSensor moistureSensor4;           //Create moistureSensor2 from the MoistureSensor class.
+MoistureSensor moistureSensor3;           //Create moistureSensor3 from the MoistureSensor class.
+MoistureSensor moistureSensor4;           //Create moistureSensor4 from the MoistureSensor class.
+MoistureSensor moistureSensor;            //Create a fictional mean value moisture sensor from the MoistureSensor class.
 int moistureValue1;                       //Individual moisture sensor value for moisture sensor 1.
 int moistureValue2;                       //Individual moisture sensor value for moisture sensor 2.
 int moistureValue3;                       //Individual moisture sensor value for moisture sensor 3.
-int moistureValue4;                       //Individual moisture sensor value for moisture sensor 4.
+int moistureValue4;                       //Individual moisture sensor value for moisture sensor 4.                      
 int moistureValue;                        //Mean value of all 4 moisture sensors.
+bool moistureDry = false;                 //Activates warning message on display. 'true' if soil for mean value sensor is too dry.
+bool moistureWet = false;                 //Activates warning message on display. 'true' if soil for mean value sensor is too wet.
+//Variables below not in use now but might be used later to indicate which sensor and thus in which pot the soil is to dry/wet.
 bool moistureDry1 = false;                //Activates warning message on display. 'true' if soil sensor1 is too dry.
 bool moistureWet1 = false;                //Activates warning message on display. 'true' if soil sensor1 is too wet. 
 bool moistureDry2 = false;                //Activates warning message on display. 'true' if soil sensor2 is too dry.
@@ -53,8 +57,6 @@ bool moistureDry3 = false;                //Activates warning message on display
 bool moistureWet3 = false;                //Activates warning message on display. 'true' if soil sensor3 is too wet. 
 bool moistureDry4 = false;                //Activates warning message on display. 'true' if soil sensor4 is too dry.
 bool moistureWet4 = false;                //Activates warning message on display. 'true' if soil sensor4 is too wet. 
-bool moistureDry = false;
-bool moistureWet = false;
 
 //Temperature and humidity sensor.
 const uint8_t DHTTYPE = DHT11;            //DHT11 = Arduino UNO model is being used.
@@ -509,9 +511,9 @@ int moistureMeanValue(int moistureValue1, int moistureValue2, int moistureValue3
   int maxIndex;                                            
   int minIndex;
   int moistureSum = 0;
-  int moistureMean;
+  int moistureMeanValue;
   
-  //Since four different moisture sensors are used to measure soil moisture in the four different post and specific watering for each individual pots is not possible. The watering action is only based upon a mean value of the moisture readouts. Min and max value are sorted out and not used in case any sensor is not working correctly. 
+  //Since 4 different moisture sensors are used to measure soil moisture in the four different post and specific watering for each individual pots is not possible. The watering action is only based upon a mean value of the moisture readouts. Min and max value are sorted out and not used in case any sensor is not working correctly. 
   for(int i=0; i<sizeof(moistureValues)/sizeof(int); i++) { //Looping through all measured moisture values to find the highest and lowest moisture values.
     if(moistureValues[i] > moistureMax) {                   //Identify the highest measured moisture value.
       moistureMax = moistureValues[i];
@@ -531,8 +533,21 @@ int moistureMeanValue(int moistureValue1, int moistureValue2, int moistureValue3
   for(int i=0; i<sizeof(moistureValues)/sizeof(int); i++) {
     moistureSum += moistureValues[i];                       //Sum the remaining moisture sensor values.
   }
-  moistureMean = moistureSum / 2;                           //Calculate mean moisture value with max and min values excluded.
-  return moistureMean;
+  moistureMeanValue = moistureSum / 2;                      //Calculate mean moisture value with max and min values excluded.
+    
+  if(moistureMeanValue <= 300) {
+    moistureDry = true;                                     //Set warning to display to alert user. Soil too dry.
+    moistureWet = false;
+  }
+  else if(moistureValue > 300 && moistureValue <= 700) {
+    moistureWet = false;           
+    moistureDry = false;
+  }
+  else if(moistureValue > 700) {
+    moistureWet = true;                                     //Set warning to display to alert user. Soil too wet.
+    moistureDry = false;
+  }
+  return moistureMeanValue;
 }
 
 void setup() {
@@ -579,16 +594,16 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  valuesDisplay();                                    //Printing read out values from the greenhouse to display.
-  moistureValue1 = moistureSensor1.moistureRead(moistureSensorPort1, &moistureDry1, &moistureWet1);     //Read moistureSensor1 value to check soil humidity.
-  moistureValue2 = moistureSensor2.moistureRead(moistureSensorPort2, &moistureDry2, &moistureWet2);     //Read moistureSensor2 value to check soil humidity.
-  moistureValue3 = moistureSensor3.moistureRead(moistureSensorPort3, &moistureDry3, &moistureWet3);     //Read moistureSensor3 value to check soil humidity.
-  moistureValue4 = moistureSensor4.moistureRead(moistureSensorPort4, &moistureDry4, &moistureWet4);     //Read moistureSensor4 value to check soil humidity.
+  valuesDisplay();                                                                                      //Printing read out values from the greenhouse to display.
+  moistureValue1 = moistureSensor1.moistureRead(moistureSensorPort1, moistureDry1, moistureWet1);       //Read moistureSensor1 value to check soil humidity.
+  moistureValue2 = moistureSensor2.moistureRead(moistureSensorPort2, moistureDry2, moistureWet2);       //Read moistureSensor2 value to check soil humidity.
+  moistureValue3 = moistureSensor3.moistureRead(moistureSensorPort3, moistureDry3, moistureWet3);       //Read moistureSensor3 value to check soil humidity.
+  moistureValue4 = moistureSensor4.moistureRead(moistureSensorPort4, moistureDry4, moistureWet4);       //Read moistureSensor4 value to check soil humidity.
   moistureValue = moistureMeanValue(moistureValue1, moistureValue2, moistureValue3, moistureValue4);    //Mean value from all sensor readouts.
-  tempValue = humiditySensor.readTemperature(false);  //Read temperature value from DHT-sensor. "false" gives the value in °C.
-  //humidValue = humiditySensor.readHumidity();         //Read humidity value from DHT-sensor.
-  lightRead();                                        //Read light sensor UV value.
-  pumpStart();                                        //Start pump to pump water to plant.
-  waterLevelRead();                                   //Check water level in water tank.
+  tempValue = humiditySensor.readTemperature(false);                                                    //Read temperature value from DHT-sensor. "false" gives the value in °C.
+  //humidValue = humiditySensor.readHumidity();                                                           //Read humidity value from DHT-sensor.
+  lightRead();                                                                                          //Read light sensor UV value.
+  pumpStart();                                                                                          //Start pump to pump water to plant.
+  waterLevelRead();                                                                                     //Check water level in water tank.
   lightStart();
 }
