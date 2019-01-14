@@ -91,6 +91,16 @@ unsigned long timeNow;
 unsigned long timeDiff;           //Current time difference from when the warning message function was called. This variable is used to measure for how long time each warning message is shown on display.
 int timePeriod = 2100;            //Variable value specifies in milliseconds, for how long time each warning message will be shown on display, before cleared and/or replaced by other warning message.
 
+//Light timer variables.
+unsigned long timerStartDark = 0;
+unsigned long timerStopDark = 0;
+unsigned long timerStartLight = 0;
+unsigned long timerStopLight = 0;
+unsigned long timeLight = 0;
+unsigned long timeDark = 0;
+bool day = false;
+bool night = false;
+int x = 1;
 
 const unsigned char greenhouse[] PROGMEM= {
   //Startup image 1.
@@ -537,22 +547,44 @@ void ledLightStart() {
 
 void lightTimer(uint16_t uvValue, uint16_t lightValue) {
   //Measure how much light plants have been exposed to during every 24 hours period. It then turns on/off the LED strip lighting to let plants rest 6 hours in every 24 hours period.
-  unsigned long timeStart = 0;
-  unsigned long timeStop = 0;
-  unsigned long timeLight = 0;
-  unsigned long timeDark = 0;
+  if(x == 1) {
+    delay(3000);
+    x = 0;
+  }
+  
+  if(uvValue < 3 && day == false) {
+    timerStartDark = millis();
+    day = true;
+  }
+  else if(uvValue > 3 && day == true) {
+    timerStopDark = millis();
+    timeDark += timerStopDark - timerStartDark;
+    //Serial.print("timeDark: ");
+    //Serial.println(timeDark);
+    day = false;
+  }
 
-  if(uvValue < 3) {
-    timeStart = millis();
+  if(uvValue > 3 && night == false) {
+    timerStartLight = millis();
+    night = true;
   }
-  else if (uvValue > 3) {
-    timeStop = millis();
-    timeDark = timeStop - timeStart;
+  else if(uvValue < 3 && night == true) {
+    timerStopLight = millis();
+    timeLight += timerStopLight - timerStartLight;
+    //Serial.print("timeLight: ");
+    //Serial.println(timeLight);
+    night = false;
   }
-  
-  Serial.print("timeDark: ");
-  Serial.println(timeDark);
-  
+
+  if(timeDark + timeLight == 10000) {
+    Serial.print("totalLight: ");
+    Serial.println(timeLight);
+    Serial.print("totalDark: ");
+    Serial.println(timeDark);
+  }
+
+
+
 
   
 }
