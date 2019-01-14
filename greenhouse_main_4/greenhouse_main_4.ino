@@ -70,6 +70,9 @@ uint16_t lightValue;                      //Light read out, probably presented i
 uint16_t uvValue;                       
 //uint16_t irValue;                       //IR read out not in use.
 
+//LED strip lighting.
+bool ledLightState = false;
+
 //Water pump and flow sensor.
 volatile int rotations;
 int flowValue;
@@ -79,12 +82,12 @@ bool pumpState = false;                   //Variable is set to 'true' when water
 bool waterLevelValue;
 
 //Rotary encoder to adjust temperature threshold.
-int tempPosition = 56;
+int tempPosition = 60;                    //Starting value for temperature threshold adjustment is 30°C
 int aLastState;
 
-//Delay variable to check value of millis() counter be used as delay without stopping program execution.
+//Delay variable to check value of millis() counter be used as delay without stopping program execution. Variables are also used to print warning messages to display for a certain amount of time.
 unsigned long timePrev = 0;
-unsigned long timeNow = 0;  
+unsigned long timeNow;  
 int timeDiff;
 
 const unsigned char greenhouse[] PROGMEM= {
@@ -412,28 +415,51 @@ void valuesDisplay() {
       SeeedOled.setTextXY(7, 0);                        //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
       SeeedOled.putString("Too wet!");
     }
+    else {  //If this alarm not active, clear the warning message row.
+      SeeedOled.setTextXY(7, 0);                        //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("                        ");  //Clear row to enable other warnings to be printed to display.
+    }
   }
 
-  if(waterLevelValue == true && timeDiff > 2400 && timeDiff <= 4800) {
-    SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-    SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
-    SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-    SeeedOled.putString("Refill tank!");                //If water level switch measure that water tank is empty, "Refill tank!" is printed to display.
+  if(timeDiff > 2400 && timeDiff <= 4800) {
+    if(waterLevelValue == true) {
+      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
+      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("Refill tank!");                //If water level switch measure that water tank is empty, "Refill tank!" is printed to display.
+    }
+    else {  //If this alarm not active, clear the warning message row.
+      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
+    }
+  }
+  
+  if(timeDiff > 4800 && timeDiff <= 7200) { 
+    if(tempValue > tempPosition/2) {
+      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
+      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("Too warm!");                   //If measured temperature is higher than preset temperature threshold, "Too warm!" is printed to display.
+    }
+    else {  //If this alarm not active, clear the warning message row.
+      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
+    }
   }
 
-  if(tempValue > tempPosition/2 && timeDiff > 4800 && timeDiff <= 7200) { 
-    SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-    SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
-    SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-    SeeedOled.putString("Too warm!");                   //If measured temperature is higher than preset temperature threshold, "Too warm!" is printed to display.
+  if(timeDiff > 7200 && timeDiff <= 9600) { //If flow sensor value is but is less than a certain value without the water level sensor is giving an warning message, there is a problem with the water tank hose.
+    if(pumpState == true && flowValue < 8 && waterLevelValue == false) {
+      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
+      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("Check tank hose!");            //If measured water flow is below a certain value without the water level sensor indicating the water tank is empty, there is a problem with the water tank hose. "Check water hose!" is printed to display.
+    }
+    else {  //If this alarm not active, clear the warning message row.
+      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
+    }
   }
-
-if(pumpState == true && flowValue < 8 && waterLevelValue == false && timeDiff > 7200 && timeDiff <= 9600) { //If flow sensor value is but is less than a certain value without the water level sensor is giving an warning message, there is a problem with the water tank hose.
-    SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-    SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
-    SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-    SeeedOled.putString("Check tank hose!");            //If measured water flow is below a certain value without the water level sensor indicating the water tank is empty, there is a problem with the water tank hose. "Check water hose!" is printed to display.
-  }
+  
   if(timeDiff > 9600) {
     SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
     SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
@@ -495,13 +521,34 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
   aLastState = aState;                                              //Updates the previous state of outputA with current state.
 }
 
-void lightStart() {
+void ledLightStart() {
   if(uvValue < 3) {                     //Turn on LED light if measured UV value is below a certain value.
     digitalWrite(lightRelay, HIGH);
+    ledLightState = true;
   }
   else {
     digitalWrite(lightRelay, LOW);      //Turn off LED light if measured UV value is above a certain value.
+    ledLightState = false;
   }
+}
+
+void lightTimer(uint16_t uvValue, uint16_t lightValue) {
+  //Measure how much light plants have been exposed to during every 24 hours period. It then turns on/off the LED strip lighting to let plants rest 6 hours in every 24 hours period.
+  unsigned long timeNow = 0;
+  unsigned long timePrev = 0;
+  unsigned long timeLight = 0;
+  unsigned long timeDark = 0;
+
+  if(uvValue > 3) {
+    if(uvValue <= 3) {
+      timeNow = millis();
+      Serial.println(timeNow);
+    }
+  }
+
+  
+
+  
 }
 
 int moistureMeanValue(int moistureValue1, int moistureValue2, int moistureValue3, int moistureValue4) {
@@ -603,7 +650,9 @@ void loop() {
   tempValue = humiditySensor.readTemperature(false);                                                    //Read temperature value from DHT-sensor. "false" gives the value in °C.
   //humidValue = humiditySensor.readHumidity();                                                           //Read humidity value from DHT-sensor.
   lightRead();                                                                                          //Read light sensor UV value.
+  ledLightStart();
+  lightTimer(uvValue, lightValue);
   pumpStart();                                                                                          //Start pump to pump water to plant.
   waterLevelRead();                                                                                     //Check water level in water tank.
-  lightStart();
+  
 }
