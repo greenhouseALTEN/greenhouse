@@ -66,7 +66,7 @@ float tempValue;
 
 //Light sensor.
 SI114X lightSensor;                       //Light sensor object created.
-uint16_t lightValue;                      //Light read out, probably presented in lumens unit. CHECK WHICH SCALE THE LIGHT IS PRESENTED!!!
+uint16_t lightValue;                      //Light read out, probably presented in the unit, lux.
 uint16_t uvValue;                       
 //uint16_t irValue;                       //IR read out not in use.
 
@@ -85,10 +85,12 @@ bool waterLevelValue;
 int tempPosition = 60;                    //Starting value for temperature threshold adjustment is 30°C
 int aLastState;
 
-//Delay variable to check value of millis() counter be used as delay without stopping program execution. Variables are also used to print warning messages to display for a certain amount of time.
+//Delay variables to be used to read relative values the millis()-function. Relative values from millis()-counter are used to print different warning messages to display for a certain amount of time without stopping entire prgram execution, like delay()-function does.
 unsigned long timePrev = 0;
 unsigned long timeNow;  
-int timeDiff;
+unsigned long timeDiff;           //Current time difference from when the warning message function was called. This variable is used to measure for how long time each warning message is shown on display.
+int timePeriod = 2100;            //Variable value specifies in milliseconds, for how long time each warning message will be shown on display, before cleared and/or replaced by other warning message.
+
 
 const unsigned char greenhouse[] PROGMEM= {
   //Startup image 1.
@@ -321,7 +323,7 @@ void startupDisplay() {
 */
 }
 
-void valuesDisplay() {
+void displayValues() {
   //Clear redundant value figures from previous read out for all sensor values.
   SeeedOled.setTextXY(0, 42);
   SeeedOled.putString("   ");
@@ -344,7 +346,7 @@ void valuesDisplay() {
   SeeedOled.setTextXY(0, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Moisture: ");        //Print string to display.
   SeeedOled.setTextXY(0, 42);
-  SeeedOled.putNumber(moistureValue);       //Print moisture value to display.
+  SeeedOled.putNumber(moistureValue);       //Print mean moisture value to display.
 
   /*
   ====================
@@ -371,7 +373,7 @@ void valuesDisplay() {
   SeeedOled.setTextXY(3, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Light: ");           //Print string to display.
   SeeedOled.setTextXY(3, 42);
-  SeeedOled.putNumber(lightValue);          //Print light value in lumen value to display.
+  SeeedOled.putNumber(lightValue);          //Print light value in the unit, lux, to display.
   SeeedOled.putString("lm");                 //Print unit of the value.
 
   /*
@@ -400,11 +402,12 @@ void valuesDisplay() {
   /*
   =========================
   |Error/Warning messages.|
-  =========================*/
-  timeNow = millis();                                   //Read millis() value to be used as delay to present multiple warning messages sharing display space.
+  =========================*/  
+  timeNow = millis();                                   //Read millis() value to be used as delay to present multiple warning messages at the same space of display.
   timeDiff = timeNow - timePrev;
+  Serial.print("timeDiff: ");
   Serial.println(timeDiff);
-  if(timeDiff <= 2400) {
+  if(timeDiff <= timePeriod) {
     SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
     SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
     if(moistureDry == true) {                           //If moisture sensor measure a too low value, "To dry!" is printed to display.
@@ -421,7 +424,7 @@ void valuesDisplay() {
     }
   }
 
-  if(timeDiff > 2400 && timeDiff <= 4800) {
+  if(timePeriod < timeDiff && timeDiff <= timePeriod * 2) {
     if(waterLevelValue == true) {
       SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
       SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
@@ -434,7 +437,7 @@ void valuesDisplay() {
     }
   }
   
-  if(timeDiff > 4800 && timeDiff <= 7200) { 
+  if(timePeriod * 2 < timeDiff && timeDiff <= timePeriod * 3) { 
     if(tempValue > tempPosition/2) {
       SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
       SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
@@ -447,7 +450,7 @@ void valuesDisplay() {
     }
   }
 
-  if(timeDiff > 7200 && timeDiff <= 9600) { //If flow sensor value is but is less than a certain value without the water level sensor is giving an warning message, there is a problem with the water tank hose.
+  if(timePeriod * 3 < timeDiff && timeDiff <= timePeriod * 4) { //If flow sensor value is but is less than a certain value without the water level sensor is giving an warning message, there is a problem with the water tank hose.
     if(pumpState == true && flowValue < 8 && waterLevelValue == false) {
       SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
       SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
@@ -460,7 +463,7 @@ void valuesDisplay() {
     }
   }
   
-  if(timeDiff > 9600) {
+  if(timePeriod * 4 < timeDiff) {
     SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
     SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
     timePrev = millis();                                //Loop warning messages from start.
@@ -504,7 +507,7 @@ void waterLevelRead() {
 
 ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold value set by rotary encoder.
   //Reading preset temperature threshold set by rotation encoder knob.
-  int minTemp = 38;   //19°C is the starting value. Temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
+  int minTemp = 28;   //Temperature value can be set within the boundaries of 14 - 40°C (minTemp - maxTemp). Temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
   int maxTemp = 80;
   int aState;
 
@@ -534,18 +537,21 @@ void ledLightStart() {
 
 void lightTimer(uint16_t uvValue, uint16_t lightValue) {
   //Measure how much light plants have been exposed to during every 24 hours period. It then turns on/off the LED strip lighting to let plants rest 6 hours in every 24 hours period.
-  unsigned long timeNow = 0;
-  unsigned long timePrev = 0;
+  unsigned long timeStart = 0;
+  unsigned long timeStop = 0;
   unsigned long timeLight = 0;
   unsigned long timeDark = 0;
 
-  if(uvValue > 3) {
-    if(uvValue <= 3) {
-      timeNow = millis();
-      Serial.println(timeNow);
-    }
+  if(uvValue < 3) {
+    timeStart = millis();
   }
-
+  else if (uvValue > 3) {
+    timeStop = millis();
+    timeDark = timeStop - timeStart;
+  }
+  
+  Serial.print("timeDark: ");
+  Serial.println(timeDark);
   
 
   
@@ -641,7 +647,7 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  valuesDisplay();                                                                                      //Printing read out values from the greenhouse to display.
+  displayValues();                                                                                      //Printing read out values from the greenhouse to display.
   moistureValue1 = moistureSensor1.moistureRead(moistureSensorPort1, moistureDry1, moistureWet1);       //Read moistureSensor1 value to check soil humidity.
   moistureValue2 = moistureSensor2.moistureRead(moistureSensorPort2, moistureDry2, moistureWet2);       //Read moistureSensor2 value to check soil humidity.
   moistureValue3 = moistureSensor3.moistureRead(moistureSensorPort3, moistureDry3, moistureWet3);       //Read moistureSensor3 value to check soil humidity.
