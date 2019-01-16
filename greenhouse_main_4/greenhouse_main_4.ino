@@ -2,7 +2,6 @@
 *************************
 * Included header files *
 *************************/
-
 #include "Wire.h"
 #include "SeeedOLED.h"
 #include "DHT.h"
@@ -370,55 +369,50 @@ void displayValues() {
 
   //Printing read out values from the greenhouse to display.
   /*
-  ========================
+  ************************
   |Moisture sensor value.|
-  ========================*/
+  ************************/
   SeeedOled.setTextXY(0, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Moisture: ");        //Print string to display.
   SeeedOled.setTextXY(0, 42);
   SeeedOled.putNumber(moistureValueMean);   //Print mean moisture value to display.
 
-  /*
-  ====================
+  /*******************
   |Temp sensor value.|
-  ====================*/
+  ********************/
   SeeedOled.setTextXY(1, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Temp: ");            //Print string to display.
   SeeedOled.setTextXY(1, 42);
   SeeedOled.putNumber(tempValue);           //Print temperature value to display.
 
-  /*
-  ========================
+  /***********************
   |UV-light sensor value.|
-  ========================*/
+  ************************/
   SeeedOled.setTextXY(2, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("UV-light: ");        //Print string to display.
   SeeedOled.setTextXY(2, 42);
   SeeedOled.putNumber(uvValue);             //Print UV-light value to display.
 
-  /*
-  =====================
+  /********************
   |Light sensor value.|
-  =====================*/
+  *********************/
   SeeedOled.setTextXY(3, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Light: ");           //Print string to display.
   SeeedOled.setTextXY(3, 42);
   SeeedOled.putNumber(lightValue);          //Print light value in the unit, lux, to display.
   SeeedOled.putString("lm");                 //Print unit of the value.
 
-  /*
-  =======================
+  /**********************
   |Temp threshold value.|
-  =======================*/
+  ***********************/
   SeeedOled.setTextXY(4, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Temp lim: ");        //Print string to display.
   SeeedOled.setTextXY(4, 42);
   SeeedOled.putNumber(tempPosition / 2);    //Print temperature threshold value to display. Value 24 corresponds to 12°C, temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
   
-  /*
-  ==========================
+  /*************************
   |Water flow sensor value.|
-  ==========================*/
+  **************************/
   SeeedOled.setTextXY(5, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Flow Sens: ");       //Print string to display.
   SeeedOled.setTextXY(5, 42);
@@ -429,10 +423,9 @@ void displayValues() {
   SeeedOled.setTextXY(6, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("----------------");  //Print string to display.
 
-  /*
-  =========================
+  /************************
   |Error/Warning messages.|
-  =========================*/  
+  *************************/  
   timeNow = millis();                                   //Read millis() value to be used as delay to present multiple warning messages at the same space of display.
   timeDiff = timeNow - timePrev;
   Serial.print("timeDiff: ");
@@ -531,7 +524,7 @@ void ledLightStart(int uvThresholdValue, int lightThresholdValue) {
 || Read water level switch. ||
 ============================== */
 void waterLevelRead() {
-  waterLevelValue = digitalRead(waterLevelSwitch);  //If variable is 'false' water level is OK. If 'true' tank water level is too low.
+  waterLevelValue = digitalRead(waterLevelSwitch);                  //If variable is 'false' water level is OK. If 'true' tank water level is too low.
 }
 
 /*
@@ -558,9 +551,9 @@ void pumpStart() {
 }
 
 /*
-==========================================================================================
-|| Count number of rotations on flow sensor, run every time interrupt pin is triggered. ||
-========================================================================================== */
+===========================================================================================
+|| Count number of rotations on flow sensor, runs every time interrupt pin is triggered. ||
+=========================================================================================== */
 void flowCount() {
   //Interrupt function to count number of rotations that flow sensor makes when water is being pumped.
   rotations++;
