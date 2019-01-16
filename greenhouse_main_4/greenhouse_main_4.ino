@@ -1,9 +1,18 @@
+/*
+*************************
+* Included header files *
+*************************/
+
 #include "Wire.h"
 #include "SeeedOLED.h"
 #include "DHT.h"
 #include "SI114X.h"
 #include "MoistureSensor.h"
 
+/*
+****************************************************************
+* Pin setup for hardware connected to Arduino UNO base shield. *
+****************************************************************/
 //Pin setup Arduino UNO board.
 #define moistureSensorPort1 A0
 #define moistureSensorPort2 A1
@@ -18,7 +27,7 @@
 #define waterLevelSwitch 12
 #define lightRelay 6
 
-
+//Arduino UNO base shield layout
 /*
 ################### ARDUINO UNO ###################
 #|_____________ANALOG_IN____________POWER________|#
@@ -34,7 +43,10 @@
 ################### ARDUINO UNO ###################
 */
 
-//Global variables.
+/*
+*********************
+* Global variables. *
+*********************/
 //Moisture sensors.
 MoistureSensor moistureSensor1;           //Create moistureSensor1 from the MoistureSensor class.
 MoistureSensor moistureSensor2;           //Create moistureSensor2 from the MoistureSensor class.
@@ -45,18 +57,9 @@ int moistureValue1;                       //Individual moisture sensor value for
 int moistureValue2;                       //Individual moisture sensor value for moisture sensor 2.
 int moistureValue3;                       //Individual moisture sensor value for moisture sensor 3.
 int moistureValue4;                       //Individual moisture sensor value for moisture sensor 4.                      
-int moistureValue;                        //Mean value of all 4 moisture sensors.
-bool moistureDry = false;                 //Activates warning message on display. 'true' if soil for mean value sensor is too dry.
-bool moistureWet = false;                 //Activates warning message on display. 'true' if soil for mean value sensor is too wet.
-//Variables below not in use now but might be used later to indicate which sensor and thus in which pot the soil is to dry/wet.
-bool moistureDry1 = false;                //Activates warning message on display. 'true' if soil sensor1 is too dry.
-bool moistureWet1 = false;                //Activates warning message on display. 'true' if soil sensor1 is too wet. 
-bool moistureDry2 = false;                //Activates warning message on display. 'true' if soil sensor2 is too dry.
-bool moistureWet2 = false;                //Activates warning message on display. 'true' if soil sensor2 is too wet. 
-bool moistureDry3 = false;                //Activates warning message on display. 'true' if soil sensor3 is too dry.
-bool moistureWet3 = false;                //Activates warning message on display. 'true' if soil sensor3 is too wet. 
-bool moistureDry4 = false;                //Activates warning message on display. 'true' if soil sensor4 is too dry.
-bool moistureWet4 = false;                //Activates warning message on display. 'true' if soil sensor4 is too wet. 
+int moistureValueMean;                    //Mean value of all 4 moisture sensors.
+bool moistureDry = false;                 //Activates warning message on display based on moisture mean value. 'true' if soil for mean value sensor is too dry.
+bool moistureWet = false;                 //Activates warning message on display based on moisture mean value. 'true' if soil for mean value sensor is too wet.
 
 //Temperature and humidity sensor.
 const uint8_t DHTTYPE = DHT11;            //DHT11 = Arduino UNO model is being used.
@@ -70,16 +73,18 @@ uint16_t lightValue;                      //Light read out, probably presented i
 uint16_t uvValue;                       
 //uint16_t irValue;                       //IR read out not in use.
 
-//LED strip lighting.
-bool ledLightState = false;
+//LED lighting.
+bool ledLightState = false;               //Indicate current status of LED lighting. Variable is 'true' when LED lighting is turned on.
+int uvThresholdValue = 3;                 //UV threshold value for turning LED lighting on/off.
+int lightThresholdValue = 0;              //Light threshold value (lux) for turning LED lighting on/off.
 
 //Water pump and flow sensor.
 volatile int rotations;
 int flowValue;
-bool pumpState = false;                   //Variable is set to 'true' when water pump is running.
+bool pumpState = false;                   //Indicate current status of water pump. Variable is 'true' when water pump is running.
 
 //Water level switch.
-bool waterLevelValue;
+bool waterLevelValue;                     //If variable is 'false' water level is OK. If 'true' tank water level is too low.
 
 //Rotary encoder to adjust temperature threshold.
 int tempPosition = 60;                    //Starting value for temperature threshold adjustment is 30°C
@@ -102,6 +107,11 @@ bool day = false;
 bool night = false;
 int x = 1;
 
+
+/*
+==============================================================
+|| Bitmap image 1 to be printed on OLED display at startup. ||
+============================================================== */
 const unsigned char greenhouse[] PROGMEM= {
   //Startup image 1.
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00,
@@ -234,6 +244,10 @@ const unsigned char greenhouse[] PROGMEM= {
 0x00, 0x00, 0x00 
 };
 
+/*
+==============================================================
+|| Bitmap image 2 to be printed on OLED display at startup. ||
+============================================================== */
 const unsigned char features[] PROGMEM= {
   //Startup image 2.
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -309,11 +323,13 @@ const unsigned char features[] PROGMEM= {
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 };
 
+/*
+======================================================
+|| Initialize OLED display and show startup images. ||
+====================================================== */
 void startupDisplay() {
-  //Initialize the OLED Display and show startup images.
   Wire.begin();
   SeeedOled.init();
-
   SeeedOled.clearDisplay();       //Clear display and set start position to top left corner.
   SeeedOled.setHorizontalMode();
   SeeedOled.setNormalDisplay();   //Set display to normal mode (non-inverse mode).
@@ -333,6 +349,10 @@ void startupDisplay() {
 */
 }
 
+/*
+============================================
+|| Print read out values to OLED display. ||
+============================================ */
 void displayValues() {
   //Clear redundant value figures from previous read out for all sensor values.
   SeeedOled.setTextXY(0, 42);
@@ -356,7 +376,7 @@ void displayValues() {
   SeeedOled.setTextXY(0, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Moisture: ");        //Print string to display.
   SeeedOled.setTextXY(0, 42);
-  SeeedOled.putNumber(moistureValue);       //Print mean moisture value to display.
+  SeeedOled.putNumber(moistureValueMean);   //Print mean moisture value to display.
 
   /*
   ====================
@@ -481,14 +501,45 @@ void displayValues() {
   
 }
 
+/*
+==========================================
+|| Read light values from light sensor. ||
+========================================== */
 void lightRead() {
   lightValue = lightSensor.ReadVisible();
   uvValue = lightSensor.ReadUV();
   //irValue = lightSensor.ReadIR();
 }
 
+/*
+================================
+|| Turns LED lighting on/off. ||
+================================ */
+void ledLightStart(int uvThresholdValue, int lightThresholdValue) {
+  if(uvValue < uvThresholdValue) {                                  //Turn on LED light if measured UV value is below uvThresholdValue.
+    digitalWrite(lightRelay, HIGH);
+    ledLightState = true;                                           //Update current status for LED lighting.
+  }
+  else {
+    digitalWrite(lightRelay, LOW);                                  //Turn off LED light if measured UV value is above a certain value.
+    ledLightState = false;                                          //Update current status for LED lighting.
+  }
+}
+
+/*
+==============================
+|| Read water level switch. ||
+============================== */
+void waterLevelRead() {
+  waterLevelValue = digitalRead(waterLevelSwitch);  //If variable is 'false' water level is OK. If 'true' tank water level is too low.
+}
+
+/*
+======================================================
+|| Start water pump and read out water flow sensor. ||
+====================================================== */
 void pumpStart() {
-  //Calculate water flow (Liter/hour) by counting number of rotations that flow sensor makes.
+  //Calculate water flow (Liter/hour) by counting number of rotations that flow sensor makes. Water flow sensor is connected to interrupt pin.
   rotations = 0;                        
   delay(1000);                          //Count number of rotations during one second to calculate water flow in Liter/hour. 
   flowValue = (rotations * 60) / 7.5;   //Calculate the flow rate in Liter/hour.
@@ -506,15 +557,19 @@ void pumpStart() {
   }
 }
 
+/*
+==========================================================================================
+|| Count number of rotations on flow sensor, run every time interrupt pin is triggered. ||
+========================================================================================== */
 void flowCount() {
-  //Interupt function to count number of rotations that flow sensor makes when water is being pumped.
+  //Interrupt function to count number of rotations that flow sensor makes when water is being pumped.
   rotations++;
 }
 
-void waterLevelRead() {
-  waterLevelValue = digitalRead(waterLevelSwitch);  //Read water level sensor. If variable is 'false' water level is OK. If 'true' the water level is too low.
-}
-
+/*
+=====================================================================================
+|| Timer interrupt to read temperature threshold value adjusted by rotary encoder. ||
+===================================================================================== */
 ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold value set by rotary encoder.
   //Reading preset temperature threshold set by rotation encoder knob.
   int minTemp = 28;   //Temperature value can be set within the boundaries of 14 - 40°C (minTemp - maxTemp). Temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
@@ -534,17 +589,11 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
   aLastState = aState;                                              //Updates the previous state of outputA with current state.
 }
 
-void ledLightStart() {
-  if(uvValue < 3) {                     //Turn on LED light if measured UV value is below a certain value.
-    digitalWrite(lightRelay, HIGH);
-    ledLightState = true;
-  }
-  else {
-    digitalWrite(lightRelay, LOW);      //Turn off LED light if measured UV value is above a certain value.
-    ledLightState = false;
-  }
-}
-
+/*
+>>>>>>>>>NOT COMPLETED AND NOT FULLY DEFINED!!!!!!!!!!!!!!!!!!
+======================================================================================
+|| Timer to measure the time for how plants have been exposed to lightess/darkness. ||
+====================================================================================== */
 void lightTimer(uint16_t uvValue, uint16_t lightValue) {
   //Measure how much light plants have been exposed to during every 24 hours period. It then turns on/off the LED strip lighting to let plants rest 6 hours in every 24 hours period.
   if(x == 1) {
@@ -582,21 +631,20 @@ void lightTimer(uint16_t uvValue, uint16_t lightValue) {
     Serial.print("totalDark: ");
     Serial.println(timeDark);
   }
-
-
-
-
-  
 }
 
+/*
+=====================================================================================================
+|| Calculate moisture mean value based on measured moisture values from all four moisture sensors. ||
+===================================================================================================== */
 int moistureMeanValue(int moistureValue1, int moistureValue2, int moistureValue3, int moistureValue4) {
   int moistureValues[4] = {moistureValue1, moistureValue2, moistureValue3, moistureValue4};
   int moistureMax = 0;                                      //Variable used to store a moisture value when comparing it to other moisture sensor values and finally store the highest moisture value.
   int moistureMin = moistureValues[0];                      //First value in array of values used as reference value. Variable used to store a moisture value when comparing it to other moisture sensor values and finally store the lowest moisture value.
-  int maxIndex;                                            
-  int minIndex;
+  int maxIndex;                                             //Index in array for max moisture value.
+  int minIndex;                                             //Index in array for min moisture value.
   int moistureSum = 0;
-  int moistureMeanValue;
+  int moistureMeanValue;                                    //Stores the moisture mean value before returned to main program.
   
   //Since 4 different moisture sensors are used to measure soil moisture in the four different post and specific watering for each individual pots is not possible. The watering action is only based upon a mean value of the moisture readouts. Min and max value are sorted out and not used in case any sensor is not working correctly. 
   for(int i=0; i<sizeof(moistureValues)/sizeof(int); i++) { //Looping through all measured moisture values to find the highest and lowest moisture values.
@@ -624,17 +672,22 @@ int moistureMeanValue(int moistureValue1, int moistureValue2, int moistureValue3
     moistureDry = true;                                     //Set warning to display to alert user. Soil too dry.
     moistureWet = false;
   }
-  else if(moistureValue > 300 && moistureValue <= 700) {
+  else if(moistureMeanValue > 300 && moistureMeanValue <= 700) {
     moistureWet = false;           
     moistureDry = false;
   }
-  else if(moistureValue > 700) {
+  else if(moistureMeanValue > 700) {
     moistureWet = true;                                     //Set warning to display to alert user. Soil too wet.
     moistureDry = false;
   }
   return moistureMeanValue;
 }
 
+
+/*
+*******************************
+* Arduino program setup code. *
+*******************************/
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
@@ -677,20 +730,23 @@ void setup() {
   sei();  //Allow interrupts again.
 }
 
+/*
+******************************************
+* Arduino program main code to be looped *
+******************************************/
 void loop() {
   // put your main code here, to run repeatedly:
   displayValues();                                                                                      //Printing read out values from the greenhouse to display.
-  moistureValue1 = moistureSensor1.moistureRead(moistureSensorPort1, moistureDry1, moistureWet1);       //Read moistureSensor1 value to check soil humidity.
-  moistureValue2 = moistureSensor2.moistureRead(moistureSensorPort2, moistureDry2, moistureWet2);       //Read moistureSensor2 value to check soil humidity.
-  moistureValue3 = moistureSensor3.moistureRead(moistureSensorPort3, moistureDry3, moistureWet3);       //Read moistureSensor3 value to check soil humidity.
-  moistureValue4 = moistureSensor4.moistureRead(moistureSensorPort4, moistureDry4, moistureWet4);       //Read moistureSensor4 value to check soil humidity.
-  moistureValue = moistureMeanValue(moistureValue1, moistureValue2, moistureValue3, moistureValue4);    //Mean value from all sensor readouts.
+  moistureValue1 = moistureSensor1.moistureRead(moistureSensorPort1);                                   //Read moistureSensor1 value to check soil humidity.
+  moistureValue2 = moistureSensor2.moistureRead(moistureSensorPort2);                                   //Read moistureSensor2 value to check soil humidity.
+  moistureValue3 = moistureSensor3.moistureRead(moistureSensorPort3);                                   //Read moistureSensor3 value to check soil humidity.
+  moistureValue4 = moistureSensor4.moistureRead(moistureSensorPort4);                                   //Read moistureSensor4 value to check soil humidity.
+  moistureValueMean = moistureMeanValue(moistureValue1, moistureValue2, moistureValue3, moistureValue4);    //Mean value from all sensor readouts.
   tempValue = humiditySensor.readTemperature(false);                                                    //Read temperature value from DHT-sensor. "false" gives the value in °C.
   //humidValue = humiditySensor.readHumidity();                                                           //Read humidity value from DHT-sensor.
   lightRead();                                                                                          //Read light sensor UV value.
-  ledLightStart();
+  ledLightStart(uvThresholdValue, lightThresholdValue);                                                 //Start LED strip lighting.
   lightTimer(uvValue, lightValue);
   pumpStart();                                                                                          //Start pump to pump water to plant.
   waterLevelRead();                                                                                     //Check water level in water tank.
-  
 }

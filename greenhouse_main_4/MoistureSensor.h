@@ -8,7 +8,7 @@ Moisture sensors.
 class MoistureSensor {
  public:
   //Declaring function below with all its variables.
-  int moistureRead(int moistureSensor, bool moistureDry, bool moistureWet);
+  int moistureRead(int moistureSensor);
  private:
 
 };
