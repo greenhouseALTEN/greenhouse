@@ -65,6 +65,11 @@ const uint8_t DHTTYPE = DHT11;            //DHT11 = Arduino UNO model is being u
 DHT humiditySensor(DHTPIN, DHTTYPE);      //Create humidity sensor from DHT class.
 float tempValue;
 //float humidValue;
+bool tempValueFault = false;
+
+//Rotary encoder to adjust temperature threshold.
+int tempThresholdValue = 60;              //Starting value for temperature threshold adjustment is 30°C.
+int aLastState;
 
 //Light sensor.
 SI114X lightSensor;                       //Light sensor object created.
@@ -81,19 +86,16 @@ int lightThresholdValue = 0;              //Light threshold value (lux) for turn
 volatile int rotations;
 int flowValue;
 bool pumpState = false;                   //Indicate current status of water pump. Variable is 'true' when water pump is running.
+bool waterFlowFault = false;              //Indicate if water is being pumped when water pump is running. Variable is 'false' when water flow is above threshold value. 
 
 //Water level switch.
 bool waterLevelValue;                     //If variable is 'false' water level is OK. If 'true' tank water level is too low.
-
-//Rotary encoder to adjust temperature threshold.
-int tempPosition = 60;                    //Starting value for temperature threshold adjustment is 30°C
-int aLastState;
 
 //Delay variables to be used to read relative values the millis()-function. Relative values from millis()-counter are used to print different warning messages to display for a certain amount of time without stopping entire prgram execution, like delay()-function does.
 unsigned long timePrev = 0;
 unsigned long timeNow;  
 unsigned long timeDiff;           //Current time difference from when the warning message function was called. This variable is used to measure for how long time each warning message is shown on display.
-int timePeriod = 2100;            //Variable value specifies in milliseconds, for how long time each warning message will be shown on display, before cleared and/or replaced by other warning message.
+int timePeriod = 2100;            //Variable value specifies in milliseconds, for how long time each warning message will be shown on display, before cleared and/or replaced by next warning message.
 
 //Light timer variables.
 unsigned long timerStartDark = 0;
@@ -408,7 +410,7 @@ void displayValues() {
   SeeedOled.setTextXY(4, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Temp lim: ");        //Print string to display.
   SeeedOled.setTextXY(4, 42);
-  SeeedOled.putNumber(tempPosition / 2);    //Print temperature threshold value to display. Value 24 corresponds to 12°C, temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
+  SeeedOled.putNumber(tempThresholdValue / 2);    //Print temperature threshold value to display. Value 24 corresponds to 12°C, temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
   
   /*************************
   |Water flow sensor value.|
@@ -422,76 +424,6 @@ void displayValues() {
   //Printing separator line to separate read out values from error/warning messages.
   SeeedOled.setTextXY(6, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("----------------");  //Print string to display.
-
-  /************************
-  |Error/Warning messages.|
-  *************************/  
-  timeNow = millis();                                   //Read millis() value to be used as delay to present multiple warning messages at the same space of display.
-  timeDiff = timeNow - timePrev;
-  Serial.print("timeDiff: ");
-  Serial.println(timeDiff);
-  if(timeDiff <= timePeriod) {
-    SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-    SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
-    if(moistureDry == true) {                           //If moisture sensor measure a too low value, "To dry!" is printed to display.
-      SeeedOled.setTextXY(7, 0);                        //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-      SeeedOled.putString("Too dry!");                  //If moisture sensor measure a too low value, "To dry!" is printed to display.
-    }
-    else if(moistureWet == true) {                      //If moisture sensor measure a too high value, "To wet!" is printed to display.
-      SeeedOled.setTextXY(7, 0);                        //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-      SeeedOled.putString("Too wet!");
-    }
-    else {  //If this alarm not active, clear the warning message row.
-      SeeedOled.setTextXY(7, 0);                        //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("                        ");  //Clear row to enable other warnings to be printed to display.
-    }
-  }
-
-  if(timePeriod < timeDiff && timeDiff <= timePeriod * 2) {
-    if(waterLevelValue == true) {
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("Refill tank!");                //If water level switch measure that water tank is empty, "Refill tank!" is printed to display.
-    }
-    else {  //If this alarm not active, clear the warning message row.
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
-    }
-  }
-  
-  if(timePeriod * 2 < timeDiff && timeDiff <= timePeriod * 3) { 
-    if(tempValue > tempPosition/2) {
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("Too warm!");                   //If measured temperature is higher than preset temperature threshold, "Too warm!" is printed to display.
-    }
-    else {  //If this alarm not active, clear the warning message row.
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
-    }
-  }
-
-  if(timePeriod * 3 < timeDiff && timeDiff <= timePeriod * 4) { //If flow sensor value is but is less than a certain value without the water level sensor is giving an warning message, there is a problem with the water tank hose.
-    if(pumpState == true && flowValue < 8 && waterLevelValue == false) {
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("Check tank hose!");            //If measured water flow is below a certain value without the water level sensor indicating the water tank is empty, there is a problem with the water tank hose. "Check water hose!" is printed to display.
-    }
-    else {  //If this alarm not active, clear the warning message row.
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
-    }
-  }
-  
-  if(timePeriod * 4 < timeDiff) {
-    SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-    SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
-    timePrev = millis();                                //Loop warning messages from start.
-  }
-  
 }
 
 /*
@@ -505,11 +437,11 @@ void lightRead() {
 }
 
 /*
-================================
-|| Turns LED lighting on/off. ||
-================================ */
-void ledLightStart(int uvThresholdValue, int lightThresholdValue) {
-  if(uvValue < uvThresholdValue) {                                  //Turn on LED light if measured UV value is below uvThresholdValue.
+===============================
+|| Turn LED lighting on/off. ||
+=============================== */
+void ledLightStart() {
+  if(uvValue < uvThresholdValue) {                                  //Turn on LED lighting if measured UV value is below uvThresholdValue.
     digitalWrite(lightRelay, HIGH);
     ledLightState = true;                                           //Update current status for LED lighting.
   }
@@ -548,6 +480,14 @@ void pumpStart() {
     digitalWrite(pumpRelay, LOW);       //Stop water pump if button not is being pressed.
     pumpState = false;
   }
+
+  //Alarm if no water is being pumped even though water pump is running even though tank water level is ok.
+  if(pumpState == true && flowValue < 8 && waterLevelValue == false) {
+    waterFlowFault = true;              //If there is no water flow or the flow is too low while water pump is running. Fault variable is set to 'true' to alert user.
+  }
+  else {
+    waterFlowFault = false;
+  }
 }
 
 /*
@@ -572,14 +512,83 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
   aState = digitalRead(rotaryEncoderOutpA);                                      //Reads the current state of the rotary knob, outputA.
   
   if(aState != aLastState) {                                        //A turn on rotary knob is detected by comparing previous and current state of outputA.
-    if(digitalRead(rotaryEncoderOutpB) != aState && tempPosition <= maxTemp) { //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
-      tempPosition++;                                               //Clockwise rotation means increasing position value. Position value is only increased if less than max value.
+    if(digitalRead(rotaryEncoderOutpB) != aState && tempThresholdValue <= maxTemp) { //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
+      tempThresholdValue++;                                         //Clockwise rotation means increasing position value. Position value is only increased if less than max value.
     }
-    else if(tempPosition > minTemp) {
-      tempPosition--;                                               //Counter clockwise rotation means decreasing position value.
+    else if(tempThresholdValue > minTemp) {
+      tempThresholdValue--;                                         //Counter clockwise rotation means decreasing position value.
     }
   }
   aLastState = aState;                                              //Updates the previous state of outputA with current state.
+}
+
+/*
+============================================================================================================
+|| Compare read out temperature with temperature threshold that has been set by adjusting rotary encoder. ||
+============================================================================================================ */
+void tempThresholdCompare() {
+  if(tempValue > tempThresholdValue/2) {                            //Compare read out temperature value with temperature threshold value set by rotary encoder. Temp threshold value is divided by 2 to give correct temperature value.
+     tempValueFault = true;                                         //If measured temperature is higher than temperature threshold that has been set, variable is set to 'true' to alert user.
+  }
+  else {
+    tempValueFault = false;
+  }
+}
+/*
+=============================================================================
+|| Print alarm message to display for any fault that is currently active . ||
+============================================================================= */
+void alarmMessageDisplay() {       
+  timeNow = millis();                                   //Read millis() value to be used as delay to present multiple warning messages at the same space of display after another.
+  timeDiff = timeNow - timePrev;
+  Serial.print("timeDiff: ");
+  Serial.println(timeDiff);
+  
+  if(timeDiff <= timePeriod) {
+    SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+    SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
+    if(waterFlowFault == true) {                        //If fault variable is set to 'true', fault message is printed to display.
+      SeeedOled.setTextXY(7, 0);                        //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+      SeeedOled.putString("No water flow!");            //Print fault message to display.
+    }
+
+    else {  //If this alarm not active, clear the warning message row.
+      SeeedOled.setTextXY(7, 0);                        //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("                        ");  //Clear row to enable other warnings to be printed to display.
+    }
+  }
+
+  if(timePeriod < timeDiff && timeDiff <= timePeriod * 2) {
+    if(waterLevelValue == true) {                         //If fault variable is set to 'true', fault message is printed to display.
+      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
+      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("Refill tank!");                //Print fault message to display.
+    }
+    else {  //If this alarm not active, clear the warning message row.
+      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
+    }
+  }
+  
+  if(timePeriod * 2 < timeDiff && timeDiff <= timePeriod * 3) { 
+    if(tempValueFault == true) {                          //If fault variable is set to 'true', fault message is printed to display.
+      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
+      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("Too warm!");                   //Print fault message to display.
+    }
+    else {  //If this alarm not active, clear the warning message row.
+      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
+    }
+  }
+  
+  if(timePeriod * 3 < timeDiff) {
+    SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+    SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
+    timePrev = millis();                                //Loop warning messages from start.
+  } 
 }
 
 /*
@@ -737,9 +746,11 @@ void loop() {
   moistureValueMean = moistureMeanValue(moistureValue1, moistureValue2, moistureValue3, moistureValue4);    //Mean value from all sensor readouts.
   tempValue = humiditySensor.readTemperature(false);                                                    //Read temperature value from DHT-sensor. "false" gives the value in °C.
   //humidValue = humiditySensor.readHumidity();                                                           //Read humidity value from DHT-sensor.
+  tempThresholdCompare();
   lightRead();                                                                                          //Read light sensor UV value.
-  ledLightStart(uvThresholdValue, lightThresholdValue);                                                 //Start LED strip lighting.
+  ledLightStart();                                                                                      //Start LED strip lighting.
   lightTimer(uvValue, lightValue);
   pumpStart();                                                                                          //Start pump to pump water to plant.
   waterLevelRead();                                                                                     //Check water level in water tank.
+  alarmMessageDisplay();                                                                                //Print alarm messages to display for any faults that is currently active. Warning messages on display will alert user to take action to solve a certain fault.
 }
