@@ -88,6 +88,7 @@ volatile int rotations;
 int flowValue;
 bool pumpState = false;                   //Indicate current status of water pump. Variable is 'true' when water pump is running.
 bool waterFlowFault = false;              //Indicate if water is being pumped when water pump is running. Variable is 'false' when water flow is above threshold value. 
+int flowThresholdValue = 8;               //Variable value specifies the minimum water flow threshold required to avoid setting water flow fault.
 
 //Water level switch.
 bool waterLevelValue;                     //If variable is 'false' water level is OK. If 'true' tank water level is too low.
@@ -446,7 +447,7 @@ void ledLightStart() {
     digitalWrite(lightRelay, HIGH);
     ledLightState = true;                                           //Update current status for LED lighting.
   }
-  else {
+  else if(uvValue > uvThresholdValue) {
     digitalWrite(lightRelay, LOW);                                  //Turn off LED light if measured UV value is above a certain value.
     ledLightState = false;                                          //Update current status for LED lighting.
   }
@@ -491,11 +492,11 @@ void pumpStart() {
   }
 
   //Alarm if no water is being pumped even though water pump is running even though tank water level is ok.
-  if(pumpState == true && flowValue < 8 && waterLevelValue == false) {
+  if(pumpState == true && flowValue < flowThresholdValue && waterLevelValue == false) {
     waterFlowFault = true;              //If there is no water flow or the flow is too low while water pump is running. Fault variable is set to 'true' to alert user.
   }
-  else {
-    waterFlowFault = false;
+  else if(pumpState == true && flowThresholdValue < flowValue && waterLevelValue == false) {
+    waterFlowFault = false;             //If measured water flow, when water pump is running, is above flow threshold. Fault variable is deactivated.
   }
 }
 
