@@ -99,6 +99,12 @@ unsigned long timeNow;
 unsigned long timeDiff;           //Current time difference from when the warning message function was called. This variable is used to measure for how long time each warning message is shown on display.
 int timePeriod = 2100;            //Variable value specifies in milliseconds, for how long time each warning message will be shown on display, before cleared and/or replaced by next warning message.
 
+//Internal clock to keep track of current time.
+int divider100 = 0;
+int hour = 0;
+int minute = 0;
+int second = 0;
+
 //Light timer variables.
 unsigned long timerStartDark = 0;
 unsigned long timerStopDark = 0;
@@ -510,11 +516,16 @@ void flowCount() {
 }
 
 /*
-====================================================================================================
-|| Timer interrupt to read temperature threshold value, that is being adjusted by rotary encoder. ||
-==================================================================================================== */
+=============================================================================================================
+|| Timer interrupt to read temperature threshold value, that is being adjusted by rotary encoder.          ||
+|| Timer interrupt is also used to work as a second ticker for the built clock, included in this function. ||
+============================================================================================================= */
 ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold value set by rotary encoder.
-  //Reading preset temperature threshold set by rotation encoder knob.
+
+  /*************************************
+  |Temperature rotary encoder read out.|
+  **************************************/
+  //Reading preset temperature threshold thas is being adjusted by rotary encoder knob.
   int minTemp = 28;   //Temperature value can be set within the boundaries of 14 - 40°C (minTemp - maxTemp). Temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
   int maxTemp = 80;
   int aState;
@@ -530,6 +541,39 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
     }
   }
   aLastState = aState;                                              //Updates the previous state of outputA with current state.
+
+  /***************************************************
+  |Internal clock used to keep track of current time.|
+  NOT WORKING YET!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ****************************************************/
+  //Internal clock.
+  divider100++;
+
+  if(divider100 == 100) {
+    //This function will be run every second, 1Hz and therefore it will work as second pointer that increases its value/ticks every second.
+    second++;                 //Increase second pointer every time this function runs.
+  
+    if(second == 60) {        //If second pointer reaches a value of 60 (60 seconds).
+      minute++;               //Increase minute pointer.
+      second = 0;             //Clear second pointer.
+    }
+  
+    if(minute == 60) {        //If minute pointer reaches a value of 60 (60 minutes).
+      hour++;                 //Increase hour pointer.
+      minute = 0;             //Clear minute pointer.
+    }
+
+    if(hour == 24) {          //If hour pointer reaches a value of 24 (24 hours),
+      hour = 0;               //Clear hour pointer.
+    }
+    //Print clock to Serial Terminal.
+    Serial.print(hour);
+    Serial.print("h: "); 
+    Serial.print(minute);
+    Serial.print("m : ");
+    Serial.print(second);
+    Serial.println("s");
+  }
 }
 
 /*
