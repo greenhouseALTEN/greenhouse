@@ -21,10 +21,12 @@
 #define rotaryEncoderOutpA 11
 #define rotaryEncoderOutpB 10
 #define pumpRelay 8
-#define pumpButton 7
+//#define pumpButton 7
 #define flowSensor 3
 #define waterLevelSwitch 12
 #define lightRelay 6
+#define clockSetButton 7
+#define clockModeButton 2
 
 //Arduino UNO base shield layout
 /*
@@ -100,10 +102,17 @@ unsigned long timeDiff;           //Current time difference from when the warnin
 int timePeriod = 2100;            //Variable value specifies in milliseconds, for how long time each warning message will be shown on display, before cleared and/or replaced by next warning message.
 
 //Internal clock to keep track of current time.
+int hourPointer = 0;
+int minutePointer = 0;
+int secondPointer = 0;
+bool pushButton1 = false;
+bool pushButton2 = false;
+bool minuteInputMode = false;
+bool hourInputMode = false;
+bool clockSetMode = true;
+bool clockStartMode = false;
+bool clockReadyMode = false;
 int divider100 = 0;
-int hour = 0;
-int minute = 0;
-int second = 0;
 
 //Light timer variables.
 unsigned long timerStartDark = 0;
@@ -479,6 +488,7 @@ void waterLevelRead() {
 ======================================================
 || Start water pump and read out water flow sensor. ||
 ====================================================== */
+/*
 void pumpStart() {
   //Calculate water flow (Liter/hour) by counting number of rotations that flow sensor makes. Water flow sensor is connected to interrupt pin.
   rotations = 0;                        
@@ -503,8 +513,9 @@ void pumpStart() {
   }
   else if(pumpState == true && flowThresholdValue < flowValue && waterLevelValue == false) {
     waterFlowFault = false;             //If measured water flow, when water pump is running, is above flow threshold. Fault variable is deactivated.
-  }
-}
+  } */
+//} 
+
 
 /*
 ===========================================================================================
@@ -544,35 +555,38 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
 
   /***************************************************
   |Internal clock used to keep track of current time.|
-  NOT WORKING YET!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ****************************************************/
   //Internal clock.
-  divider100++;
-
-  if(divider100 == 100) {
-    //This function will be run every second, 1Hz and therefore it will work as second pointer that increases its value/ticks every second.
-    second++;                 //Increase second pointer every time this function runs.
+  if(clockStartMode == true) {
+    divider100++;               //This function runs in a frequency of 100Hz. To the second pointer tick in 1Hz frequency this variable as a divider.
   
-    if(second == 60) {        //If second pointer reaches a value of 60 (60 seconds).
-      minute++;               //Increase minute pointer.
-      second = 0;             //Clear second pointer.
+    if(divider100 == 100) {
+      //This function will be run every second, 1Hz and therefore it will work as second pointer that increases its value/ticks every second.
+      divider100 = 0;           //Reset divider every 1Hz.
+      secondPointer++;                  //Increase second pointer every time this function runs.
+      
+      //Second pointer.
+      if(secondPointer == 60) {         //If second pointer reaches a value of 60 (60 seconds).
+        minutePointer++;                //Increase minute pointer.
+        secondPointer = 0;              //Clear second pointer.
+      }
+      //Minute pointer.
+      if(minutePointer == 60) {         //If minute pointer reaches a value of 60 (60 minutes).
+        hourPointer++;                  //Increase hour pointer.
+        minutePointer = 0;              //Clear minute pointer.
+      }
+      //Hour pointer.
+      if(hourPointer == 24) {           //If hour pointer reaches a value of 24 (24 hours),
+        hourPointer = 0;                //Clear hour pointer.
+      }
+      //Print clock to Serial Terminal.
+      Serial.print(hourPointer);
+      Serial.print("h : "); 
+      Serial.print(minutePointer);
+      Serial.print("m : ");
+      Serial.print(secondPointer);
+      Serial.println("s");
     }
-  
-    if(minute == 60) {        //If minute pointer reaches a value of 60 (60 minutes).
-      hour++;                 //Increase hour pointer.
-      minute = 0;             //Clear minute pointer.
-    }
-
-    if(hour == 24) {          //If hour pointer reaches a value of 24 (24 hours),
-      hour = 0;               //Clear hour pointer.
-    }
-    //Print clock to Serial Terminal.
-    Serial.print(hour);
-    Serial.print("h: "); 
-    Serial.print(minute);
-    Serial.print("m : ");
-    Serial.print(second);
-    Serial.println("s");
   }
 }
 
@@ -595,8 +609,8 @@ void tempThresholdCompare() {
 void alarmMessageDisplay() {       
   timeNow = millis();                                   //Read millis() value to be used as delay to present multiple warning messages at the same space of display after another.
   timeDiff = timeNow - timePrev;
-  Serial.print("timeDiff: ");
-  Serial.println(timeDiff);
+  //Serial.print("timeDiff: ");
+  //Serial.println(timeDiff);
 
   /******************
   |Water flow fault.|
@@ -764,6 +778,52 @@ int moistureMeanValue(int moistureValue1, int moistureValue2, int moistureValue3
   return moistureMeanValue;
 }
 
+void setClockTime() {
+  if(clockSetMode == true) {
+    Serial.println("Enter current time by using the two buttons, button 1 and button 2.");
+    Serial.println("Button 1 is used to increase pointer value.");
+    Serial.println("Button 2 is used to confirm the set pointer value and toggle from minute pointer to hour pointer value.");
+    clockSetMode = false;
+    minuteInputMode = true;
+  }
+  
+  pushButton1 = digitalRead(clockSetButton);                   //Check if button1 is being pressed.
+  pushButton2 = digitalRead(clockModeButton);                   //Check if button2 is being pressed.
+  
+  if(pushButton1 == true && minuteInputMode == true) {
+    delay(170);                                         //Delay to avoid contact bounce.
+    minutePointer++;                                    //Increase minute pointer every time button is pressed.
+    if(minutePointer == 60) {                           
+      minutePointer = 0; 
+    }
+    Serial.print("Minute pointer: ");
+    Serial.println(minutePointer);
+  }
+  else if(pushButton2 == true && minuteInputMode == true) {
+    delay(500);
+    Serial.println("Minute pointer is set. Now set hour pointer.");
+    hourInputMode = true;
+    minuteInputMode = false;
+  }
+  else if(pushButton1 == true && hourInputMode == true) {
+    delay(170);
+    hourPointer++;
+    if(hourPointer == 24) {
+      hourPointer = 0;
+    }
+    Serial.print("Hour pointer: ");
+    Serial.println(hourPointer);
+  }
+  else if(pushButton2 == true && hourInputMode == true) {
+    Serial.print("Set time is: ");
+    Serial.print(hourPointer);
+    Serial.print(" : ");
+    Serial.println(minutePointer);
+    Serial.println("Current time has been set. Clock is now ticking.");
+    clockStartMode = true;
+    hourInputMode = false;
+  }
+}
 
 /*
 *******************************
@@ -784,7 +844,7 @@ void setup() {
   attachInterrupt(1, flowCount, RISING);  //Initializing interrupt to enable water flow sensor to calculate water flow pumped by water pump.
  
   pinMode(pumpRelay, OUTPUT);
-  pinMode(pumpButton, INPUT);
+  //pinMode(pumpButton, INPUT);
   
   pinMode(waterLevelSwitch, INPUT);
   
@@ -793,6 +853,9 @@ void setup() {
   pinMode(rotaryEncoderOutpA, INPUT);
   pinMode(rotaryEncoderOutpB, INPUT);
   aLastState = digitalRead(rotaryEncoderOutpA);      //Read initial position value.
+
+  pinMode(clockSetButton, INPUT);
+  pinMode(clockModeButton, INPUT);
   
   humiditySensor.begin();                 //Initializing humidity sensor.
   
@@ -817,6 +880,7 @@ void setup() {
 ******************************************/
 void loop() {
   // put your main code here, to run repeatedly:
+  setClockTime();
   displayValues();                                                                                      //Printing read out values from the greenhouse to display.
   moistureValue1 = moistureSensor1.moistureRead(moistureSensorPort1);                                   //Read moistureSensor1 value to check soil humidity.
   moistureValue2 = moistureSensor2.moistureRead(moistureSensorPort2);                                   //Read moistureSensor2 value to check soil humidity.
@@ -829,7 +893,7 @@ void loop() {
   lightRead();                                                                                          //Read light sensor UV value.
   ledLightStart();                                                                                      //Start LED strip lighting.
   //lightTimer(uvValue, lightValue);  NOT IN USE!!!
-  pumpStart();                                                                                          //Start pump to pump water to plant.
+  //pumpStart();                                                                                          //Start pump to pump water to plant.
   waterLevelRead();                                                                                     //Check water level in water tank.
   alarmMessageDisplay();                                                                                //Print alarm messages to display for any faults that is currently active. Warning messages on display will alert user to take action to solve a certain fault.
 }
