@@ -111,8 +111,11 @@ bool minuteInputMode = false;
 bool hourInputMode = false;
 bool clockSetMode = true;
 bool clockStartMode = false;
-bool clockReadyMode = false;
+bool clockViewMode = false;             //Enable clock to be shown before display is cleared and replaced by read out values printed to display.
 int divider100 = 0;
+
+//Warning messages to display.
+bool enableAlarmMessage = false;        //Enable any alarm to be printed to display. If variable is 'true' alarm is enable to be printed to display.
 
 //Light timer variables.
 unsigned long timerStartDark = 0;
@@ -348,7 +351,7 @@ const unsigned char features[] PROGMEM= {
 void startupDisplay() {
   Wire.begin();
   SeeedOled.init();
-  SeeedOled.clearDisplay();       //Clear display and set start position to top left corner.
+  SeeedOled.clearDisplay();       //Clear display.
   SeeedOled.setHorizontalMode();
   SeeedOled.setNormalDisplay();   //Set display to normal mode (non-inverse mode).
   SeeedOled.setPageMode();        //Set addressing mode to Page Mode.
@@ -612,78 +615,79 @@ void alarmMessageDisplay() {
   //Serial.print("timeDiff: ");
   //Serial.println(timeDiff);
 
-  /******************
-  |Water flow fault.|
-  *******************/
-  if(timeDiff <= timePeriod) {
-    SeeedOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
-    SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
-    if(waterFlowFault == true) {                        //If fault variable is set to 'true', fault message is printed to display.
-      SeeedOled.setTextXY(7, 0);                        //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-      SeeedOled.putString("No water flow!");            //Print fault message to display.
-    }
-
-    else {  //If this alarm not active, clear the warning message row.
-      SeeedOled.setTextXY(7, 0);                        //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("                        ");  //Clear row to enable other warnings to be printed to display.
-    }
-  }
-
-  /**********************
-  |Low water tank level.|
-  ***********************/
-  if(timePeriod < timeDiff && timeDiff <= timePeriod * 2) {
-    if(waterLevelValue == true) {                         //If fault variable is set to 'true', fault message is printed to display.
+  if(enableAlarmMessage == true) {                        //Any alarm can only be printed to display if variable is set to 'true'.
+    /******************
+    |Water flow fault.|
+    *******************/
+    if(timeDiff <= timePeriod) {
       SeeedOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
       SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("Refill tank!");                //Print fault message to display.
-    }
-    else {  //If this alarm not active, clear the warning message row.
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
-    }
-  }
+      if(waterFlowFault == true) {                        //If fault variable is set to 'true', fault message is printed to display.
+        SeeedOled.setTextXY(7, 0);                        //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+        SeeedOled.putString("No water flow!");            //Print fault message to display.
+      }
 
-  /*******************
-  |Temperature fault.|
-  ********************/
-  if(timePeriod * 2 < timeDiff && timeDiff <= timePeriod * 3) { 
-    if(tempValueFault == true) {                          //If fault variable is set to 'true', fault message is printed to display.
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
-      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("Too warm!");                   //Print fault message to display.
+      else {  //If this alarm not active, clear the warning message row.
+        SeeedOled.setTextXY(7, 0);                        //Set cordinates to the warning message will be printed.
+        SeeedOled.putString("                        ");  //Clear row to enable other warnings to be printed to display.
+      }
     }
-    else {  //If this alarm not active, clear the warning message row.
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
-    }
-  }
 
-  /********************
-  |LED lighting fault.|
-  *********************/
-  if(timePeriod * 3 < timeDiff && timeDiff <= timePeriod * 4) { 
-    if(ledLightFault == true) {                           //If fault variable is set to 'true', fault message is printed to display.
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
-      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("Check LED light!");            //If measured water flow is below a certain value without the water level sensor indicating the water tank is empty, there is a problem with the water tank hose. "Check water hose!" is printed to display.
+    /**********************
+    |Low water tank level.|
+    ***********************/
+    if(timePeriod < timeDiff && timeDiff <= timePeriod * 2) {
+      if(waterLevelValue == true) {                         //If fault variable is set to 'true', fault message is printed to display.
+        SeeedOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
+        SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
+        SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+        SeeedOled.putString("Refill tank!");                //Print fault message to display.
+      }
+      else {  //If this alarm not active, clear the warning message row.
+        SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+        SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
+      }
     }
-    else {  //If this alarm not active, clear the warning message row.
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
+
+    /*******************
+    |Temperature fault.|
+    ********************/
+    if(timePeriod * 2 < timeDiff && timeDiff <= timePeriod * 3) { 
+      if(tempValueFault == true) {                          //If fault variable is set to 'true', fault message is printed to display.
+        SeeedOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
+        SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
+        SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+        SeeedOled.putString("Too warm!");                   //Print fault message to display.
+      }
+      else {  //If this alarm not active, clear the warning message row.
+        SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+        SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
+      }
     }
-  }
+
+    /********************
+    |LED lighting fault.|
+    *********************/
+    if(timePeriod * 3 < timeDiff && timeDiff <= timePeriod * 4) { 
+      if(ledLightFault == true) {                           //If fault variable is set to 'true', fault message is printed to display.
+        SeeedOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
+        SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
+        SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+        SeeedOled.putString("Check LED light!");            //If measured water flow is below a certain value without the water level sensor indicating the water tank is empty, there is a problem with the water tank hose. "Check water hose!" is printed to display.
+      }
+      else {  //If this alarm not active, clear the warning message row.
+        SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+        SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
+      }
+    }
   
-  if(timePeriod * 4 < timeDiff) {
-    SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-    SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
-    timePrev = millis();                                //Loop warning messages from start.
-  } 
+    if(timePeriod * 4 < timeDiff) {
+      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
+      timePrev = millis();                                //Loop warning messages from start.
+    }  
+  }
 }
-
 /*
 >>>>>>>>>NOT COMPLETED AND NOT FULLY DEFINED!!!!!!!!!!!!!!!!!!
 ======================================================================================
@@ -821,8 +825,51 @@ void setClockTime() {
     Serial.println(minutePointer);
     Serial.println("Current time has been set. Clock is now ticking.");
     clockStartMode = true;
-    hourInputMode = false;
+    hourInputMode = false;           
   }
+  else if(pushButton2 == true && clockStartMode == true) {                    //If current time has been, next click on MODE-button clears display and enable value read outs to be shown on display.
+    SeeedOled.clearDisplay();       //Clear display.
+    clockViewMode = true;                                                  //Enable clock to be shown before display is cleared and replaced by read out values printed to display.                                
+    enableAlarmMessage = true;                                                //Enable any alarm to be printed to display.            
+  }
+}
+
+/*
+*************************************************************
+|Print clock values to display to let user set current time.|
+*************************************************************/
+void setClockDisplay() {
+  SeeedOled.setTextXY(0, 0);                            //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putString("Enter cur. time!");              //Print text to display.
+  SeeedOled.setTextXY(1, 0);                            //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putString("Use the buttons");               //Print text to display.
+  SeeedOled.setTextXY(2, 0);                            //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putString("SET = inc. p.val");              //Print text to display.
+  SeeedOled.setTextXY(3, 0);                            //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putString("MODE = min to h");               //Print text to display.
+  SeeedOled.setTextXY(4, 0);                            //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putString("--------------------");          //Print text to display.
+  SeeedOled.setTextXY(5, 0);                            //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putString("min point: ");                   //Print text to display.
+  SeeedOled.setTextXY(5, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(minutePointer);                   //Print minute pointer value to display.
+  SeeedOled.setTextXY(6, 0);                            //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putString("hour point: ");                  //Print text to display.
+  SeeedOled.setTextXY(6, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(hourPointer);                     //Print hour pointer value to display.
+  SeeedOled.setTextXY(7, 0);                            //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putString("Time: ");                        //Print text to display.
+
+  SeeedOled.setTextXY(7, 38);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(hourPointer);                     //Print hour pointer value to display.
+  SeeedOled.setTextXY(7, 40);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putString(":");                            //Print text to display.
+  SeeedOled.setTextXY(7, 41);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(minutePointer);                   //Print hour pointer value to display.
+  SeeedOled.setTextXY(7, 43);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putString(":");                            //Print text to display.
+  SeeedOled.setTextXY(7, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(secondPointer);                   //Print hour pointer value to display.
 }
 
 /*
@@ -880,8 +927,13 @@ void setup() {
 ******************************************/
 void loop() {
   // put your main code here, to run repeatedly:
-  setClockTime();
-  displayValues();                                                                                      //Printing read out values from the greenhouse to display.
+  if(clockViewMode == false) {                                                                         //Display time set screen only if current time has not been set.
+    setClockTime();
+    setClockDisplay();
+  }
+  if(clockStartMode == true && enableAlarmMessage == true) {                                                                          //Only display read out values after current time on internal clock, has been set.
+    displayValues();                                                                                    //Printing read out values from the greenhouse to display.
+  }
   moistureValue1 = moistureSensor1.moistureRead(moistureSensorPort1);                                   //Read moistureSensor1 value to check soil humidity.
   moistureValue2 = moistureSensor2.moistureRead(moistureSensorPort2);                                   //Read moistureSensor2 value to check soil humidity.
   moistureValue3 = moistureSensor3.moistureRead(moistureSensorPort3);                                   //Read moistureSensor3 value to check soil humidity.
