@@ -102,8 +102,10 @@ unsigned long timeDiff;           //Current time difference from when the warnin
 int timePeriod = 2100;            //Variable value specifies in milliseconds, for how long time each warning message will be shown on display, before cleared and/or replaced by next warning message.
 
 //Internal clock to keep track of current time.
-int hourPointer = 0;
-int minutePointer = 0;
+int hourPointer1 = 0;
+int hourPointer2 = 0;
+int minutePointer1 = 0;
+int minutePointer2 = 0;
 int secondPointer1 = 0;                 //First digit of second pointer.
 int secondPointer2 = 0;                 //Second digit of second pointer.
 bool pushButton1 = false;
@@ -111,7 +113,7 @@ bool pushButton2 = false;
 bool minuteInputMode = false;
 bool hourInputMode = true;
 bool clockStartMode = false;
-bool clockViewMode = false;             //Enable clock to be shown before display is cleared and replaced by read out values printed to display.
+bool clockViewMode = false;             //Enable clock to be printed to display before display is cleared and replaced by read out values display.
 int divider100 = 0;
 int divider50 = 0;                          
 bool flashClockPointer = false;         //Variable to create lash clock pointer when in "set clock" mode.       
@@ -119,6 +121,12 @@ int x = 0;                              //Toggle variable.
 
 //Warning messages to display.
 bool enableAlarmMessage = false;        //Enable any alarm to be printed to display. If variable is 'true' alarm is enable to be printed to display.
+
+//Display screen modes, the display mode variable that is set to 'true' is run first when booting the Arduino.
+bool setTimeDisplay = true;             //
+bool startupImageDisplay = false;
+bool valueReadoutDisplay = false;
+bool serviceModeDisplay = false;
 
 //Light timer variables.
 unsigned long timerStartDark = 0;
@@ -380,11 +388,13 @@ void displayValues() {
   //Clear redundant value figures from previous read out for all sensor values.
   SeeedOled.setTextXY(0, 42);
   SeeedOled.putString("      ");
+  SeeedOled.setTextXY(1, 37);           //Ugly clearing of screen because clearDisplay-function did not work.
+  SeeedOled.putString("      ");
   SeeedOled.setTextXY(1, 42);
   SeeedOled.putString("      ");
   SeeedOled.setTextXY(2, 42);
   SeeedOled.putString("      ");
-  SeeedOled.setTextXY(3, 38);
+  SeeedOled.setTextXY(3, 38);           //Ugly clearing of screen because clearDisplay-function did not work.
   SeeedOled.putString("    ");    
   SeeedOled.setTextXY(3, 42);
   SeeedOled.putString("      ");
@@ -548,7 +558,7 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
   int maxTemp = 80;
   int aState;
 
-  aState = digitalRead(rotaryEncoderOutpA);                                      //Reads the current state of the rotary knob, outputA.
+  aState = digitalRead(rotaryEncoderOutpA);                         //Reads the current state of the rotary knob, outputA.
   
   if(aState != aLastState) {                                        //A turn on rotary knob is detected by comparing previous and current state of outputA.
     if(digitalRead(rotaryEncoderOutpB) != aState && tempThresholdValue <= maxTemp) { //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
@@ -582,7 +592,6 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
     Serial.println(flashClockPointer);
   } 
   
-  
   if(clockStartMode == true) {          //This function runs in a frequency of 100Hz. To the second pointer tick in 1Hz frequency this variable as a divider.
     divider100++;                       
       
@@ -592,31 +601,32 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
       secondPointer1++;                 //Increase second pointer every time this function runs.
       
       //Second pointer.
-      if(secondPointer1 == 10) {        //If first second pointer digit reaches a value of 10 (10 seconds).
-        secondPointer2++;               //Increase second digit of second pointer digit.
-        secondPointer1 = 0;             //Clear second digit.
+      if(secondPointer1 == 10) {        //If 1-digit second pointer reaches a value of 10 (elapsed time is 10 seconds).
+        secondPointer2++;               //Increase 10-digit second pointer.
+        secondPointer1 = 0;             //Clear 1-digit pointer.
       }
-      if(secondPointer2 == 6) {         //If second pointer (first and second digit indicate 60 s), clear second pointer digit.
-        minutePointer++;                //Increase minute pointer.
-        secondPointer2 = 0;             //Clear second pointer.
+      if(secondPointer2 == 6) {         //If 10-digit pointer reaches a value of 6 (elapsed time is 60 seconds).
+        minutePointer1++;               //Increase minute pointer.
+        secondPointer2 = 0;             //Clear 10-digit second pointer.
       }
       //Minute pointer.
-      if(minutePointer == 60) {         //If minute pointer reaches a value of 60 (60 minutes).
-        hourPointer++;                  //Increase hour pointer.
-        minutePointer = 0;              //Clear minute pointer.
+      if(minutePointer1 == 10) {        //If 1-digit minute pointer reaches a value of 10 (elapsed time is 10 minutes).
+        minutePointer2++;               //Increase 10-digit minute pointer.
+        minutePointer1 = 0;             //Clear 1-digit minute pointer.
+      }
+      if(minutePointer2 == 6) {         //If 10-digit minute pointer reaches a value of 6 (elapsed time is 60 minutes).
+        hourPointer1++;                 //Increase 1-digit hour pointer.
+        minutePointer2 = 0;              //Clear 10-digit minute pointer.
       }
       //Hour pointer.
-      if(hourPointer == 24) {           //If hour pointer reaches a value of 24 (24 hours),
-        hourPointer = 0;                //Clear hour pointer.
+      if(hourPointer1 == 10) {          //If 1-digit hour pointer reaches a value of 10 (elapsed time is 10 hours).
+        hourPointer2++;                 //Increase 10-digit hour pointer.
+        hourPointer1 = 0;               //Clear 1-digit hour pointer.
       }
-      //Print clock to Serial Terminal.
-      Serial.print(hourPointer);
-      Serial.print("h : "); 
-      Serial.print(minutePointer);
-      Serial.print("m : ");
-      Serial.print(secondPointer2);
-      Serial.print(secondPointer1);
-      Serial.println("s");
+      if(hourPointer2 == 2 && hourPointer1 == 4) {  //If 1-digit and 10-digit hourPointer combined reaches 24 (elapsed time is 24 hours).
+        hourPointer1 = 0;                           //Clear both hour digits.
+        hourPointer2 = 0;
+      }
     }
   }
 }
@@ -626,44 +636,42 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
 || Set current time by using SET- and MODE-buttons as input. ||
 =============================================================== */
 void setClockTime() {
-
   pushButton1 = digitalRead(clockSetButton);                    //Check if button1 is being pressed.
   pushButton2 = digitalRead(clockModeButton);                   //Check if button2 is being pressed.
 
   if(pushButton1 == true && hourInputMode == true) {
     delay(170);                                                 //Delay to avoid contact bounce.
-    hourPointer++;                                              //Increase minute pointer every time button is pressed.
-    if(hourPointer == 24) {
-      hourPointer = 0;
+    hourPointer1++;                                             //Increase hour pointer every time button is pressed.
+    if(hourPointer1 == 10) {                                    //If 1-digit hour pointer reaches 10, increase 10-digit hour poínter.
+      hourPointer2++;
+      hourPointer1 = 0;
     }
-    Serial.print("Hour pointer: ");
-    Serial.println(hourPointer);
-  } 
+    if(hourPointer2 == 2 && hourPointer1 == 4) {                //If 10-digit hour pointer reaches a value of 2 and 1-digit hour pointer reaches a value of 4 (elapsed time is 24 hours).
+      hourPointer2 = 0;                                         //Clear both hour pointer values.
+      hourPointer1 = 0;
+    }
+  }
   else if(pushButton2 == true && hourInputMode == true) {
     delay(200);
-    Serial.println("Hour pointer is set. Now set minute pointer.");
-    hourInputMode = false;
-    minuteInputMode = true;
+    hourInputMode = false;                                      //Setting of hour pointers have been completed.
+    minuteInputMode = true;                                     //Continue with setting minute pointers.
   }
-  else if(pushButton1 == true && minuteInputMode == true) {
+  else if(pushButton1 == true && minuteInputMode == true) {  
     delay(170);
-    minutePointer++;
-    if(minutePointer == 60) {
-      hourPointer = 0;
+    minutePointer1++;                                           //Increase minute pointer every time button is pressed.
+    if(minutePointer1 == 10) {                                  //If 1-digit minute pointer reaches a value of 10, increase 10-digit minute pointer.
+      minutePointer2++;
+      minutePointer1 = 0;
     }
-    Serial.print("Minute pointer: ");
-    Serial.println(minutePointer);
+    if(minutePointer2 == 6) {                                   //If 10-digit minute pointer reaches a value of 6 (elapsed time is 60 minutes).
+      minutePointer2 = 0;                                       //Clear 10-digit minute pointer.
+    }
   }
   else if(pushButton2 == true && minuteInputMode == true) {
-    Serial.print("Set time is: ");
-    Serial.print(hourPointer);
-    Serial.print(" : ");
-    Serial.println(minutePointer);
-    Serial.println("Current time has been set. Clock is now ticking.");
-    clockStartMode = true;
-    minuteInputMode = false;           
+    minuteInputMode = false;                              //Setting of minute pointers have been completed.
+    clockStartMode = true;                                //Start the clock.
   }
-  else if(pushButton2 == true && clockStartMode == true) {              //If current time has been, next click on MODE-button clears display and enable value read outs to be shown on display.
+  else if(pushButton2 == true && clockStartMode == true) {              //If current time has been set, next click on MODE-button will enable value read out values to be printed to display.
     SeeedOled.clearDisplay();                                           //Clear display.
     clockViewMode = true;                                               //Enable clock to be shown before display is cleared and replaced by read out values printed to display.                                
     enableAlarmMessage = true;                                          //Enable any alarm to be printed to display.            
@@ -696,7 +704,9 @@ void setClockDisplay() {
   }
   else {
     SeeedOled.setTextXY(6, 20);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-    SeeedOled.putNumber(hourPointer);                     //Print hour pointer value to display.
+    SeeedOled.putNumber(hourPointer2);                    //Print 10-digit hour pointer value to display.
+    SeeedOled.setTextXY(6, 21);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+    SeeedOled.putNumber(hourPointer1);                    //Print 1-digit hour pointer value to display.
   }
   
   SeeedOled.setTextXY(6, 22);                             //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
@@ -708,7 +718,9 @@ void setClockDisplay() {
   }
   else {
     SeeedOled.setTextXY(6, 23);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-    SeeedOled.putNumber(minutePointer);                     //Print hour pointer value to display.
+    SeeedOled.putNumber(minutePointer2);                  //Print 10-digit hour pointer value to display.
+    SeeedOled.setTextXY(6, 24);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+    SeeedOled.putNumber(minutePointer1);                  //Print 1-digit hour pointer value to display.
   }
 
   SeeedOled.setTextXY(6, 25);                           
@@ -967,7 +979,7 @@ void loop() {
     setClockTime();
     setClockDisplay();
   }
-  if(clockStartMode == true && enableAlarmMessage == true) {                                                                          //Only display read out values after current time on internal clock, has been set.
+  if(clockViewMode == true && enableAlarmMessage == true) {                                                                          //Only display read out values after current time on internal clock, has been set.
     displayValues();                                                                                    //Printing read out values from the greenhouse to display.
   }
   moistureValue1 = moistureSensor1.moistureRead(moistureSensorPort1);                                   //Read moistureSensor1 value to check soil humidity.
