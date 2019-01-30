@@ -859,7 +859,17 @@ void lightTimer(uint16_t uvValue, uint16_t lightValue) {
 }
 
 void viewServiceMode() {
-
+  //Clear redundant value digits from previous read out for all sensor values.
+  SeeedOled.setTextXY(2, 19);
+  SeeedOled.putString("   ");
+  SeeedOled.setTextXY(2, 28);
+  SeeedOled.putString("   ");     
+  SeeedOled.setTextXY(3, 19);
+  SeeedOled.putString("   ");
+  SeeedOled.setTextXY(3, 28);
+  SeeedOled.putString("   "); 
+  
+  //Display clock.
   SeeedOled.setTextXY(0, 0);                            //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Clock: ");                       //Print string to display.
   //Hour pointer.
@@ -886,9 +896,38 @@ void viewServiceMode() {
   SeeedOled.setTextXY(0, 47);                           
   SeeedOled.putNumber(secondPointer1);                  //Print first digit of second pointer value to display.
 
-//skriv ut alla aktiva alarm
+  //Display moisture sensor values.
+  SeeedOled.setTextXY(1, 0);                            //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  SeeedOled.putString("Moisture:");                     //Print text to display.
+  SeeedOled.setTextXY(2, 0);                            
+  SeeedOled.putString("S1[");                           //Print text to display.
+  SeeedOled.setTextXY(2, 19);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(moistureValue1);                  //Print moisture sensor1 value.
+  SeeedOled.setTextXY(2, 22);                            
+  SeeedOled.putString("],");                     
+
+  SeeedOled.setTextXY(2, 25);                            
+  SeeedOled.putString("S2[");                           //Print text to display.
+  SeeedOled.setTextXY(2, 28);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(moistureValue2);                  //Print moisture sensor1 value.
+  SeeedOled.setTextXY(2, 31);                            
+  SeeedOled.putString("]");
   
-  //moistureValue1 alla moisture values också.
+  SeeedOled.setTextXY(3, 0);                            
+  SeeedOled.putString("S3[");                           //Print text to display.
+  SeeedOled.setTextXY(3, 19);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(moistureValue3);                  //Print moisture sensor1 value.
+  SeeedOled.setTextXY(3, 22);                            
+  SeeedOled.putString("],");                     
+
+  SeeedOled.setTextXY(3, 25);                            
+  SeeedOled.putString("S4[");                           //Print text to display.
+  SeeedOled.setTextXY(3, 28);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(moistureValue4);                  //Print moisture sensor1 value.
+  SeeedOled.setTextXY(3, 31);                            
+  SeeedOled.putString("]");
+  
+//skriv ut alla aktiva alarm
 }
 
 /*
@@ -996,8 +1035,8 @@ void setup() {
 ******************************************/
 void loop() {
   // put your main code here, to run repeatedly:
-  pushButton1 = digitalRead(clockSetButton);                    //Check if button1 is being pressed.
-  pushButton2 = digitalRead(clockModeButton);                   //Check if button2 is being pressed.
+  pushButton1 = digitalRead(clockSetButton);                              //Check if button1 is being pressed.
+  pushButton2 = digitalRead(clockModeButton);                             //Check if button2 is being pressed.
 
   Serial.print("pushButton2: ");
   Serial.println(pushButton2);
