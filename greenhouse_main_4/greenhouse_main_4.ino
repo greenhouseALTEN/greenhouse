@@ -113,7 +113,6 @@ bool pushButton2 = false;
 bool minuteInputMode = false;
 bool hourInputMode = true;
 bool clockStartMode = false;
-bool clockViewMode = false;             //Enable clock to be printed to display before display is cleared and replaced by read out values display.
 int divider100 = 0;
 int divider50 = 0;                          
 bool flashClockPointer = false;         //Variable to create lash clock pointer when in "set clock" mode.       
@@ -123,8 +122,8 @@ int x = 0;                              //Toggle variable.
 bool enableAlarmMessage = false;        //Enable any alarm to be printed to display. If variable is 'true' alarm is enable to be printed to display.
 
 //Display screen modes, the display mode variable that is set to 'true' is run first when booting the Arduino.
-bool setTimeDisplay = true;             //
-bool startupImageDisplay = false;
+bool setTimeDisplay = true;             //Any variable is set to 'true' when that screen mode is currently printed to display.
+//bool startupImageDisplay = false;
 bool valueReadoutDisplay = false;
 bool serviceModeDisplay = false;
 
@@ -385,17 +384,13 @@ void startupDisplay() {
 || Print read out values to OLED display. ||
 ============================================ */
 void displayValues() {
-  //Clear redundant value figures from previous read out for all sensor values.
+  //Clear redundant value digits from previous read out for all sensor values.
   SeeedOled.setTextXY(0, 42);
-  SeeedOled.putString("      ");
-  SeeedOled.setTextXY(1, 37);           //Ugly clearing of screen because clearDisplay-function did not work.
   SeeedOled.putString("      ");
   SeeedOled.setTextXY(1, 42);
   SeeedOled.putString("      ");
   SeeedOled.setTextXY(2, 42);
-  SeeedOled.putString("      ");
-  SeeedOled.setTextXY(3, 38);           //Ugly clearing of screen because clearDisplay-function did not work.
-  SeeedOled.putString("    ");    
+  SeeedOled.putString("      ");    
   SeeedOled.setTextXY(3, 42);
   SeeedOled.putString("      ");
   SeeedOled.setTextXY(4, 42);
@@ -577,8 +572,6 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
   divider50++;                        
     if(divider50 == 50) {               //Gives 2Hz pulse to feed the flashing of pointer digits when in "set mode".
     divider50 = 0;                      //Reset divider variable.
-    Serial.print("divider50: ");
-    Serial.println(divider50);
     x++;
     if(x == 1) {
       flashClockPointer = true;
@@ -587,9 +580,6 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
       flashClockPointer = false;
       x = 0;
     }
-    
-    Serial.print("flashClockPointer1: ");
-    Serial.println(flashClockPointer);
   } 
   
   if(clockStartMode == true) {          //This function runs in a frequency of 100Hz. To the second pointer tick in 1Hz frequency this variable as a divider.
@@ -636,9 +626,6 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
 || Set current time by using SET- and MODE-buttons as input. ||
 =============================================================== */
 void setClockTime() {
-  pushButton1 = digitalRead(clockSetButton);                    //Check if button1 is being pressed.
-  pushButton2 = digitalRead(clockModeButton);                   //Check if button2 is being pressed.
-
   if(pushButton1 == true && hourInputMode == true) {
     delay(170);                                                 //Delay to avoid contact bounce.
     hourPointer1++;                                             //Increase hour pointer every time button is pressed.
@@ -653,7 +640,7 @@ void setClockTime() {
   }
   else if(pushButton2 == true && hourInputMode == true) {
     delay(200);
-    hourInputMode = false;                                      //Setting of hour pointers have been completed.
+    hourInputMode = false;                                      //Hour pointers have been set.
     minuteInputMode = true;                                     //Continue with setting minute pointers.
   }
   else if(pushButton1 == true && minuteInputMode == true) {  
@@ -668,12 +655,13 @@ void setClockTime() {
     }
   }
   else if(pushButton2 == true && minuteInputMode == true) {
-    minuteInputMode = false;                              //Setting of minute pointers have been completed.
-    clockStartMode = true;                                //Start the clock.
+    minuteInputMode = false;                                    //Minute pointers have been set.
+    clockStartMode = true;                                      //Starting the clock. Clock starts ticking.
   }
   else if(pushButton2 == true && clockStartMode == true) {              //If current time has been set, next click on MODE-button will enable value read out values to be printed to display.
+    setTimeDisplay = false;                                             //Clear current screen display state.
     SeeedOled.clearDisplay();                                           //Clear display.
-    clockViewMode = true;                                               //Enable clock to be shown before display is cleared and replaced by read out values printed to display.                                
+    valueReadoutDisplay = true;                                         //Set next screen display state to be printed to display.
     enableAlarmMessage = true;                                          //Enable any alarm to be printed to display.            
   }
 }
@@ -870,6 +858,39 @@ void lightTimer(uint16_t uvValue, uint16_t lightValue) {
   }
 }
 
+void viewServiceMode() {
+
+  SeeedOled.setTextXY(0, 0);                            //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  SeeedOled.putString("Clock: ");                       //Print string to display.
+  //Hour pointer.
+  SeeedOled.setTextXY(0, 40);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(hourPointer2);                    //Print 10-digit hour pointer value to display.
+  SeeedOled.setTextXY(0, 41);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(hourPointer1);                    //Print 1-digit hour pointer value to display.
+  
+  SeeedOled.setTextXY(0, 42);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putString(":");                             //Print separator symbol, between hour and minute digits, todisplay.
+
+  //Minute pointer.
+  SeeedOled.setTextXY(0, 43);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(minutePointer2);                  //Print 10-digit hour pointer value to display.
+  SeeedOled.setTextXY(0, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(minutePointer1);                  //Print 1-digit hour pointer value to display.
+
+  SeeedOled.setTextXY(0, 45);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putString(":");                             //Print separator symbol, between hour and minute digits, todisplay.
+
+  //Second pointer.
+  SeeedOled.setTextXY(0, 46);                           
+  SeeedOled.putNumber(secondPointer2);                  //Print second digit of second pointer value to display.
+  SeeedOled.setTextXY(0, 47);                           
+  SeeedOled.putNumber(secondPointer1);                  //Print first digit of second pointer value to display.
+
+//skriv ut alla aktiva alarm
+  
+  //moistureValue1 alla moisture values också.
+}
+
 /*
 =====================================================================================================
 || Calculate moisture mean value based on measured moisture values from all four moisture sensors. ||
@@ -975,13 +996,38 @@ void setup() {
 ******************************************/
 void loop() {
   // put your main code here, to run repeatedly:
-  if(clockViewMode == false) {                                                                         //Display time set screen only if current time has not been set.
+  pushButton1 = digitalRead(clockSetButton);                    //Check if button1 is being pressed.
+  pushButton2 = digitalRead(clockModeButton);                   //Check if button2 is being pressed.
+
+  Serial.print("pushButton2: ");
+  Serial.println(pushButton2);
+  if(setTimeDisplay == true) {                                            //Display time set screen only if current time has not been set.
     setClockTime();
     setClockDisplay();
   }
-  if(clockViewMode == true && enableAlarmMessage == true) {                                                                          //Only display read out values after current time on internal clock, has been set.
+  
+  else if(valueReadoutDisplay == true) {                                                                     //Only display read out values after current time on internal clock, has been set.
     displayValues();                                                                                    //Printing read out values from the greenhouse to display.
+    if(pushButton2 == true) {
+      Serial.println("hello1");
+      valueReadoutDisplay = false;                                        //Clear current screen display state.
+      SeeedOled.clearDisplay();                                           //Clear display.
+      serviceModeDisplay = true;                                          //Set next screen display state to be printed to display.                                         
+      enableAlarmMessage = false;                                         //Disable any alerts to be printed to display.
+    }
   }
+
+  else if(serviceModeDisplay == true) {
+    viewServiceMode();                                                    //Service mode screen is printed to display.
+    if(pushButton2 == true) {
+      Serial.println("hello2");
+      serviceModeDisplay = false;                                         //Clear current screen display state.
+      SeeedOled.clearDisplay();                                           //Clear display.
+      valueReadoutDisplay = true;                                         //Set next screen display state to be printed to display.
+      enableAlarmMessage = true;                                          //Enable any alerts to be printed to display.
+    }
+  }
+  
   moistureValue1 = moistureSensor1.moistureRead(moistureSensorPort1);                                   //Read moistureSensor1 value to check soil humidity.
   moistureValue2 = moistureSensor2.moistureRead(moistureSensorPort2);                                   //Read moistureSensor2 value to check soil humidity.
   moistureValue3 = moistureSensor3.moistureRead(moistureSensorPort3);                                   //Read moistureSensor3 value to check soil humidity.
