@@ -926,8 +926,27 @@ void viewServiceMode() {
   SeeedOled.putNumber(moistureValue4);                  //Print moisture sensor1 value.
   SeeedOled.setTextXY(3, 31);                            
   SeeedOled.putString("]");
-  
-//skriv ut alla aktiva alarm
+
+  //Alarm messsage status.
+  SeeedOled.setTextXY(4, 0);                            
+  SeeedOled.putString("tempValue: ");                   //Print text to display.
+  SeeedOled.setTextXY(4, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(tempValueFault);                  //Print moisture sensor1 value.
+
+  SeeedOled.setTextXY(5, 0);                            
+  SeeedOled.putString("ledLight: ");                    //Print text to display.
+  SeeedOled.setTextXY(5, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(ledLightFault);                   //Print moisture sensor1 value.
+
+  SeeedOled.setTextXY(6, 0);                            
+  SeeedOled.putString("waterFlow: ");                   //Print text to display.
+  SeeedOled.setTextXY(6, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(waterFlowFault);                  //Print moisture sensor1 value.
+
+  SeeedOled.setTextXY(7, 0);                            
+  SeeedOled.putString("waterLevel: ");                  //Print text to display.
+  SeeedOled.setTextXY(7, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedOled.putNumber(waterLevelValue);                 //Print moisture sensor1 value.
 }
 
 /*
