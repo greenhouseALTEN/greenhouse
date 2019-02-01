@@ -109,10 +109,10 @@ int minutePointer2 = 0;
 int secondPointer1 = 0;                 //First digit of second pointer.
 int secondPointer2 = 0;                 //Second digit of second pointer.
 bool pushButton1 = false;
-bool pushButton2 = false;
 bool minuteInputMode = false;
 bool hourInputMode = true;
 bool clockStartMode = false;
+bool clockSetFinished = false;
 int divider100 = 0;
 int divider50 = 0;                          
 bool flashClockPointer = false;         //Variable to create lash clock pointer when in "set clock" mode.       
@@ -121,11 +121,15 @@ int x = 0;                              //Toggle variable.
 //Warning messages to display.
 bool enableAlarmMessage = false;        //Enable any alarm to be printed to display. If variable is 'true' alarm is enable to be printed to display.
 
-//Display screen modes, the display mode variable that is set to 'true' is run first when booting the Arduino.
-bool setTimeDisplay = true;             //Any variable is set to 'true' when that screen mode is currently printed to display.
-//bool startupImageDisplay = false;
+//Display screen modes.
+bool setTimeDisplay = false;            //Any variable is set to 'true' when that screen mode is currently printed to display.     
+bool startupImageDisplay = true;
 bool valueReadoutDisplay = false;
 bool serviceModeDisplay = false;
+bool clockViewFinished = false;
+
+//Greenhouse program.
+bool greenhouseProgramStart = false;    //If variable is set to 'true', automatic water and lighting control of greenhouse is turned on.
 
 //Light timer variables.
 unsigned long timerStartDark = 0;
@@ -365,18 +369,23 @@ void startupDisplay() {
   SeeedOled.setNormalDisplay();   //Set display to normal mode (non-inverse mode).
   SeeedOled.setPageMode();        //Set addressing mode to Page Mode.
 
-/*
-  //Show startup images when starting up the system.
-  //Startup image 1.
-  SeeedOled.drawBitmap(greenhouse, (128*64)/8);   //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
-  delay(4000);                                    //Image shown for 4 seconds.
-  SeeedOled.clearDisplay();                       //Clear the display.
+  if(startupImageDisplay == true) { //Print startup images to display when variable is set to 'true'.
 
-  //Startup image 2.
-  SeeedOled.drawBitmap(features, (128*64)/8);     //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
-  delay(3000);                                    //Image shown for 3 seconds.
-  SeeedOled.clearDisplay();                       //Clear the display.
-*/
+    /*
+    //Startup image 1.
+    SeeedOled.drawBitmap(greenhouse, (128*64)/8);   //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
+    delay(4000);                                    //Image shown for 4 seconds.
+    SeeedOled.clearDisplay();                       //Clear the display.
+
+    //Startup image 2.
+    SeeedOled.drawBitmap(features, (128*64)/8);     //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
+    delay(3000);                                    //Image shown for 3 seconds.
+    SeeedOled.clearDisplay();                       //Clear the display.
+    */
+    startupImageDisplay = false;                    //Clear current screen display state.
+    setTimeDisplay = true;                          //Set next screen display state to be printed to display.  
+    
+  }
 }
 
 /*
@@ -638,11 +647,6 @@ void setClockTime() {
       hourPointer1 = 0;
     }
   }
-  else if(pushButton2 == true && hourInputMode == true) {
-    delay(200);
-    hourInputMode = false;                                      //Hour pointers have been set.
-    minuteInputMode = true;                                     //Continue with setting minute pointers.
-  }
   else if(pushButton1 == true && minuteInputMode == true) {  
     delay(170);
     minutePointer1++;                                           //Increase minute pointer every time button is pressed.
@@ -654,22 +658,66 @@ void setClockTime() {
       minutePointer2 = 0;                                       //Clear 10-digit minute pointer.
     }
   }
-  else if(pushButton2 == true && minuteInputMode == true) {
-    minuteInputMode = false;                                    //Minute pointers have been set.
-    clockStartMode = true;                                      //Starting the clock. Clock starts ticking.
+}
+
+/*
+**************************************************************************************
+|| Toggle set modes and screen display modes when clockModeButton is being pressed. ||
+**************************************************************************************/
+void toggleMode() {
+  if(startupImageDisplay == true) {   //STILL NOT WORKING, I WANT THE POSSIBILITY TO ABORT STARTUP IMAGES.
+    startupImageDisplay = false;              
+    setTimeDisplay = true;
+    Serial.println("startupImageDisplay");
   }
-  else if(pushButton2 == true && clockStartMode == true) {              //If current time has been set, next click on MODE-button will enable value read out values to be printed to display.
-    setTimeDisplay = false;                                             //Clear current screen display state.
-    SeeedOled.clearDisplay();                                           //Clear display.
-    valueReadoutDisplay = true;                                         //Set next screen display state to be printed to display.
-    enableAlarmMessage = true;                                          //Enable any alarm to be printed to display.            
+  
+  else if(setTimeDisplay == true) {
+    Serial.println("setTimeDisplay");
+    if(hourInputMode == true) {
+      hourInputMode = false;                  //Hour pointers have been set.
+      minuteInputMode = true;                 //Continue with setting minute pointers.
+      Serial.println("hourInputMode");
+    }
+    else if(minuteInputMode == true) {
+      minuteInputMode = false;                //Minute pointers have been set.
+      clockStartMode = true;                  //Start clock. Clock starts ticking.
+      clockSetFinished = true;
+      Serial.println("minuteInputMode");
+    }
+    else if(clockSetFinished == true) {
+      clockSetFinished = false;               //Clear current screen display state
+      setTimeDisplay = false;                 //Clear current screen display state.
+      clockViewFinished = true;               //Enable value read out display to be printed to display.
+      Serial.println("clockSetFinished");
+    }
+  }
+
+  if(clockViewFinished == true) {
+    clockViewFinished = false;                //Clear current screen display state
+    valueReadoutDisplay = true;               //Set next screen display state to be printed to display.
+    enableAlarmMessage = true;                //Enable any alarm to be printed to display.
+    Serial.println("clockViewFinished");
+  }
+
+  //Enable screen toggle between value read out display and service mode display.
+  if(valueReadoutDisplay == true) {
+    valueReadoutDisplay = false;              //Clear current screen display state.
+    enableAlarmMessage = false;               //Disable any alerts to be printed to display.
+    serviceModeDisplay = true;                //Set next screen display state to be printed to display.
+    Serial.println("valueReadoutDisplay");
+  }
+  else if(serviceModeDisplay == true) {
+    serviceModeDisplay = false;               //Clear current screen display state.
+    valueReadoutDisplay = true;               //Set next screen display state to be printed to display.
+    enableAlarmMessage = true;                //Enable any alarm to be printed to display.
+    Serial.println("serviceModeDisplay");
   }
 }
 
 /*
-*************************************************************
-|Print clock values to display to let user set current time.|
-*************************************************************/
+*****************************************************************
+|| Print clock values to display to let user set current time. ||
+*****************************************************************/
 void setClockDisplay() {
   SeeedOled.setTextXY(0, 0);                            //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Set current time");              //Print text to display.
@@ -975,7 +1023,7 @@ int moistureMeanValue(int moistureValue1, int moistureValue2, int moistureValue3
     }
   }
 
-  //Remove maximum and minimum moisture value from moisture array.
+  //Remove maximum and minimum moisture values from moisture array.
   moistureValues[minIndex] = 0;                             
   moistureValues[maxIndex] = 0;                             
 
@@ -1015,8 +1063,10 @@ void setup() {
   pinMode(moistureSensorPort4, INPUT);
   
   pinMode(flowSensor, INPUT);
-  attachInterrupt(1, flowCount, RISING);  //Initializing interrupt to enable water flow sensor to calculate water flow pumped by water pump.
- 
+  attachInterrupt(1, flowCount, RISING);  //Initialize interrupt to enable water flow sensor to calculate water flow pumped by water pump.
+
+  attachInterrupt(0, toggleMode, RISING); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
+  
   pinMode(pumpRelay, OUTPUT);
   //pinMode(pumpButton, INPUT);
   
@@ -1054,50 +1104,50 @@ void setup() {
 ******************************************/
 void loop() {
   // put your main code here, to run repeatedly:
-  pushButton1 = digitalRead(clockSetButton);                              //Check if button1 is being pressed.
-  pushButton2 = digitalRead(clockModeButton);                             //Check if button2 is being pressed.
+  
+  //Set current time and toggle between different screen display modes.
+  pushButton1 = digitalRead(clockSetButton);                        //Check if button1 is being pressed.
 
-  Serial.print("pushButton2: ");
-  Serial.println(pushButton2);
-  if(setTimeDisplay == true) {                                            //Display time set screen only if current time has not been set.
+  if(setTimeDisplay == true) {                                      //Display time set screen only if current time has not been set.
     setClockTime();
     setClockDisplay();
+    if(valueReadoutDisplay == true) {
+      SeeedOled.clearDisplay();                                     //Clear display.
+    }
   }
-  
-  else if(valueReadoutDisplay == true) {                                                                     //Only display read out values after current time on internal clock, has been set.
-    displayValues();                                                                                    //Printing read out values from the greenhouse to display.
-    if(pushButton2 == true) {
-      Serial.println("hello1");
-      valueReadoutDisplay = false;                                        //Clear current screen display state.
-      SeeedOled.clearDisplay();                                           //Clear display.
-      serviceModeDisplay = true;                                          //Set next screen display state to be printed to display.                                         
-      enableAlarmMessage = false;                                         //Disable any alerts to be printed to display.
+  else if(valueReadoutDisplay == true) {                            //Only display read out values after current time on internal clock, has been set.
+    displayValues();                                                //Print read out values from the greenhouse to display.
+    if(serviceModeDisplay == true) {
+      SeeedOled.clearDisplay();                                     //Clear display.
+    }
+  }
+  else if(serviceModeDisplay == true) {
+    viewServiceMode();                                              //Service mode screen is printed to display.
+    if(valueReadoutDisplay == true) {
+      SeeedOled.clearDisplay();                                     //Clear display.
     }
   }
 
-  else if(serviceModeDisplay == true) {
-    viewServiceMode();                                                    //Service mode screen is printed to display.
-    if(pushButton2 == true) {
-      Serial.println("hello2");
-      serviceModeDisplay = false;                                         //Clear current screen display state.
-      SeeedOled.clearDisplay();                                           //Clear display.
-      valueReadoutDisplay = true;                                         //Set next screen display state to be printed to display.
-      enableAlarmMessage = true;                                          //Enable any alerts to be printed to display.
-    }
-  }
-  
+  //Read out sensor values, calculate values and alert user if any fault code is set.
   moistureValue1 = moistureSensor1.moistureRead(moistureSensorPort1);                                   //Read moistureSensor1 value to check soil humidity.
   moistureValue2 = moistureSensor2.moistureRead(moistureSensorPort2);                                   //Read moistureSensor2 value to check soil humidity.
   moistureValue3 = moistureSensor3.moistureRead(moistureSensorPort3);                                   //Read moistureSensor3 value to check soil humidity.
   moistureValue4 = moistureSensor4.moistureRead(moistureSensorPort4);                                   //Read moistureSensor4 value to check soil humidity.
   moistureValueMean = moistureMeanValue(moistureValue1, moistureValue2, moistureValue3, moistureValue4);    //Mean value from all sensor readouts.
+  
   tempValue = humiditySensor.readTemperature(false);                                                    //Read temperature value from DHT-sensor. "false" gives the value in °C.
   //humidValue = humiditySensor.readHumidity();                                                           //Read humidity value from DHT-sensor.
   tempThresholdCompare();
+  
   lightRead();                                                                                          //Read light sensor UV value.
-  ledLightStart();                                                                                      //Start LED strip lighting.
-  //lightTimer(uvValue, lightValue);  NOT IN USE!!!
-  //pumpStart();                                                                                          //Start pump to pump water to plant.
   waterLevelRead();                                                                                     //Check water level in water tank.
-  alarmMessageDisplay();                                                                                //Print alarm messages to display for any faults that is currently active. Warning messages on display will alert user to take action to solve a certain fault.
+  alarmMessageDisplay();                                                                                //Print alarm messages to display for any faults that is currently active. Warning messages on display will alert user to take action to solve a certain fault.  
+
+  //Greenhouse program start.
+  if(greenhouseProgramStart == true) {                                    //Automatic water and lighting control of greenhouse is turned on, after the clock has been set.
+    ledLightStart();                                                                                      //Start LED strip lighting.
+    displayValues();                                                      //Printing read out values from the greenhouse to display.
+    //lightTimer(uvValue, lightValue);  NOT IN USE!!!
+    //pumpStart();                                                                                          //Start pump to pump water to plant.
+  }                                                                          
 }
