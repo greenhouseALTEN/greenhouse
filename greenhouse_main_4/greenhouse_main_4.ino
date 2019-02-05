@@ -33,15 +33,17 @@
 ################### ARDUINO UNO ############################
 #|__________________DIGITAL_(PWM_~)_______________________|#
 #||X|X|X|GND|13|12|~11|~10|~9| 8|<>| 7|~6|~5| 4|~3| 2|X|X||#
+#|- - - - - - - - - - - - - - - - - - - - - - - - - - - - |#
 #||A3|      |D4|     |D3|     |D2|     |UART|             |#
-#|--------------------------------------------------------|#
+#|                                                        |#
 #||A2|      |D8|     |D7|     |D6|     |D5|               |#
-#|--------------------------------------------------------|#
+#|                                                        |#
 #||A1|      |I2C|    |I2C|    |I2C|    |I2C|              |#
-#|--------------------------------------------------------|#
-#||A0|  |X|X|X|3.3V|5V|GND|GND|Vin|<>|A0|A1|A2|A3|A4|A5|  |#
-#|______________POWER_____________________ANALOG IN_______|#
+#|      - - - - - - - - - - - - - - - - - - - - - - - - - |#
+#||A0| | |X|X|X|3.3V|5V|GND|GND|Vin|<>|A0|A1|A2|A3|A4|A5| |#
+#|_____|________POWER_____________________ANALOG IN_______|#
 ################### ARDUINO UNO ############################
+
 GROVE connector
 A3:   Moisture sensor4
 A2:   Moisture sensor3
@@ -108,8 +110,6 @@ uint16_t uvValue;
 
 //LED lighting.
 bool ledLightState = false;               //Indicate current status of LED lighting. Variable is 'true' when LED lighting is turned on.
-int uvThresholdValue = 3;                 //UV threshold value for turning LED lighting on/off.
-int lightThresholdValue = 0;              //Light threshold value (lux) for turning LED lighting on/off.
 bool ledLightFault = false;               //Indicate if LED lighting is not turned on/not working when LED lighting has been turned on.
 
 //Water pump and flow sensor.
@@ -157,17 +157,11 @@ bool clockViewFinished = false;
 
 //Greenhouse program.
 bool greenhouseProgramStart = false;    //If variable is set to 'true', automatic water and lighting control of greenhouse is turned on.
-
-//Light timer variables.
-unsigned long timerStartDark = 0;
-unsigned long timerStopDark = 0;
-unsigned long timerStartLight = 0;
-unsigned long timerStopLight = 0;
-unsigned long timeLight = 0;
-unsigned long timeDark = 0;
-bool day = false;
-bool night = false;
-
+int moistureThresholdValue = 300;       //Moisture threshold value. A measured mean moisture value below specified value will trigger water pump.
+int uvThresholdValue = 3;               //UV threshold value for turning LED lighting on/off.
+//int lightThresholdValue = 1500;         //Light threshold value (lux) for turning LED lighting on/off.
+unsigned long programTimerStart = 0;    //Timer variable to be used with millis() to execute program loop time interval.
+int programLoopTime = 20000;            //Loop time in milliseconds.            
 
 /*
 ==============================================================
@@ -325,7 +319,7 @@ void startupDisplay() {
   SeeedOled.setNormalDisplay();                     //Set display to normal mode (non-inverse mode).
   SeeedOled.setPageMode();                          //Set addressing mode to Page Mode.
 
-  
+  /*
   //Startup image 1.
   SeeedOled.drawBitmap(greenhouse, (128*64)/8);   //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
   delay(4000);                                    //Image shown for 4 seconds.
@@ -335,7 +329,7 @@ void startupDisplay() {
   SeeedOled.drawBitmap(features, (128*64)/8);       //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
   delay(3000);                                      //Image shown for 3 seconds.
   SeeedOled.clearDisplay();                         //Clear the display.
-  
+  */
   startupImageDisplay = false;                      //Clear current screen display state.
   setTimeDisplay = true;                            //Set next screen display state to be printed to display.  
 }
@@ -461,24 +455,18 @@ void waterLevelRead() {
 ======================================================
 || Start water pump and read out water flow sensor. ||
 ====================================================== */
-/*
 void pumpStart() {
   //Calculate water flow (Liter/hour) by counting number of rotations that flow sensor makes. Water flow sensor is connected to interrupt pin.
   rotations = 0;                        
   delay(1000);                          //Count number of rotations during one second to calculate water flow in Liter/hour. 
   flowValue = (rotations * 60) / 7.5;   //Calculate the flow rate in Liter/hour.
 
-  //Starting/stopping pump with a button.
-  bool pushButton = digitalRead(pumpButton);
-  
-  if(pushButton == true) {
-    digitalWrite(pumpRelay, HIGH);      //Start water pump if button is being pressed.
-    pumpState = true;
-  }
-  else {
-    digitalWrite(pumpRelay, LOW);       //Stop water pump if button not is being pressed.
-    pumpState = false;
-  }
+  //Start water pump.
+  digitalWrite(pumpRelay, HIGH);        //Start water pump.
+  pumpState = true;
+  delay(3000);                          //Let water pump run for 3 seconds.
+  digitalWrite(pumpRelay, LOW);         //Stop water.
+  pumpState = false;
 
   //Alarm if no water is being pumped even though water pump is running even though tank water level is ok.
   if(pumpState == true && flowValue < flowThresholdValue && waterLevelValue == false) {
@@ -486,8 +474,8 @@ void pumpStart() {
   }
   else if(pumpState == true && flowThresholdValue < flowValue && waterLevelValue == false) {
     waterFlowFault = false;             //If measured water flow, when water pump is running, is above flow threshold. Fault variable is deactivated.
-  } */
-//} 
+  }
+} 
 
 
 /*
@@ -647,11 +635,12 @@ void toggleMode() {
     SeeedOled.clearDisplay();                 //Clear display.
     valueReadoutDisplay = true;               //Set next screen display state to be printed to display.
     enableAlarmMessage = true;                //Enable any alarm to be printed to display.
+    greenhouseProgramStart = true;            //Start greenhouse program.
     Serial.println("clockViewFinished");
   }
 
   //Enable screen toggle between value read out display and service mode display.
-  if(valueReadoutDisplay == true) {
+  else if(valueReadoutDisplay == true) {
     valueReadoutDisplay = false;              //Clear current screen display state.
     enableAlarmMessage = false;               //Disable any alerts to be printed to display.
     SeeedOled.clearDisplay();                 //Clear display.
@@ -815,49 +804,6 @@ void alarmMessageDisplay() {
     }  
   }
 }
-/*
->>>>>>>>>NOT COMPLETED AND NOT FULLY DEFINED!!!!!!!!!!!!!!!!!!
-======================================================================================
-|| Timer to measure the time for how plants have been exposed to lightess/darkness. ||
-====================================================================================== */
-void lightTimer(uint16_t uvValue, uint16_t lightValue) {
-  //Measure how much light plants have been exposed to during every 24 hours period. It then turns on/off the LED strip lighting to let plants rest 6 hours in every 24 hours period.
-  if(x == 1) {
-    delay(3000);
-    x = 0;
-  }
-  
-  if(uvValue < 3 && day == false) {
-    timerStartDark = millis();
-    day = true;
-  }
-  else if(uvValue > 3 && day == true) {
-    timerStopDark = millis();
-    timeDark += timerStopDark - timerStartDark;
-    //Serial.print("timeDark: ");
-    //Serial.println(timeDark);
-    day = false;
-  }
-
-  if(uvValue > 3 && night == false) {
-    timerStartLight = millis();
-    night = true;
-  }
-  else if(uvValue < 3 && night == true) {
-    timerStopLight = millis();
-    timeLight += timerStopLight - timerStartLight;
-    //Serial.print("timeLight: ");
-    //Serial.println(timeLight);
-    night = false;
-  }
-
-  if(timeDark + timeLight == 10000) {
-    Serial.print("totalLight: ");
-    Serial.println(timeLight);
-    Serial.print("totalDark: ");
-    Serial.println(timeDark);
-  }
-}
 
 void viewServiceMode() {
   //Clear redundant value digits from previous read out for all sensor values.
@@ -1014,6 +960,33 @@ int moistureMeanValue(int moistureValue1, int moistureValue2, int moistureValue3
   return moistureMeanValue;
 }
 
+void pumpWaterCheck() {
+  //If moisture mean value is below threshold value, start water pump.
+  if(moistureValueMean < moistureThresholdValue && waterLevelValue == false) {
+    pumpStart();                                            //Start water pump.
+  }
+}
+
+void lightingOnCheck() {
+  //If current time is between 06:00 and 24:00 and measured light is below threshold value, start LED lighting.
+  if((0 <= hourPointer2 && 6 <= hourPointer1) && (hourPointer2 != 0 && hourPointer1 !=0)) {
+    if(0 <= minutePointer2 && 0 <= minutePointer1) {
+      if(uvValue < uvThresholdValue) {
+        ledLightStart();                                    //Start LED lighting.
+      }
+      /*
+      if(uvValue < uvThresholdValue) {
+        ledLightStart();                                    //Start LED lighting.
+      }
+      */
+
+      //Errors to corret!!!! FAULTY!!
+      //DECODING OF TIME WHEN PROGRAM SHOULD TURN ON LEDS DOES NOT WORK.
+      //WATER PUMP IS PUMPING EVEN THOUGH FAULT CODES, water level tank, water flow fault is active.
+    }
+  }
+}
+
 /*
 *******************************
 * Arduino program setup code. *
@@ -1075,7 +1048,7 @@ void loop() {
   //Set current time and toggle between different screen display modes.
   pushButton1 = digitalRead(clockSetButton);                        //Check if button1 is being pressed.
 
-  //Specify which functions to be run when a certain display mode is active.
+  //Different functions to be run depending of which screen display mode that is currently active.
   if(setTimeDisplay == true) {                                 //Display time set screen only if current time has not been set.
     setClockTime();
     setClockDisplay();
@@ -1103,10 +1076,11 @@ void loop() {
   alarmMessageDisplay();                                                                                //Print alarm messages to display for any faults that is currently active. Warning messages on display will alert user to take action to solve a certain fault.  
 
   //Greenhouse program start.
-  if(greenhouseProgramStart == true) {                                    //Automatic water and lighting control of greenhouse is turned on, after the clock has been set.
-    ledLightStart();                                                                                      //Start LED strip lighting.
-    displayValues();                                                      //Printing read out values from the greenhouse to display.
-    //lightTimer(uvValue, lightValue);  NOT IN USE!!!
-    //pumpStart();                                                                                          //Start pump to pump water to plant.
+  if(greenhouseProgramStart == true) {    //It set to 'true', utomatic water and lighting control of greenhouse is turned on.
+    if(millis() > programTimerStart + programLoopTime) {
+      ledLightStart();                                                                                      //Start LED strip lighting.
+      pumpStart();
+      programTimerStart = millis();                                                                                          //Start pump to pump water to plant.
+    }
   }                                                                          
 }
