@@ -30,18 +30,45 @@
 
 //Arduino UNO base shield layout
 /*
-################### ARDUINO UNO ###################
-#|_____________ANALOG_IN____________POWER________|#
-#|             | | | | | | | | | <> | | | | | | ||#
-#||A0|      |12C|     |12C|     |12C|     |12C|  |#
-#|-----------------------------------------------|#
-#||A1|      |D8|      |D7|      |D6|      |D5|   |#
-#|-----------------------------------------------|#
-#||A2|      |D4|      |D3|      |D2|      |UART| |#
-#|-----------------------------------------------|#
-#||A3| | | | | | | | | | | | <> | | | | | | | | ||#
-#|_____DIGITAL_(PWM_~)___________________________|#
-################### ARDUINO UNO ###################
+################### ARDUINO UNO ############################
+#|__________________DIGITAL_(PWM_~)_______________________|#
+#||X|X|X|GND|13|12|~11|~10|~9| 8|<>| 7|~6|~5| 4|~3| 2|X|X||#
+#||A3|      |D4|     |D3|     |D2|     |UART|             |#
+#|--------------------------------------------------------|#
+#||A2|      |D8|     |D7|     |D6|     |D5|               |#
+#|--------------------------------------------------------|#
+#||A1|      |I2C|    |I2C|    |I2C|    |I2C|              |#
+#|--------------------------------------------------------|#
+#||A0|  |X|X|X|3.3V|5V|GND|GND|Vin|<>|A0|A1|A2|A3|A4|A5|  |#
+#|______________POWER_____________________ANALOG IN_______|#
+################### ARDUINO UNO ############################
+GROVE connector
+A3:   Moisture sensor4
+A2:   Moisture sensor3
+A1:   Moisture sensor2
+A0:   Moisture sensor1
+D4:   Humidity and temperature sensor
+D8:   Water pump relay
+I2C:  OLED display
+D3:   Water flow sensor
+D7:   SET-button
+I2C:  'EMPTY'
+D2:   MODE-button
+D6:   LED lighting relay
+I2C:  Light sensor
+UART: 'EMPTY'
+D5:   'EMPTY'
+I2C:  'EMPTY'
+
+DIGITAL (PWM~)
+GND:  10 kohm resistor in in series with with 12 (I/O).
+12:   10 kohm resistor parallell with signal wire1 to water tank level switch. Resistor is in series with GND (I/O).
+11~:  Signal wire1 to temperature rotary encoder.
+10~:  Signal wire2 to temperature rotary encoder.
+
+POWER
+5V:   Supply wire to water tank level switch in parallell supply wire to temperature rotary encoder.
+GND:  Ground wire to temperature rotary encoder.
 */
 
 /*
@@ -325,8 +352,8 @@ void displayValues() {
   SeeedOled.putString("      ");
   SeeedOled.setTextXY(2, 42);
   SeeedOled.putString("      ");    
-  SeeedOled.setTextXY(3, 42);
-  SeeedOled.putString("      ");
+  SeeedOled.setTextXY(3, 39);
+  SeeedOled.putString("         ");
   SeeedOled.setTextXY(4, 42);
   SeeedOled.putString("    ");
   SeeedOled.setTextXY(5, 42);
