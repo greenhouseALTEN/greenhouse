@@ -155,17 +155,25 @@ bool valueReadoutDisplay = false;
 bool serviceModeDisplay = false;
 bool clockViewFinished = false;
 
-//Greenhouse program.
+/*
+---------------------
+|Greenhouse program.|
+--------------------*/
 bool greenhouseProgramStart = false;    //If variable is set to 'true', automatic water and lighting control of greenhouse is turned on.
+
+//Water pump.
 int moistureThresholdValue = 300;       //Moisture threshold value. A measured mean moisture value below specified value will trigger water pump.
-int uvThresholdValue = 3;               //UV threshold value for turning LED lighting on/off.
-//int lightThresholdValue = 1500;         //Light threshold value (lux) for turning LED lighting on/off.
-unsigned long lightCheckTimer = 0;      //Timer variable to be used with millis() for light check loop.
 unsigned long moistureCheckTimer = 0;   //Timer variable to be used with millis() for moisture check loop.
 int moistureCheckLoop = 20000;          //Loop time, in milliseconds, for how often water pump is activated based upon measured soil moisture value.         
-int lightCheckLoop = 5000;              //Loop time, in milliseconds, for how often LED lighting is turned on/off based upon measured light value.
-bool insideTimeInterval = false;
 
+//Led lighting.
+int uvThresholdValue = 3;               //UV threshold value for turning LED lighting on/off.
+//int lightThresholdValue = 1500;         //Light threshold value (lux) for turning LED lighting on/off.
+unsigned long lightCheckTimer = 0;      //Timer variable to be used with millis() to if LED lighting should be turned on/off.
+unsigned long lightFaultTimer = 0;      //Timer variable to be used with millis() to if LED lighting is working.
+int checkLightLoop = 5000;              //Loop time, in milliseconds, for how often LED lighting is turned on/off based upon measured light value.
+int ledCheckDelay = 3000;               //Time delay to check if light value is increased when led lighting is turned on.
+bool insideTimeInterval = false;
 
 /*
 ==============================================================
@@ -426,26 +434,35 @@ void lightRead() {
 }
 
 /*
-===============================
-|| Turn LED lighting on/off. ||
-=============================== */
+===========================
+|| Turn on LED lighting. ||
+=========================== */
 void ledLightStart() {
-  if(uvValue < uvThresholdValue) {                                  //Turn on LED lighting if measured UV value is below uvThresholdValue.
-    digitalWrite(lightRelay, HIGH);
-    ledLightState = true;                                           //Update current status for LED lighting.
-  }
-  else if(uvValue > uvThresholdValue) {
-    digitalWrite(lightRelay, LOW);                                  //Turn off LED light if measured UV value is above a certain value.
-    ledLightState = false;                                          //Update current status for LED lighting.
-  }
+  digitalWrite(lightRelay, HIGH);                                 //Turn on LED lighting.
+  ledLightState = true;                                           //Update current LED lighting status.
+}
 
-  //Alarm if read out light value does not get above light threshold when LED lighting is turned on.
-  if(ledLightState == true && uvValue != uvThresholdValue) {        
-    ledLightFault = true;                                           //If read out light value does not get above light threshold (lower light limit) when LED lighting is turned on. Fault variable is set to 'true' to alert user.
+/*
+=======================================
+|| Check if LED lighting is working. ||
+======================================= */
+  //Alarm if light read out value does not get above light threshold when LED lighting is turned on.
+void ledLightCheck() {  
+  if(ledLightState == true && uvValue < uvThresholdValue) {        
+    ledLightFault = true;                                       //If read out light value does not get above light threshold (lower light limit), fault variable is set to 'true' to alert user.
   }
   else {
     ledLightFault = false;
   }
+}
+
+/*
+============================
+|| Turn off LED lighting. ||
+============================ */
+void ledLightStop() {  
+    digitalWrite(lightRelay, LOW);                                  //Turn off LED lighting.
+    ledLightState = false;                                          //Update current LED lighting status.
 }
 
 /*
@@ -468,10 +485,8 @@ void pumpStart() {
 
   //Start water pump.
   digitalWrite(pumpRelay, HIGH);        //Start water pump.
-  pumpState = true;
+  pumpState = true;                     //Update water pump state to on, 'true'.
   delay(3000);                          //Let water pump run for 3 seconds.
-  digitalWrite(pumpRelay, LOW);         //Stop water.
-  pumpState = false;
 
   //Alarm if no water is being pumped even though water pump is running even though tank water level is ok.
   if(pumpState == true && flowValue < flowThresholdValue && waterLevelValue == false) {
@@ -480,8 +495,16 @@ void pumpStart() {
   else if(pumpState == true && flowThresholdValue < flowValue && waterLevelValue == false) {
     waterFlowFault = false;             //If measured water flow, when water pump is running, is above flow threshold. Fault variable is deactivated.
   }
-} 
+}
 
+/*
+======================
+|| Stop water pump. ||
+====================== */
+void pumpStop() {
+  digitalWrite(pumpRelay, LOW);         //Stop water pump.
+  pumpState = false;                    //Update water pump state to off, 'false'
+}
 
 /*
 ===========================================================================================
@@ -970,22 +993,24 @@ void pumpWaterCheck() {
   if(moistureValueMean < moistureThresholdValue && waterLevelValue == false) {
     pumpStart();                                            //Start water pump.
   }
+      //WATER PUMP IS PUMPING EVEN THOUGH FAULT CODES, water level tank, water flow fault is active.
+    //CONTIUNE HERE!!
 }
 
 void lightingOnCheck() {
-  //If current time is between 06:00 and 23:00 and measured light is below threshold value, start LED lighting.
-  if(hourPointer2 >= 0) {
-    if(hourPointer1 >= 6) {
-      insideTimeInterval = true;
+  //If current time is between 06:00 and 23:30 and measured light is below threshold value, start LED lighting.
+  if(hourPointer2 >= 0) {                 //Decode of 10-digit hour pointer.
+    if(hourPointer1 >= 6) {               //Decode of 1-digit hour pointer.                  
+      insideTimeInterval = true;          //Variable set to 'true' when current clock time is more than lower boundary of valid clock time interval where LED lighting is allowed.
     }
   }
 
-  if(insideTimeInterval == true) {
-    if(hourPointer2 == 2) {
-      if(hourPointer1 == 3) {
-        if(minutePointer2 == 3) {
-          if(minutePointer1 >= 0) {
-            insideTimeInterval = false;
+  if(insideTimeInterval == true) {        //If current clock time is within valid interval, check if clock time is below upper boundary of clock time interval where LED lighting is allowed.
+    if(hourPointer2 == 2) {               //Decode of 10-digit hour pointer.
+      if(hourPointer1 == 3) {             //Decode of 1-digit hour pointer.
+        if(minutePointer2 == 3) {         //Decode of 10-digit minute pointer.
+          if(minutePointer1 >= 0) {       //Decode of 1-digit hour pointer.
+            insideTimeInterval = false;   //If current clock time is more than upper boudary of valid clock time interval, current clock time is outside of valid time intervall.
           }
         }
       }
@@ -996,12 +1021,8 @@ void lightingOnCheck() {
     ledLightStart();                                      //Turn on LED lighting.
   }
   else {
-    ledLightStart();                                      //Stop off LED lighting.
+    ledLightStop();                                       //Turn off LED lighting.
   }
-
-    //Errors to corret!!!! FAULTY!!
-    //DECODING OF TIME WHEN PROGRAM SHOULD TURN ON LEDS DOES NOT WORK.
-    //WATER PUMP IS PUMPING EVEN THOUGH FAULT CODES, water level tank, water flow fault is active.
 }
 
 /*
@@ -1093,14 +1114,23 @@ void loop() {
   alarmMessageDisplay();                                                                                //Print alarm messages to display for any faults that is currently active. Warning messages on display will alert user to take action to solve a certain fault.  
 
   //Greenhouse program start.
-  if(greenhouseProgramStart == true) {    //It set to 'true', utomatic water and lighting control of greenhouse is turned on.
-    if(millis() > lightCheckTimer + lightCheckLoop) {
+  if(greenhouseProgramStart == true) {                  //When set to 'true' automatic water and lighting control of greenhouse is turned on.
+    //Check light read out value and turn on/off led lighting if below/above threshold value.
+    if(millis() > lightCheckTimer + checkLightLoop) { //Loop according to specified light on/off interval.
       lightingOnCheck();
-      lightCheckTimer = millis();
+      lightCheckTimer = millis();                                
     }
+    //Check light read out value when led lighting is turned to check if led lighting is working.
+    if(ledLightState == true) {
+      if(millis() > lightFaultTimer + checkLightLoop + ledCheckDelay) { //Loop according to specified check light interval.
+        ledLightCheck();
+        lightFaultTimer = millis();       
+      }
+    }
+    /*
     if(millis() > moistureCheckTimer + moistureCheckLoop) {                                                                                      //Start LED strip lighting.
-      pumpStart();
+      pumpWaterCheck();
       moistureCheckTimer = millis();                                                                                          //Start pump to pump water to plant.
-    }
+    }*/
   }                                                                          
 }
