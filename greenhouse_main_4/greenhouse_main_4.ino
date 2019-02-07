@@ -165,9 +165,12 @@ bool greenhouseProgramStart = false;    //If variable is set to 'true', automati
 int moistureThresholdValue = 300;       //Moisture threshold value. A measured mean moisture value below specified value will trigger water pump.
 unsigned long moistureCheckTimer = 0;   //Timer variable to be used with millis() for moisture check loop.
 int moistureCheckLoop = 20000;          //Loop time, in milliseconds, for how often water pump is activated based upon measured soil moisture value.         
+unsigned long pumpPreviousTime = 0;      //Timer variable to be used with millis() to make make water pump run for a certain amount of time.
+int pumpRunTime = 2000;                 //Sets the time for how long water pump will run each time it is activated.
+bool waterPumpEnable = true;            //Enable/Disable water pump to run.
 
 //Led lighting.
-int uvThresholdValue = 3;               //UV threshold value for turning LED lighting on/off.
+int uvThresholdValue = 4;               //UV threshold value for turning LED lighting on/off.
 //int lightThresholdValue = 1500;         //Light threshold value (lux) for turning LED lighting on/off.
 unsigned long lightCheckTimer = 0;      //Timer variable to be used with millis() to if LED lighting should be turned on/off.
 unsigned long lightFaultTimer = 0;      //Timer variable to be used with millis() to if LED lighting is working.
@@ -439,7 +442,7 @@ void lightRead() {
 =========================== */
 void ledLightStart() {
   digitalWrite(lightRelay, HIGH);                                 //Turn on LED lighting.
-  ledLightState = true;                                           //Update current LED lighting status.
+  ledLightState = true;                                           //Update current LED lighting state, 'true' means lighting is on.
 }
 
 /*
@@ -462,7 +465,39 @@ void ledLightCheck() {
 ============================ */
 void ledLightStop() {  
     digitalWrite(lightRelay, LOW);                                  //Turn off LED lighting.
-    ledLightState = false;                                          //Update current LED lighting status.
+    ledLightState = false;                                          //Update current LED lighting state, 'false' means lighting is off.
+}
+
+/*
+=====================================================
+|| Automatic control (start/stop) of LED lighting. ||
+===================================================== */
+void lightingOnCheck() {
+  //If current time is between 06:00 and 23:30 and measured light is below threshold value, start LED lighting.
+  if(hourPointer2 >= 0) {                 //Decode of 10-digit hour pointer.
+    if(hourPointer1 >= 6) {               //Decode of 1-digit hour pointer.                  
+      insideTimeInterval = true;          //Variable set to 'true' when current clock time is more than lower boundary of valid clock time interval where LED lighting is allowed.
+    }
+  }
+
+  if(insideTimeInterval == true) {        //If current clock time is within valid interval, check if clock time is below upper boundary of clock time interval where LED lighting is allowed.
+    if(hourPointer2 == 2) {               //Decode of 10-digit hour pointer.
+      if(hourPointer1 == 3) {             //Decode of 1-digit hour pointer.
+        if(minutePointer2 == 3) {         //Decode of 10-digit minute pointer.
+          if(minutePointer1 >= 0) {       //Decode of 1-digit hour pointer.
+            insideTimeInterval = false;   //If current clock time is more than upper boudary of valid clock time interval, current clock time is outside of valid time intervall.
+          }
+        }
+      }
+    }
+  }
+
+  if(uvValue < uvThresholdValue && insideTimeInterval == true) {
+    ledLightStart();                                      //Turn on LED lighting.
+  }
+  else {
+    ledLightStop();                                       //Turn off LED lighting.
+  }
 }
 
 /*
@@ -474,37 +509,70 @@ void waterLevelRead() {
 }
 
 /*
-======================================================
-|| Start water pump and read out water flow sensor. ||
-====================================================== */
+===========================================================
+|| Start/Stop water pump and read out water flow sensor. ||
+=========================================================== */
 void pumpStart() {
   //Calculate water flow (Liter/hour) by counting number of rotations that flow sensor makes. Water flow sensor is connected to interrupt pin.
   rotations = 0;                        
   delay(1000);                          //Count number of rotations during one second to calculate water flow in Liter/hour. 
   flowValue = (rotations * 60) / 7.5;   //Calculate the flow rate in Liter/hour.
 
-  //Start water pump.
-  digitalWrite(pumpRelay, HIGH);        //Start water pump.
-  pumpState = true;                     //Update water pump state to on, 'true'.
-  delay(3000);                          //Let water pump run for 3 seconds.
+  /*
+   //Start water pump.
+   unsigned long pumpCurrentTime = millis();
+    if(pumpState == false) {
+      pumpStart();                        //Start water pump.
+      pumpPreviousTime = pumpCurrentTime;
+    }
+    else if(pumpState == true && (pumpCurrentTime - pumpPreviousTime > pumpRunTime)) {
+      pumpStop();                         //Stop water pump.
+      pumpState = false;                  //Update current water pump state, 'false' means water pump is turned off.
+      pumpPreviousTime = pumpCurrentTime;
+    }
+    */
 
+  //Start water pump and let it run for a certain amount of time.
+  unsigned long pumpCurrentTime = millis();
+  if(waterPumpEnable == true) {             //Check if water pump is Enabled.
+    if(pumpState == false) {                //Check if water pump is running.
+      digitalWrite(pumpRelay, HIGH);        //Start water pump and pump water.
+      pumpState = true;                     //Update current water pump state, 'true' means water pump is running.
+      pumpPreviousTime = pumpCurrentTime;
+      Serial.println("Water pump ON");
+    }
+    else if(pumpState == true && (pumpCurrentTime - pumpPreviousTime > pumpRunTime)) {
+      digitalWrite(pumpRelay, LOW);         //Stop water pump.
+      pumpState = false;                    //Update current water pump state, 'false' means water pump not running.
+      pumpPreviousTime = pumpCurrentTime;
+      waterPumpEnable = false;              //Disable water pump after it has run one time. Program must check soil moisture and if any water pump fault codes are active before pump is allowed to run again.
+      Serial.println("Water pump OFF");
+    }
+  }
+  
   //Alarm if no water is being pumped even though water pump is running even though tank water level is ok.
   if(pumpState == true && flowValue < flowThresholdValue && waterLevelValue == false) {
     waterFlowFault = true;              //If there is no water flow or the flow is too low while water pump is running. Fault variable is set to 'true' to alert user.
   }
+  /*
   else if(pumpState == true && flowThresholdValue < flowValue && waterLevelValue == false) {
     waterFlowFault = false;             //If measured water flow, when water pump is running, is above flow threshold. Fault variable is deactivated.
   }
+  */
 }
 
+//NOT IN USE!!!!! BELOW!!!
 /*
 ======================
 || Stop water pump. ||
 ====================== */
+/*
 void pumpStop() {
   digitalWrite(pumpRelay, LOW);         //Stop water pump.
-  pumpState = false;                    //Update water pump state to off, 'false'
+  pumpState = false;                    //Update current water pump state, 'false' means water pump not running.
+  Serial.println("Water pump OFF");
 }
+*/
 
 /*
 ===========================================================================================
@@ -513,6 +581,22 @@ void pumpStop() {
 void flowCount() {
   //Interrupt function to count number of rotations that flow sensor makes when water is being pumped.
   rotations++;
+}
+
+/*
+=========================================
+|| Enable/Disable start of water pump. ||
+========================================= */
+void pumpWaterCheck() {
+  //If moisture mean value is below threshold value and no water related fault codes are set, start water pump.
+  if(moistureValueMean < moistureThresholdValue) {            //Check soil moisture value.
+    if(waterLevelValue == false && waterFlowFault == false) { //Check that no water related fault codes are active.
+      waterPumpEnable = true;                                 //Enable water pump to run.
+    }
+    else {
+      waterPumpEnable = false;                                //Disable water pump to run since any fault code i set.  
+    }
+  }
 }
 
 /*
@@ -988,42 +1072,6 @@ int moistureMeanValue(int moistureValue1, int moistureValue2, int moistureValue3
   return moistureMeanValue;
 }
 
-void pumpWaterCheck() {
-  //If moisture mean value is below threshold value, start water pump.
-  if(moistureValueMean < moistureThresholdValue && waterLevelValue == false) {
-    pumpStart();                                            //Start water pump.
-  }
-      //WATER PUMP IS PUMPING EVEN THOUGH FAULT CODES, water level tank, water flow fault is active.
-    //CONTIUNE HERE!!
-}
-
-void lightingOnCheck() {
-  //If current time is between 06:00 and 23:30 and measured light is below threshold value, start LED lighting.
-  if(hourPointer2 >= 0) {                 //Decode of 10-digit hour pointer.
-    if(hourPointer1 >= 6) {               //Decode of 1-digit hour pointer.                  
-      insideTimeInterval = true;          //Variable set to 'true' when current clock time is more than lower boundary of valid clock time interval where LED lighting is allowed.
-    }
-  }
-
-  if(insideTimeInterval == true) {        //If current clock time is within valid interval, check if clock time is below upper boundary of clock time interval where LED lighting is allowed.
-    if(hourPointer2 == 2) {               //Decode of 10-digit hour pointer.
-      if(hourPointer1 == 3) {             //Decode of 1-digit hour pointer.
-        if(minutePointer2 == 3) {         //Decode of 10-digit minute pointer.
-          if(minutePointer1 >= 0) {       //Decode of 1-digit hour pointer.
-            insideTimeInterval = false;   //If current clock time is more than upper boudary of valid clock time interval, current clock time is outside of valid time intervall.
-          }
-        }
-      }
-    }
-  }
-
-  if(uvValue < uvThresholdValue && insideTimeInterval == true) {
-    ledLightStart();                                      //Turn on LED lighting.
-  }
-  else {
-    ledLightStop();                                       //Turn off LED lighting.
-  }
-}
 
 /*
 *******************************
@@ -1118,19 +1166,23 @@ void loop() {
     //Check light read out value and turn on/off led lighting if below/above threshold value.
     if(millis() > lightCheckTimer + checkLightLoop) { //Loop according to specified light on/off interval.
       lightingOnCheck();
-      lightCheckTimer = millis();                                
+      lightCheckTimer = millis();
+      Serial.println("lightingOnCheck");                                
     }
     //Check light read out value when led lighting is turned to check if led lighting is working.
     if(ledLightState == true) {
       if(millis() > lightFaultTimer + checkLightLoop + ledCheckDelay) { //Loop according to specified check light interval.
         ledLightCheck();
-        lightFaultTimer = millis();       
+        lightFaultTimer = millis();   
+        Serial.println("ledLightCheck");     
       }
     }
-    /*
-    if(millis() > moistureCheckTimer + moistureCheckLoop) {                                                                                      //Start LED strip lighting.
-      pumpWaterCheck();
-      moistureCheckTimer = millis();                                                                                          //Start pump to pump water to plant.
-    }*/
+
+    if(millis() > moistureCheckTimer + moistureCheckLoop) {                                                                  
+      pumpWaterCheck();                 //Enable/Disable start of water pump.
+      moistureCheckTimer = millis();                                                                                         
+      Serial.println("pumpWaterCheck");
+    }
+    pumpStart();                        //Start water pump but it will only run if water pump is enabled. Enable/Disable start of water pump is performed in pumpWaterCheck function.
   }                                                                          
 }
