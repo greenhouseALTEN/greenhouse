@@ -117,7 +117,8 @@ volatile int rotations;
 int flowValue;
 bool pumpState = false;                   //Indicate current status of water pump. Variable is 'true' when water pump is running.
 bool waterFlowFault = false;              //Indicate if water is being pumped when water pump is running. Variable is 'false' when water flow is above threshold value. 
-int flowThresholdValue = 8;               //Variable value specifies the minimum water flow threshold required to avoid setting water flow fault.
+int flowThresholdValue = 100;              //Variable value specifies the minimum water flow threshold required to avoid setting water flow fault.
+unsigned long flowCurrentTime = 0;
 
 //Water level switch.
 bool waterLevelValue;                     //If variable is 'false' water level is OK. If 'true' tank water level is too low.
@@ -148,12 +149,13 @@ int x = 0;                              //Toggle variable.
 //Warning messages to display.
 bool enableAlarmMessage = false;        //Enable any alarm to be printed to display. If variable is 'true' alarm is enable to be printed to display.
 
-//Display screen modes.
+//Display toggle screen modes.
 bool setTimeDisplay = false;            //Any variable is set to 'true' when that screen mode is currently printed to display.     
 bool startupImageDisplay = true;
 bool valueReadoutDisplay = false;
 bool serviceModeDisplay = false;
 bool clockViewFinished = false;
+bool flowFaultDisplay = false;
 
 /*
 ---------------------
@@ -351,9 +353,9 @@ void startupDisplay() {
 }
 
 /*
-============================================
-|| Print read out values to OLED display. ||
-============================================ */
+=========================================================================
+|| VALUE READ OUT DISPLAY MODE. Print read out values to OLED display. ||
+========================================================================= */
 void displayValues() {
   //Clear redundant value digits from previous read out for all sensor values.
   SeeedOled.setTextXY(0, 42);
@@ -514,27 +516,18 @@ void waterLevelRead() {
 =========================================================== */
 void pumpStart() {
   //Calculate water flow (Liter/hour) by counting number of rotations that flow sensor makes. Water flow sensor is connected to interrupt pin.
-  rotations = 0;                        
-  delay(1000);                          //Count number of rotations during one second to calculate water flow in Liter/hour. 
-  flowValue = (rotations * 60) / 7.5;   //Calculate the flow rate in Liter/hour.
+  if(pumpState == true) {                 //Only check water flow when water pump is running.
+    rotations = 0;                        
+    delay(1000);                          //Count number of rotations during one second to calculate water flow in Liter/hour. 
+    flowValue = (rotations * 60) / 7.5;   //Calculate the flow rate in Liter/hour.
+  }
+  else {
+    flowValue = 0;                        //Clearing water flow value when pump is not running to prevent any faulty value from water flow sensor.
+  }
 
-  /*
-   //Start water pump.
-   unsigned long pumpCurrentTime = millis();
-    if(pumpState == false) {
-      pumpStart();                        //Start water pump.
-      pumpPreviousTime = pumpCurrentTime;
-    }
-    else if(pumpState == true && (pumpCurrentTime - pumpPreviousTime > pumpRunTime)) {
-      pumpStop();                         //Stop water pump.
-      pumpState = false;                  //Update current water pump state, 'false' means water pump is turned off.
-      pumpPreviousTime = pumpCurrentTime;
-    }
-    */
-
-  //Start water pump and let it run for a certain amount of time.
-  unsigned long pumpCurrentTime = millis();
   if(waterPumpEnable == true) {             //Check if water pump is Enabled.
+    //Start water pump and let it run for a certain amount of time.
+    unsigned long pumpCurrentTime = millis();
     if(pumpState == false) {                //Check if water pump is running.
       digitalWrite(pumpRelay, HIGH);        //Start water pump and pump water.
       pumpState = true;                     //Update current water pump state, 'true' means water pump is running.
@@ -548,31 +541,21 @@ void pumpStart() {
       waterPumpEnable = false;              //Disable water pump after it has run one time. Program must check soil moisture and if any water pump fault codes are active before pump is allowed to run again.
       Serial.println("Water pump OFF");
     }
+    
+    //Alarm if no water is being pumped (no water flow) when water pump is running.
+    if(pumpState == true && (millis() > + flowCurrentTime + pumpRunTime / 2)) { //Check water flow value when water pump has run for its half run time.
+      flowCurrentTime = millis();
+      if(flowValue < flowThresholdValue) {
+        Serial.println("Measure water flow");
+        waterFlowFault = true;              //Set fault code if water flow value is below threshold value in flowThresholdValue variable.
+      }
+      else {
+        waterFlowFault = false;             //Reset fault code.
+      }
+    }
   }
-  
-  //Alarm if no water is being pumped even though water pump is running even though tank water level is ok.
-  if(pumpState == true && flowValue < flowThresholdValue && waterLevelValue == false) {
-    waterFlowFault = true;              //If there is no water flow or the flow is too low while water pump is running. Fault variable is set to 'true' to alert user.
-  }
-  /*
-  else if(pumpState == true && flowThresholdValue < flowValue && waterLevelValue == false) {
-    waterFlowFault = false;             //If measured water flow, when water pump is running, is above flow threshold. Fault variable is deactivated.
-  }
-  */
 }
 
-//NOT IN USE!!!!! BELOW!!!
-/*
-======================
-|| Stop water pump. ||
-====================== */
-/*
-void pumpStop() {
-  digitalWrite(pumpRelay, LOW);         //Stop water pump.
-  pumpState = false;                    //Update current water pump state, 'false' means water pump not running.
-  Serial.println("Water pump OFF");
-}
-*/
 
 /*
 ===========================================================================================
@@ -751,27 +734,38 @@ void toggleMode() {
     Serial.println("clockViewFinished");
   }
 
-  //Enable screen toggle between value read out display and service mode display.
-  else if(valueReadoutDisplay == true) {
-    valueReadoutDisplay = false;              //Clear current screen display state.
-    enableAlarmMessage = false;               //Disable any alerts to be printed to display.
-    SeeedOled.clearDisplay();                 //Clear display.
-    serviceModeDisplay = true;                //Set next screen display state to be printed to display.
-    Serial.println("valueReadoutDisplay");
-  }
-  else if(serviceModeDisplay == true) {
+  //Enable screen toggle between value read out display and service mode display. If flow fault code is active, user will automatically enter flow fault display.
+  else if(waterFlowFault == true) {     //If a flow fault is detected it flow fault display will be actived next time MODE-button is being pressed.       
+    waterFlowFault = false;                   //Clear current screen display state.
     serviceModeDisplay = false;               //Clear current screen display state.
+    valueReadoutDisplay = false;              //Clear current screen display state.
+    enableAlarmMessage = false;               //Disable any alarm to be printed to display.
     SeeedOled.clearDisplay();                 //Clear display.
-    valueReadoutDisplay = true;               //Set next screen display state to be printed to display.
-    enableAlarmMessage = true;                //Enable any alarm to be printed to display.
-    Serial.println("serviceModeDisplay");
+    flowFaultDisplay = true;                  //Set next screen display state to be printed to display.
+  }
+  else {                                //If no fault codes are set, normal operation, user can toggle between valueReadoutDisplay and serviceModeDisplay screen modes.
+    if(valueReadoutDisplay == true) {
+      valueReadoutDisplay = false;              //Clear current screen display state.
+      enableAlarmMessage = false;               //Disable any alerts to be printed to display.
+      SeeedOled.clearDisplay();                 //Clear display.
+      serviceModeDisplay = true;                //Set next screen display state to be printed to display.
+      Serial.println("valueReadoutDisplay");
+    }
+    else if(serviceModeDisplay == true) {
+      serviceModeDisplay = false;               //Clear current screen display state.
+      SeeedOled.clearDisplay();                 //Clear display.
+      valueReadoutDisplay = true;               //Set next screen display state to be printed to display.
+      enableAlarmMessage = true;                //Enable any alarm to be printed to display.
+      Serial.println("serviceModeDisplay");
+    }
   }
 }
 
+
 /*
-*****************************************************************
-|| Print clock values to display to let user set current time. ||
-*****************************************************************/
+===================================================================================================
+|| SET CLOCK TIME DISPLAY MODE. Print clock values to OLED display to let user set current time. ||
+=================================================================================================== */
 void setClockDisplay() {
   SeeedOled.setTextXY(0, 0);                            //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Set current time");              //Print text to display.
@@ -833,10 +827,11 @@ void tempThresholdCompare() {
     tempValueFault = false;
   }
 }
+
 /*
-=============================================================================
-|| Print alarm message to display for any fault that is currently active . ||
-============================================================================= */
+============================================================================================================
+|| ALARM MESSAGE TO DISPLAY. Print alarm message to OLED display for any fault that is currently active . ||
+============================================================================================================ */
 void alarmMessageDisplay() {       
   timeNow = millis();                                   //Read millis() value to be used as delay to present multiple warning messages at the same space of display after another.
   timeDiff = timeNow - timePrev;
@@ -917,6 +912,10 @@ void alarmMessageDisplay() {
   }
 }
 
+/*
+===========================================================================
+|| SERVICE MODE DISPLAY MODE. Print service mode screen to OLED display. ||
+=========================================================================== */
 void viewServiceMode() {
   //Clear redundant value digits from previous read out for all sensor values.
   SeeedOled.setTextXY(0, 39);
@@ -1071,7 +1070,36 @@ int moistureMeanValue(int moistureValue1, int moistureValue2, int moistureValue3
   }
   return moistureMeanValue;
 }
+/*
+=========================================================================
+|| FLOW FAULT DISPLAY MODE. Print service mode screen to OLED display. ||
+========================================================================= */
+void resolveFlowFault() {
+  //Print fault code instruction to display. To let user resolve fault.
+  
+  //FUNCTION NOT WORKING PROPERLY, FLOW FAULT CODE IS AUTOMATICALLY RESET AND PROGRAM DOES NOT SHOW CORRECT DISPLAY MODE SOMETIMES. BUGGY!!!
+  
+  SeeedOled.setTextXY(0, 0);
+  SeeedOled.putString("Water flow fault");
+  SeeedOled.setTextXY(1, 0);
+  SeeedOled.putString("----------------");
+  SeeedOled.setTextXY(2, 0);
+  SeeedOled.putString("Chk hardware: ");
+  SeeedOled.setTextXY(3, 0);
+  SeeedOled.putString("-water in hose");
+  SeeedOled.setTextXY(4, 0);
+  SeeedOled.putString("vacuum in tank?");
+  SeeedOled.setTextXY(6, 0);
+  SeeedOled.putString("Done? Press SET-");
+  SeeedOled.setTextXY(7, 0);
+  SeeedOled.putString("button to reset.");
 
+  //Let user reset fault code.
+  serviceModeDisplay = true;          //Set next screen to be displayed after flow fault has been resolved.
+  if(pushButton1 == true) {
+    waterFlowFault == false;          //Clear fault code to let water pump run.
+  }
+}
 
 /*
 *******************************
@@ -1144,6 +1172,9 @@ void loop() {
   }
   else if(serviceModeDisplay == true) {
     viewServiceMode();                                              //Service mode screen is printed to display.
+  }
+  else if(flowFaultDisplay == true) {
+    resolveFlowFault();                                             //Water flow fault instruction screen with ability to reset fault code.
   }
 
   //Read out sensor values, calculate values and alert user if any fault code is set.
