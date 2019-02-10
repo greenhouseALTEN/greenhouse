@@ -87,9 +87,11 @@ int moistureValue1;                       //Individual moisture sensor value for
 int moistureValue2;                       //Individual moisture sensor value for moisture sensor 2.
 int moistureValue3;                       //Individual moisture sensor value for moisture sensor 3.
 int moistureValue4;                       //Individual moisture sensor value for moisture sensor 4.                      
-int moistureValueMean;                    //Mean value of all 4 moisture sensors.
+int moistureMeanValue;                    //Mean value of all 4 moisture sensors.
 bool moistureDry = false;                 //Activates warning message on display based on moisture mean value. 'true' if soil for mean value sensor is too dry.
 bool moistureWet = false;                 //Activates warning message on display based on moisture mean value. 'true' if soil for mean value sensor is too wet.
+int moistureThresholdLow = 300;
+int moistureThresholdHigh = 700;
 
 //Temperature and humidity sensor.
 const uint8_t DHTTYPE = DHT11;            //DHT11 = Arduino UNO model is being used.
@@ -147,12 +149,12 @@ bool flashClockPointer = false;         //Variable to create lash clock pointer 
 int x = 0;                              //Toggle variable.
 
 //Warning messages to display.
-bool enableAlarmMessage = false;        //Enable any alarm to be printed to display. If variable is 'true' alarm is enable to be printed to display.
+bool alarmMessageEnabled = false;       //Enable any alarm to be printed to display. If variable is 'true' alarm is enable to be printed to display.
 
 //Display toggle screen modes.
-bool setTimeDisplay = false;            //Any variable is set to 'true' when that screen mode is currently printed to display.     
-bool startupImageDisplay = true;
-bool valueReadoutDisplay = false;
+bool startupImageDisplay = true;        //Any variable is set to 'true' when that screen mode is currently printed to display.
+bool setTimeDisplay = false;                 
+bool readoutValuesDisplay = false;
 bool serviceModeDisplay = false;
 bool clockViewFinished = false;
 bool flowFaultDisplay = false;
@@ -169,7 +171,7 @@ unsigned long moistureCheckTimer = 0;   //Timer variable to be used with millis(
 int moistureCheckLoop = 20000;          //Loop time, in milliseconds, for how often water pump is activated based upon measured soil moisture value.         
 unsigned long pumpPreviousTime = 0;      //Timer variable to be used with millis() to make make water pump run for a certain amount of time.
 int pumpRunTime = 2000;                 //Sets the time for how long water pump will run each time it is activated.
-bool waterPumpEnable = true;            //Enable/Disable water pump to run.
+bool waterPumpEnabled = true;            //Enable/Disable water pump to run.
 
 //Led lighting.
 int uvThresholdValue = 4;               //UV threshold value for turning LED lighting on/off.
@@ -328,7 +330,7 @@ const unsigned char features[] PROGMEM= {
 ======================================================
 || Initialize OLED display and show startup images. ||
 ====================================================== */
-void startupDisplay() {
+void viewStartupImage() {
   Wire.begin();
   SeeedOled.init();
   SeeedOled.clearDisplay();                         //Clear display.
@@ -356,7 +358,7 @@ void startupDisplay() {
 =========================================================================
 || VALUE READ OUT DISPLAY MODE. Print read out values to OLED display. ||
 ========================================================================= */
-void displayValues() {
+void viewReadoutValues() {
   //Clear redundant value digits from previous read out for all sensor values.
   SeeedOled.setTextXY(0, 42);
   SeeedOled.putString("      ");
@@ -379,7 +381,19 @@ void displayValues() {
   SeeedOled.setTextXY(0, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Moisture: ");        //Print string to display.
   SeeedOled.setTextXY(0, 42);
-  SeeedOled.putNumber(moistureValueMean);   //Print mean moisture value to display.
+  SeeedOled.putNumber(moistureMeanValue);   //Print mean moisture value to display.
+
+  //Select which text string to be printed to display depending of soil moisture.
+  SeeedOled.setTextXY(0, 45);
+  if(moistureDry == true && moistureWet == false) {
+    SeeedOled.putString("Dry");             //Print string to display.
+  }
+  else if(moistureDry == false && moistureWet == false) {
+    SeeedOled.putString("OK");              //Print string to display.
+  }
+  else if(moistureDry == false && moistureWet == true) {
+    SeeedOled.putString("Wet");             //Print string to display.
+  }  
 
   /*******************
   |Temp sensor value.|
@@ -474,7 +488,7 @@ void ledLightStop() {
 =====================================================
 || Automatic control (start/stop) of LED lighting. ||
 ===================================================== */
-void lightingOnCheck() {
+void checkLightNeed() {
   //If current time is between 06:00 and 23:30 and measured light is below threshold value, start LED lighting.
   if(hourPointer2 >= 0) {                 //Decode of 10-digit hour pointer.
     if(hourPointer1 >= 6) {               //Decode of 1-digit hour pointer.                  
@@ -525,7 +539,7 @@ void pumpStart() {
     flowValue = 0;                        //Clearing water flow value when pump is not running to prevent any faulty value from water flow sensor.
   }
 
-  if(waterPumpEnable == true) {             //Check if water pump is Enabled.
+  if(waterPumpEnabled == true) {             //Check if water pump is Enabled.
     //Start water pump and let it run for a certain amount of time.
     unsigned long pumpCurrentTime = millis();
     if(pumpState == false) {                //Check if water pump is running.
@@ -538,7 +552,7 @@ void pumpStart() {
       digitalWrite(pumpRelay, LOW);         //Stop water pump.
       pumpState = false;                    //Update current water pump state, 'false' means water pump not running.
       pumpPreviousTime = pumpCurrentTime;
-      waterPumpEnable = false;              //Disable water pump after it has run one time. Program must check soil moisture and if any water pump fault codes are active before pump is allowed to run again.
+      waterPumpEnabled = false;              //Disable water pump after it has run one time. Program must check soil moisture and if any water pump fault codes are active before pump is allowed to run again.
       Serial.println("Water pump OFF");
     }
     
@@ -570,14 +584,16 @@ void flowCount() {
 =========================================
 || Enable/Disable start of water pump. ||
 ========================================= */
-void pumpWaterCheck() {
-  //If moisture mean value is below threshold value and no water related fault codes are set, start water pump.
-  if(moistureValueMean < moistureThresholdValue) {            //Check soil moisture value.
-    if(waterLevelValue == false && waterFlowFault == false) { //Check that no water related fault codes are active.
-      waterPumpEnable = true;                                 //Enable water pump to run.
+void checkWaterNeed() {
+  //Water pump is enabled if soil moisture is too dry or at the same time as no water related fault codes are set.
+  bool moistureDry = false;                 //Activates warning message on display based on moisture mean value. 'true' if soil for mean value sensor is too dry.
+bool moistureWet = false;
+  if(moistureDry == true && moistureWet == false) {            
+    if(waterLevelValue == false && waterFlowFault == false) {   //Make sure no water related fault codes are set.
+      waterPumpEnabled = true;                                  //Enable water pump to run let it start when activated.
     }
     else {
-      waterPumpEnable = false;                                //Disable water pump to run since any fault code i set.  
+      waterPumpEnabled = false;                                 //Disable water pump to prevent it from starting.  
     }
   }
 }
@@ -696,10 +712,11 @@ void setClockTime() {
 }
 
 /*
-**************************************************************************************
+======================================================================================
 || Toggle set modes and screen display modes when clockModeButton is being pressed. ||
-**************************************************************************************/
+====================================================================================== */
 void toggleMode() {
+  //DISABLE OF INTERUPT NOT WORKING!!!
   cli();                              //Stop any new interrupts from occuring to avoid contact bounce.
   delay(500);
   sei();                              //Allow interrupts again.
@@ -728,8 +745,8 @@ void toggleMode() {
   if(clockViewFinished == true) {
     clockViewFinished = false;                //Clear current screen display state
     SeeedOled.clearDisplay();                 //Clear display.
-    valueReadoutDisplay = true;               //Set next screen display state to be printed to display.
-    enableAlarmMessage = true;                //Enable any alarm to be printed to display.
+    readoutValuesDisplay = true;              //Set next screen display state to be printed to display.
+    alarmMessageEnabled = true;               //Enable any alarm to be printed to display.
     greenhouseProgramStart = true;            //Start greenhouse program.
     Serial.println("clockViewFinished");
   }
@@ -738,24 +755,24 @@ void toggleMode() {
   else if(waterFlowFault == true) {     //If a flow fault is detected it flow fault display will be actived next time MODE-button is being pressed.       
     waterFlowFault = false;                   //Clear current screen display state.
     serviceModeDisplay = false;               //Clear current screen display state.
-    valueReadoutDisplay = false;              //Clear current screen display state.
-    enableAlarmMessage = false;               //Disable any alarm to be printed to display.
+    readoutValuesDisplay = false;             //Clear current screen display state.
+    alarmMessageEnabled = false;              //Disable any alarm to be printed to display.
     SeeedOled.clearDisplay();                 //Clear display.
     flowFaultDisplay = true;                  //Set next screen display state to be printed to display.
   }
-  else {                                //If no fault codes are set, normal operation, user can toggle between valueReadoutDisplay and serviceModeDisplay screen modes.
-    if(valueReadoutDisplay == true) {
-      valueReadoutDisplay = false;              //Clear current screen display state.
-      enableAlarmMessage = false;               //Disable any alerts to be printed to display.
+  else {                                //If no fault codes are set, normal operation, user can toggle between readoutValuesDisplay and serviceModeDisplay screen modes.
+    if(readoutValuesDisplay == true) {
+      readoutValuesDisplay = false;             //Clear current screen display state.
+      alarmMessageEnabled = false;              //Disable any alerts to be printed to display.
       SeeedOled.clearDisplay();                 //Clear display.
       serviceModeDisplay = true;                //Set next screen display state to be printed to display.
-      Serial.println("valueReadoutDisplay");
+      Serial.println("readoutValuesDisplay");
     }
     else if(serviceModeDisplay == true) {
       serviceModeDisplay = false;               //Clear current screen display state.
       SeeedOled.clearDisplay();                 //Clear display.
-      valueReadoutDisplay = true;               //Set next screen display state to be printed to display.
-      enableAlarmMessage = true;                //Enable any alarm to be printed to display.
+      readoutValuesDisplay = true;              //Set next screen display state to be printed to display.
+      alarmMessageEnabled = true;               //Enable any alarm to be printed to display.
       Serial.println("serviceModeDisplay");
     }
   }
@@ -833,12 +850,12 @@ void tempThresholdCompare() {
 || ALARM MESSAGE TO DISPLAY. Print alarm message to OLED display for any fault that is currently active . ||
 ============================================================================================================ */
 void alarmMessageDisplay() {       
-  timeNow = millis();                                   //Read millis() value to be used as delay to present multiple warning messages at the same space of display after another.
+  timeNow = millis();                                     //Read millis() value to be used as delay to present multiple warning messages at the same space of display after another.
   timeDiff = timeNow - timePrev;
   //Serial.print("timeDiff: ");
   //Serial.println(timeDiff);
 
-  if(enableAlarmMessage == true) {                        //Any alarm can only be printed to display if variable is set to 'true'.
+  if(alarmMessageEnabled == true) {                       //Any alarm can only be printed to display if variable is set to 'true'.
     /******************
     |Water flow fault.|
     *******************/
@@ -1022,17 +1039,17 @@ void viewServiceMode() {
 }
 
 /*
-=====================================================================================================
-|| Calculate moisture mean value based on measured moisture values from all four moisture sensors. ||
-===================================================================================================== */
-int moistureMeanValue(int moistureValue1, int moistureValue2, int moistureValue3, int moistureValue4) {
+==========================================================================================
+|| Calculate moisture mean value from moisture measurements and evaluate soil humidity. ||
+========================================================================================== */
+int calculateMoistureMean(int moistureValue1, int moistureValue2, int moistureValue3, int moistureValue4) {
   int moistureValues[4] = {moistureValue1, moistureValue2, moistureValue3, moistureValue4};
   int moistureMax = 0;                                      //Variable used to store a moisture value when comparing it to other moisture sensor values and finally store the highest moisture value.
   int moistureMin = moistureValues[0];                      //First value in array of values used as reference value. Variable used to store a moisture value when comparing it to other moisture sensor values and finally store the lowest moisture value.
   int maxIndex;                                             //Index in array for max moisture value.
   int minIndex;                                             //Index in array for min moisture value.
   int moistureSum = 0;
-  int moistureMeanValue;                                    //Stores the moisture mean value before returned to main program.
+  int moistureMean;                                         //Stores the moisture mean value before returned to main program.
   
   //Since 4 different moisture sensors are used to measure soil moisture in the four different post and specific watering for each individual pots is not possible. The watering action is only based upon a mean value of the moisture readouts. Min and max value are sorted out and not used in case any sensor is not working correctly. 
   for(int i=0; i<sizeof(moistureValues)/sizeof(int); i++) { //Looping through all measured moisture values to find the highest and lowest moisture values.
@@ -1054,21 +1071,22 @@ int moistureMeanValue(int moistureValue1, int moistureValue2, int moistureValue3
   for(int i=0; i<sizeof(moistureValues)/sizeof(int); i++) {
     moistureSum += moistureValues[i];                       //Sum the remaining moisture sensor values.
   }
-  moistureMeanValue = moistureSum / 2;                      //Calculate mean moisture value with max and min values excluded.
-    
-  if(moistureMeanValue <= 300) {
-    moistureDry = true;                                     //Set warning to display to alert user. Soil too dry.
+  moistureMean = moistureSum / 2;                           //Calculate mean moisture value with max and min values excluded.
+
+  //Evaluate soil humidity based on moisture mean value.
+  if(moistureMean <= moistureThresholdLow) {                //Soil humidity is too low.
+    moistureDry = true;                                     //Variables used by checkWaterNeed-function to determine if water pump should be enabled.
     moistureWet = false;
   }
-  else if(moistureMeanValue > 300 && moistureMeanValue <= 700) {
-    moistureWet = false;           
+  else if(moistureMean > moistureThresholdLow && moistureMean <= moistureThresholdHigh) { //Soil humidity is good.
+    moistureWet = false;                                    //Variables used by checkWaterNeed-function to determine if water pump should be enabled.
     moistureDry = false;
   }
-  else if(moistureMeanValue > 700) {
-    moistureWet = true;                                     //Set warning to display to alert user. Soil too wet.
+  else if(moistureMean > moistureThresholdHigh) {           //Soil humidity is to high.
+    moistureWet = true;                                     //Variables used by checkWaterNeed-function to determine if water pump should be enabled.
     moistureDry = false;
   }
-  return moistureMeanValue;
+  return moistureMean;
 }
 /*
 =========================================================================
@@ -1109,7 +1127,7 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
 
-  startupDisplay();                       //Initialize the OLED Display and show startup images.
+  viewStartupImage();                       //Initialize the OLED Display and show startup images.
 
   pinMode(moistureSensorPort1, INPUT);
   pinMode(moistureSensorPort2, INPUT);
@@ -1167,8 +1185,8 @@ void loop() {
     setClockTime();
     setClockDisplay();
   }
-  else if(valueReadoutDisplay == true) {                            //Only display read out values after current time on internal clock, has been set.
-    displayValues();                                                //Print read out values from the greenhouse to display.
+  else if(readoutValuesDisplay == true) {                           //Only display read out values after current time on internal clock, has been set.
+    viewReadoutValues();                                            //Print read out values from the greenhouse to display.
   }
   else if(serviceModeDisplay == true) {
     viewServiceMode();                                              //Service mode screen is printed to display.
@@ -1182,7 +1200,7 @@ void loop() {
   moistureValue2 = moistureSensor2.moistureRead(moistureSensorPort2);                                   //Read moistureSensor2 value to check soil humidity.
   moistureValue3 = moistureSensor3.moistureRead(moistureSensorPort3);                                   //Read moistureSensor3 value to check soil humidity.
   moistureValue4 = moistureSensor4.moistureRead(moistureSensorPort4);                                   //Read moistureSensor4 value to check soil humidity.
-  moistureValueMean = moistureMeanValue(moistureValue1, moistureValue2, moistureValue3, moistureValue4);    //Mean value from all sensor readouts.
+  moistureMeanValue = calculateMoistureMean(moistureValue1, moistureValue2, moistureValue3, moistureValue4);    //Mean value from all sensor readouts.
   
   tempValue = humiditySensor.readTemperature(false);                                                    //Read temperature value from DHT-sensor. "false" gives the value in °C.
   //humidValue = humiditySensor.readHumidity();                                                           //Read humidity value from DHT-sensor.
@@ -1196,9 +1214,9 @@ void loop() {
   if(greenhouseProgramStart == true) {                  //When set to 'true' automatic water and lighting control of greenhouse is turned on.
     //Check light read out value and turn on/off led lighting if below/above threshold value.
     if(millis() > lightCheckTimer + checkLightLoop) { //Loop according to specified light on/off interval.
-      lightingOnCheck();
+      checkLightNeed();
       lightCheckTimer = millis();
-      Serial.println("lightingOnCheck");                                
+      Serial.println("checkLightNeed");                                
     }
     //Check light read out value when led lighting is turned to check if led lighting is working.
     if(ledLightState == true) {
@@ -1210,10 +1228,10 @@ void loop() {
     }
 
     if(millis() > moistureCheckTimer + moistureCheckLoop) {                                                                  
-      pumpWaterCheck();                 //Enable/Disable start of water pump.
+      checkWaterNeed();                 //Enable/Disable start of water pump.
       moistureCheckTimer = millis();                                                                                         
-      Serial.println("pumpWaterCheck");
+      Serial.println("checkWaterNeed");
     }
-    pumpStart();                        //Start water pump but it will only run if water pump is enabled. Enable/Disable start of water pump is performed in pumpWaterCheck function.
+    pumpStart();                        //Start water pump but it will only run if water pump is enabled. Enable/Disable start of water pump is performed in checkWaterNeed function.
   }                                                                          
 }
