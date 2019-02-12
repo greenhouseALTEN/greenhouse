@@ -105,8 +105,8 @@ int tempThresholdValue = 60;              //Starting value for temperature thres
 int aLastState;
 
 //Debouncing button press on button connected to external interrupt.
-volatile unsigned long pressTimePrev;
-int debounceTimePeriod = 500;
+volatile unsigned long pressTimePrev;     //Variable to store previous millis() value.
+int debounceTimePeriod = 300;             //Delay time before interrupt function is started.
 
 //Light sensor.
 SI114X lightSensor;                       //Light sensor object created.
@@ -120,12 +120,12 @@ bool ledLightFault = false;               //Indicate if LED lighting is not turn
 
 //Water pump and flow sensor.
 volatile int rotations;
-int flowValue;
+int flowValue; 
 bool pumpState = false;                   //Indicate current status of water pump. Variable is 'true' when water pump is running.
 bool waterFlowFault = false;              //Indicate if water is being pumped when water pump is running. Variable is 'false' when water flow is above threshold value. 
 int flowThresholdValue = 99;              //Variable value specifies the minimum water flow threshold required to avoid setting water flow fault.
 unsigned long pumpTimePrev = 0;           //Used to read relative time. 
-unsigned long pumpTimePeriod = 20000;     //Sets the time for how long water pump will run each time it is activated.
+int pumpTimePeriod = 2000;                //Sets the time for how long water pump will run each time it is activated.
 
 //Water level switch.
 bool waterLevelValue;                     //If variable is 'false' water level is OK. If 'true' tank water level is too low.
@@ -170,7 +170,7 @@ bool greenhouseProgramStart = false;    //If variable is set to 'true', automati
 bool waterPumpEnabled = false;          //Enable/Disable water pump to run.
 unsigned long checkMoistureNow = 0;
 int checkMoisturePeriod = 20000;        //Loop time, in milliseconds, for how often water pump is activated based upon measured soil moisture value.         
-
+int y = 0;                              //Toggle variable.
 
 //Led lighting.
 int uvThresholdValue = 4;               //UV threshold value for turning LED lighting on/off.
@@ -372,6 +372,8 @@ void viewReadoutValues() {
   SeeedOled.putString("         ");
   SeeedOled.setTextXY(4, 42);
   SeeedOled.putString("    ");
+  SeeedOled.setTextXY(4, 44);               //Clear symbols from previous display mode.
+  SeeedOled.putString("    ");
   SeeedOled.setTextXY(5, 42);
   SeeedOled.putString("      ");
 
@@ -391,7 +393,7 @@ void viewReadoutValues() {
     SeeedOled.putString("Dry");             //Print string to display.
   }
   else if(moistureDry == false && moistureWet == false) {
-    SeeedOled.putString("OK");              //Print string to display.
+    SeeedOled.putString(" OK");             //Print string to display.
   }
   else if(moistureDry == false && moistureWet == true) {
     SeeedOled.putString("Wet");             //Print string to display.
@@ -524,7 +526,7 @@ void checkLightNeed() {
 ============================== */
 void waterLevelRead() {
   waterLevelValue = digitalRead(waterLevelSwitch);                  //If variable is 'false' water level is OK. If 'true' tank water level is too low.
-}
+}        
 
 /*
 =======================================================================================================
@@ -552,7 +554,6 @@ void pumpStart() {
     if(pumpState == false) {                  
       digitalWrite(pumpRelay, HIGH);          //If water pump is not running. Start water pump.
       pumpState = true;                       //Update current water pump state, 'true' means water pump is running.
-      pumpTimePrev = pumpTimeNow;             //Update reference time stamp.
       Serial.println("Water pump ON");
     }
     else if(pumpState == true && pumpTimeDiff > pumpTimePeriod) {
@@ -565,11 +566,14 @@ void pumpStart() {
   }
   
   unsigned long flowTimeNow = 0;
-    
+   
   //Set alarm if no water is being pumped (no water flow) even though water pump is running.
   if(pumpState == true) {
+//NOT WORKING!! PROGRAM NOT ABLE TO DETECT WATER FLOW    
     //Check water flow value in the last half part of water pump running cycle.
-    if(millis() > (flowTimeNow + pumpTimePeriod / 2)) { 
+    Serial.print("flowValue: ");
+    Serial.println(flowValue);
+    if(millis() > (flowTimeNow + 5/6 * pumpTimePeriod)) { 
       flowTimeNow = millis();                     //Get the  time stamp when water pump was started.
       Serial.println("Check water flow");
       if(flowValue < flowThresholdValue) {
@@ -731,91 +735,96 @@ void setClockTime() {
 }
 
 /*
+======================
+|| Reset clock time ||
+====================== */
+void resetClockTime() {
+  //Stop clock and reset all clock pointers.
+  clockStartMode = false;                                       //Stop clock from ticking.
+  hourPointer1 = 0;
+  hourPointer2 = 0;
+  minutePointer1 = 0;                 
+  minutePointer2 = 0;                 
+  secondPointer1 = 0;                 
+  secondPointer2 = 0;         
+}
+
+/*
 ======================================================================================
 || Toggle set modes and screen display modes when clockModeButton is being pressed. ||
 ====================================================================================== */
 void toggleDisplayMode() {
-  //Debouncing button press to avoid multiple interrupts (display toggles) when button is pressed.
+  //Debouncing button press to avoid multiple interrupts, display toggles.
   if((millis() - pressTimePrev) >= debounceTimePeriod) {
 
-  //Toggle display modes every time MODE-button is pressed.
-  if(setTimeDisplay == true) {
-    Serial.println("setTimeDisplay");
-    if(hourInputMode == true) {
-      hourInputMode = false;                  //Hour pointers have been set.
-      minuteInputMode = true;                 //Continue with setting minute pointers.
-      Serial.println("hourInputMode");
+    //Toggle display modes every time MODE-button is pressed.
+    if(setTimeDisplay == true) {
+      Serial.println("setTimeDisplay");
+      if(hourInputMode == true) {
+        hourInputMode = false;                  //Hour pointers have been set.
+        minuteInputMode = true;                 //Continue with setting minute pointers.
+        Serial.println("hourInputMode");
+      }
+      else if(minuteInputMode == true) {
+        minuteInputMode = false;                //Minute pointers have been set.
+        clockStartMode = true;                  //Start clock. Clock starts ticking.
+        clockSetFinished = true;
+        Serial.println("minuteInputMode");
+      }
+      else if(clockSetFinished == true) {
+        clockSetFinished = false;               //Clear current state in display mode.
+        setTimeDisplay = false;                 //Clear current display mode.
+        readoutValuesDisplay = true;            //Set next display mode to be printed to display.
+        alarmMessageEnabled = true;             //Enable any alarm message to be printed to display.
+        greenhouseProgramStart = true;          //Start greenhouse program.
+        Serial.println("clockSetFinished");
+      }
     }
-    else if(minuteInputMode == true) {
-      minuteInputMode = false;                //Minute pointers have been set.
-      clockStartMode = true;                  //Start clock. Clock starts ticking.
-      clockSetFinished = true;
-      Serial.println("minuteInputMode");
+    else if(readoutValuesDisplay == true) {
+      readoutValuesDisplay = false;               //Clear current screen display mode to enable next display mode to shown next time MODE-button is pressed.
+      alarmMessageEnabled = false;                //Disable any alarm message from being printed to display.
+      //SeeedOled.clearDisplay();                   //Clear display.
+      serviceModeDisplay = true;                  //Set next display mode to be printed to display.
+      Serial.println("readoutValuesDisplay");
     }
-    else if(clockSetFinished == true) {
-      clockSetFinished = false;               //Clear current state in display mode.
-      setTimeDisplay = false;                 //Clear current display mode.
-      readoutValuesDisplay = true;            //Set next display mode to be printed to display.
-      alarmMessageEnabled = true;             //Enable any alarm message to be printed to display.
-      greenhouseProgramStart = true;          //Start greenhouse program.
-      Serial.println("clockSetFinished");
+    else if(serviceModeDisplay == true) {
+      serviceModeDisplay = false;                 //Clear current screen display mode to enable next display mode to shown next time MODE-button is pressed.
+      //SeeedOled.clearDisplay();                   //Clear display.
+      readoutValuesDisplay = true;                //Set next display mode to be printed to display.
+      alarmMessageEnabled = true;                 //Enable any alarm message from being printed to display.
+      Serial.println("serviceModeDisplay");
     }
-  }
-  //Toggle display mode between readoutValuesDisplay and serviceModeDisplay.
-  else if(readoutValuesDisplay == true) {
-    readoutValuesDisplay = false;               //Clear current screen display mode to enable next display mode to shown next time MODE-button is pressed.
-    alarmMessageEnabled = false;                //Disable any alarm message from being printed to display.
-    SeeedOled.clearDisplay();                   //Clear display.
-    serviceModeDisplay = true;                  //Set next display mode to be printed to display.
-    Serial.println("readoutValuesDisplay");
-  }
-  else if(serviceModeDisplay == true) {
-    serviceModeDisplay = false;                 //Clear current screen display mode to enable next display mode to shown next time MODE-button is pressed.
-    SeeedOled.clearDisplay();                   //Clear display.
-    readoutValuesDisplay = true;                //Set next display mode to be printed to display.
-    alarmMessageEnabled = true;                 //Enable any alarm message from being printed to display.
-    Serial.println("serviceModeDisplay");
-  }
-  else if(flowFaultDisplay == true) {
-    flowFaultDisplay = false;                   //Clear current screen display mode to enable next display mode to shown next time MODE-button is pressed.
-    SeeedOled.clearDisplay();                   //Clear display.
-    Serial.println("flowFaultDisplay");
-    
-    //Check if flow fault code has been cleared by user.
-    if(waterFlowFault == true) {                //If flow fault code is not cleared, reboot greenhouse program.
-      waterFlowFault = false;                   //Clear water flow fault code.
-      startupImageDisplay = true;               //Reboot greenhouse program by viewing the startup display.
-      setTimeDisplay = false;                 
-      readoutValuesDisplay = false;
-      serviceModeDisplay = false;
-      clockViewFinished = false;
-      flowFaultDisplay = false;
-      Serial.println("Go to startupImageDisplay");             
+    else if(flowFaultDisplay == true) {
+      flowFaultDisplay = false;                   //Clear current screen display mode to enable next display mode to shown next time MODE-button is pressed.
+      //SeeedOled.clearDisplay();                   //Clear display.
+      Serial.println("flowFaultDisplay");
+      
+      //Check if water flow fault code has been cleared by user or not.
+      if(waterFlowFault == false) {               //Fault code has been cleared by user. Continue to run greenhouse program.               
+        greenhouseProgramStart = true;            
+        readoutValuesDisplay = true;              //Set next display mode to be printed to display.
+        alarmMessageEnabled = true;               //Enable any alarm message from being printed to display.
+        Serial.println("Resume program"); 
+      }
+      else {                                      //If flow fault code is not cleared, reboot greenhouse program.
+        waterFlowFault = false;                   //Clear water flow fault code.
+        resetClockTime();                         //Reset clock time.
+        startupImageDisplay = true;               //Reboot greenhouse program by printing the startup image to display.                
+        Serial.println("Go to startupImageDisplay");             
+      }
     }
-    else if(waterFlowFault == false) {          //If flow fault code has been cleard by user, continue greenhouse program.
-      readoutValuesDisplay = true;              //Set next display mode to be printed to display.
-      alarmMessageEnabled = true;               //Enable any alarm message from being printed to display.
-      greenhouseProgramStart = true;            //Start greenhouse program.
-    }
-  }
 
-  //If greenhouse program has started and water flow fault is active, user will enter flow fault display to resolve the problem.
-  if(greenhouseProgramStart == true) {
-    if(waterFlowFault == true) {                
-      serviceModeDisplay = false;               //Clear any of the current active display modes.
-      readoutValuesDisplay = false;             
-      alarmMessageEnabled = false;              //Disable any alarm to be printed to display.              
-      SeeedOled.clearDisplay();                 //Clear display.
-      flowFaultDisplay = true;                  //Set next display mode to be printed to display.
-      greenhouseProgramStart = false;           //Stop greenhouse program.
-      pumpStop();                               //Stop water pump.
-      Serial.println("Go to flowFaultDisplay");
+    //Check if water flow fault code is active. If active enter flow fault display to handle fault code.
+    if(waterFlowFault == true) {
+      readoutValuesDisplay = false;               //Clear any of current screen display modes to enable next display mode to shown next time MODE-button is pressed.
+      serviceModeDisplay = false;
+      alarmMessageEnabled = false;
+      flowFaultDisplay = true;                    //Set next display mode to be printed to display.
+      greenhouseProgramStart = false;             //Stop greenhouse program.
     }
-  }
-    pressTimePrev = millis();
+  pressTimePrev = millis();
   }
 }
-
 
 /*
 ===================================================================================================
@@ -999,6 +1008,8 @@ void viewServiceMode() {
   SeeedOled.putString("  ");
   SeeedOled.setTextXY(6, 45);
   SeeedOled.putString("   ");
+  SeeedOled.setTextXY(7, 45);
+  SeeedOled.putString("  ");
   
   //Display clock.
   SeeedOled.setTextXY(0, 0);                            //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
@@ -1136,12 +1147,19 @@ int calculateMoistureMean(int moistureValue1, int moistureValue2, int moistureVa
 ========================================================================= */
 void resolveFlowFault() {
   //Clear redundant symbols from previous screen mode.
-  SeeedOled.setTextXY(5, 22);
-  SeeedOled.putString("       ");
+  SeeedOled.setTextXY(0, 28);
+  SeeedOled.putString("    ");
+  SeeedOled.setTextXY(2, 45);
+  SeeedOled.putString("   ");
+  SeeedOled.setTextXY(5, 45);
+  SeeedOled.putString("   ");
   
   //Print fault code instruction to display. To let user resolve fault.
   SeeedOled.setTextXY(0, 0);
-  SeeedOled.putString("Water flow fault");
+  SeeedOled.putString("waterFlow: ");
+  SeeedOled.setTextXY(0, 27);
+  SeeedOled.putNumber(waterFlowFault);
+  
   SeeedOled.setTextXY(1, 0);
   SeeedOled.putString("----------------");
   SeeedOled.setTextXY(2, 0);
@@ -1151,16 +1169,21 @@ void resolveFlowFault() {
   SeeedOled.setTextXY(4, 0);
   SeeedOled.putString("*vacuum in tank?");
   SeeedOled.setTextXY(5, 0);
-  SeeedOled.putString("*Done?");
+  SeeedOled.putString("*Done? Press:");
   SeeedOled.setTextXY(6, 0);
-  SeeedOled.putString("Press SET-button");
+  SeeedOled.putString("SET = clear/set");
   SeeedOled.setTextXY(7, 0);
-  SeeedOled.putString("to clear fault.");
+  SeeedOled.putString("MODE = confirm");
 
   //Clear fault code status.
-  if(pushButton1 == true) {
+  if(pushButton1 == true && y == 0) {
     waterFlowFault = false;           //Clear fault code to let water pump run.
+    y = 1;
     Serial.println("waterFlowFault cleared");
+  }
+  else if(pushButton1 == true && y == 1) {
+    waterFlowFault = true;            //Let fault code stay active.
+    y = 0;
   }
 }
 
@@ -1240,7 +1263,7 @@ void loop() {
   else if(flowFaultDisplay == true) {
     resolveFlowFault();                                             //Water flow fault display mode is printed to display. It contains fault code instruction and possibility to reset fault code.
   }
-
+  
   //Read out sensor values, calculate values and alert user if any fault code is set.
   moistureValue1 = moistureSensor1.moistureRead(moistureSensorPort1);                                   //Read moistureSensor1 value to check soil humidity.
   moistureValue2 = moistureSensor2.moistureRead(moistureSensorPort2);                                   //Read moistureSensor2 value to check soil humidity.
@@ -1259,8 +1282,6 @@ void loop() {
   //Greenhouse program start.
   if(greenhouseProgramStart == true) {                  //When set to 'true' automatic water and lighting control of greenhouse is turned on.
 
-    
-    
     //Check readout light value in a time cycle specified by checkLightNeedPeriod variable and turn on/off led lighting.
     if(millis() > (checkLightNeedNow + checkLightNeedPeriod)) { //Loop according to specified check light interval.
       checkLightNeed();
@@ -1268,8 +1289,6 @@ void loop() {
       Serial.println("checkLightNeed");     
     }
 
-    
-    
     //Check readout light value after led lighting has been turned on. This will check if led lighting is working.
     if(ledLightState == true) {
       if(millis() > (checkLightFaultNow + checkLightNeedPeriod / 4)) { //Check for led lighting fault after it has been turned on for a quarter of light need check cycle time.
@@ -1285,5 +1304,6 @@ void loop() {
       Serial.println("checkWaterNeed");
     }
     pumpStart();                        //Start water pump but it will only run if water pump is enabled. Enable/Disable start of water pump is performed in checkWaterNeed function.
-  }                                                                          
+    //STILL PROBLEM WITH WATER PUMP MEASUREMENT OF WATER FLOW. REASON IS THAT IT SHOULD START WHEN PERFORMING A MOISTURECHECK AND IT SHOULD NOT BE RUNNING CONTINUESLY LIKE BELOW.. pumpStart()
+  }                                                                      
 }
