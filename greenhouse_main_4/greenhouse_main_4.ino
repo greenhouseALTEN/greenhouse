@@ -128,6 +128,7 @@ int flowThresholdValue = 99;              //Variable value specifies the minimum
 bool waterLevelValue;                     //If variable is 'false' water level is OK. If 'true' tank water level is too low.
 
 //Internal clock to keep track of current time.
+int currentClockTime = 0;
 int hourPointer1 = 0;
 int hourPointer2 = 0;
 int minutePointer1 = 0;                 //1-digit of minute pointer.
@@ -181,8 +182,8 @@ unsigned int checkLightNeedPeriod = 5000;   //Loop time for how often measured l
 unsigned long checkLightNeedStart = 0;
 unsigned int checkLightFaultPeriod = 4000;  //Delay time after LED lighting has been turned ON, before checking if it works.
 unsigned long checkLightFaultStart = 0;
-bool insideTimeIntervalLow = false;
-bool insideTimeIntervalHigh = false;
+bool insideTimeInterval = false;
+
 
 
 /*
@@ -501,31 +502,20 @@ void ledLightStop() {
 || Check current clock time and light need to enable/disable start of LED lighting. ||
 ====================================================================================== */
 void checkLightNeed() {
-  //Check if current time is within specified time interval: 06:?? - 23:??.
-  //Check if current time is above lower time boundary.
-  if(hourPointer2 >= 0) {                   //Decode of 10-digit hour pointer.
-    if(hourPointer1 >= 6) {                 //Decode of 1-digit hour pointer.                  
-      insideTimeIntervalLow = true;         //Current clock time is above lower time boundary where LED lighting is allowed.
-    }
+  //Check if current time is inside specified time interval: 06:31 - 23:31 where LED lighting is allowed to be turned ON.
+  if(currentClockTime >= 631 && currentClockTime < 2332) {
+    insideTimeInterval = true;   
+  } else {
+    insideTimeInterval = false;   
   }
-  
-  //Check if current time is below upper time boundary.
-  if(insideTimeIntervalLow == true) {       
-    if(hourPointer2 >= 0) {
-      if(hourPointer1 <=9) {                       
-        insideTimeIntervalHigh = true;      //Current clock time is below upper time boundary where LED lighting is allowed.
-      }
-    }
-  }
-  //THIS PART OF CODE SUCKS BUT I LEAVE IT FOR NOW!!!!!!!!
   
   //Check if measured light value is below light threshold value.
-  if(insideTimeIntervalLow == true && insideTimeIntervalHigh == true) {
+  if(insideTimeInterval == true) {
     if(uvValue < uvThresholdValue) {
-      ledLightEnabled = true;
+      ledLightEnabled = true;       //Enable LED lighting to be turned on.
     }
     else {
-      ledLightEnabled = false;
+      ledLightEnabled = false;      //Disable LED lighting from being turned on.
     }
   }
   Serial.println("Check light need");
@@ -641,7 +631,7 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
   ****************************************************/
   //Internal clock.
   divider50++;                        
-    if(divider50 == 50) {               //Gives 2Hz pulse to feed the flashing of pointer digits when in "set mode".
+    if(divider50 == 50) {               //Gives 2Hz pulse to feed the flashing of pointer digits when in clock set mode.
     divider50 = 0;                      //Reset divider variable.
     x++;
     if(x == 1) {
@@ -689,7 +679,27 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
         hourPointer2 = 0;
       }
     }
+    /*
+    if(hourPointer2 == 0 && hourPointer1 == 0) {
+      hourPointer2 = 2;                 //
+      hourPointer1 = 4;
+    }
+    */
   }
+  
+  //Convert clock pointer into single int variable. Value of this variable represent clock time.
+  currentClockTime = 0;
+  currentClockTime += (hourPointer2 * 1000);
+  currentClockTime += (hourPointer1 * 100);
+  currentClockTime += (minutePointer2 * 10);
+  currentClockTime += minutePointer1;
+
+  if(currentClockTime < 60) {           
+    currentClockTime += 2400;
+  }
+
+  Serial.println(currentClockTime);
+  Serial.println(hourPointer2);
 }
 
 /*
@@ -728,13 +738,8 @@ void setClockTime() {
 ====================== */
 void resetClockTime() {
   //Stop clock and reset all clock pointers.
-  clockStartMode = false;                                       //Stop clock from ticking.
-  hourPointer1 = 0;
-  hourPointer2 = 0;
-  minutePointer1 = 0;                 
-  minutePointer2 = 0;                 
-  secondPointer1 = 0;                 
-  secondPointer2 = 0;         
+  clockStartMode = false;                       //Stop clock from ticking.
+  currentClockTime = 0;                         //Reset clock time.                                             
 }
 
 /*
@@ -1270,7 +1275,7 @@ void loop() {
 
   //Greenhouse program start.
   if(greenhouseProgramStart == true) {                  //When set to 'true' automatic water and lighting control of greenhouse is turned on.
-    
+    //beginGreenHouse()
     //Check readout light value according to a time cycle and turn led lighting ON/OFF based on the readout.
     unsigned long checkLightNeedCurrent;
 
