@@ -105,7 +105,7 @@ int aLastState;
 
 //Debouncing button press on button connected to external interrupt.
 volatile unsigned long pressTimePrev;     //Variable to store previous millis() value.
-int debounceTimePeriod = 300;             //Delay time before interrupt function is started.
+int debounceTimePeriod = 170;             //Delay time before interrupt function is started.
 
 //Light sensor.
 SI114X lightSensor;                       //Light sensor object created.
@@ -120,7 +120,7 @@ bool ledLightFault = false;               //Indicate if LED lighting is not turn
 //Water pump and flow sensor.
 volatile int rotations;
 int waterFlowValue; 
-bool pumpState = false;                   //Indicate current status of water pump. Variable is 'true' when water pump is running.
+bool waterPumpState = false;              //Indicate current status of water pump. Variable is 'true' when water pump is running.
 bool waterFlowFault = false;              //Indicate if water is being pumped when water pump is running. Variable is 'false' when water flow is above threshold value. 
 int flowThresholdValue = 99;              //Variable value specifies the minimum water flow threshold required to avoid setting water flow fault.
 
@@ -173,9 +173,9 @@ bool greenhouseProgramStart = false;        //If variable is set to 'true', auto
 bool waterPumpEnabled = false;              //Enable/Disable water pump to run.
 unsigned int checkMoisturePeriod = 20000;        //Loop time, in milliseconds, for how often water pump is activated based upon measured soil moisture value.         
 unsigned long checkMoistureStart = 0;
-unsigned int checkWaterFlowPeriod = 2000;
+unsigned int checkWaterFlowPeriod = 1500;
 unsigned long checkWaterFlowStart = 0;    
-unsigned int waterPumpTimePeriod = 3000;  //Sets the time for how long water pump will run each time it is activated.
+unsigned int waterPumpTimePeriod = 6000;  //Sets the time for how long water pump will run each time it is activated.
 unsigned long waterPumpTimeStart = 0; 
 
 //LED lighting.
@@ -184,7 +184,7 @@ int uvThresholdValue = 4;                   //UV threshold value for turning LED
 bool ledLightEnabled = false;               //Enable/Disable start of LED lighting.
 unsigned int checkLightNeedPeriod = 5000;   //Loop time for how often measured light value is checked. This enables/disables start of LED lighting.
 unsigned long checkLightNeedStart = 0;
-unsigned int checkLightFaultPeriod = 4000;  //Delay time after LED lighting has been turned ON, before checking if it works.
+unsigned int checkLightFaultPeriod = 3000;  //Delay time after LED lighting has been turned ON, before checking if it works.
 unsigned long checkLightFaultStart = 0;
 bool insideTimeInterval = false;
 
@@ -544,16 +544,16 @@ void flowCount() {
 }
 
 /*
-=======================================================================================================
-|| Start water pump, read out water flow sensor. ||
-===================================================*/
+===============================================
+|| Start water pump, read water flow sensor. ||
+=============================================== */
 void waterPumpStart() {                
   digitalWrite(pumpRelay, HIGH);          //Start water pump.
-  pumpState = true;                       //Update current water pump state, 'true' means water pump is running.
+  waterPumpState = true;                  //Update current water pump state, 'true' means water pump is running.
   Serial.println("Water pump ON");
 
   //Calculate water flow (Liter/hour) by counting number of rotations that flow sensor makes. Water flow sensor is connected to interrupt pin.
-  if(pumpState == true) {                 //Only check water flow when water pump is running.
+  if(waterPumpState == true) {            //Only check water flow when water pump is running.
     rotations = 0;                        
     delay(1000);                          //Count number of rotations during one second to calculate water flow in Liter/hour. 
     waterFlowValue = (rotations * 60) / 7.5;   //Calculate the flow rate in Liter/hour.
@@ -569,7 +569,7 @@ void waterPumpStart() {
 ====================== */
 void waterPumpStop() {
   digitalWrite(pumpRelay, LOW);         //Stop water pump.
-  pumpState = false;                    //Update current water pump state, 'false' means water pump not running.
+  waterPumpState = false;               //Update current water pump state, 'false' means water pump not running.
   Serial.println("Water pump OFF");
 }
 
@@ -578,13 +578,15 @@ void waterPumpStop() {
 || Check if water flow is above a certain level when pump is running. ||
 ======================================================================== */
 void waterFlowCheck() {
+  Serial.println("Check water flow");
   if(waterFlowValue < flowThresholdValue) {  //Check current water flow.
     waterFlowFault = true;              //Set fault code.  
+    Serial.println("Water flow Fault");
   }
   else {
-  waterFlowFault = false;               //Clear fault code.
+    waterFlowFault = false;             //Clear fault code.
+    Serial.println("Water flow OK");
   }
-  Serial.println("Check water flow");
 }
 
 /*
@@ -683,21 +685,20 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
         hourPointer1 = 0;                           //Clear both hour digits.
         hourPointer2 = 0;
       }
+
+      //Convert clock pointer into single int variable. Value of this variable represent clock time.                
+      currentClockTime = 0;
+      currentClockTime += (hourPointer2 * 1000);
+      currentClockTime += (hourPointer1 * 100);
+      currentClockTime += (minutePointer2 * 10);
+      currentClockTime += minutePointer1;
+
+      if(currentClockTime < 60) {           //Prevent clock time from seeing 00:00 as less than 23:00.       
+        currentClockTime += 2400;
+      }
+      //Serial.println(currentClockTime);
     }
   }
-  
-  //Convert clock pointer into single int variable. Value of this variable represent clock time.                
-  currentClockTime = (hourPointer2 * 1000);
-  currentClockTime = (hourPointer1 * 100);
-  currentClockTime = (minutePointer2 * 10);
-  currentClockTime = minutePointer1;
-
-  if(currentClockTime < 60) {           //Prevent clock time from seeing 00:00 as less than 23:00.       
-    currentClockTime += 2400;
-  }
-
-  Serial.println(currentClockTime);
-  Serial.println(hourPointer2);
 }
 
 /*
@@ -743,7 +744,7 @@ void setClockTime() {
     }
   }
 
-  //Replace clock time when current clock time is 24 hours with 00 instead.
+  //Replace clock time represenation. When current clock time is 24 hours is replaced with 00.
   if(clockStartMode == true) {
     if(hourPointer2 == 2 && hourPointer1 == 4) {                //If 10-digit hour pointer reaches a value of 2 and 1-digit hour pointer reaches a value of 4 (elapsed time is 24 hours).
       hourPointer2 = 0;                                         //Clear both hour pointer values.
@@ -776,23 +777,23 @@ void toggleDisplayMode() {
       if(hour2InputMode == true) {
         hour2InputMode = false;                 //Hour pointer2 has been set.
         hour1InputMode = true;                  //Continue by setting hour pointer1.
-        Serial.println("hourInputMode");
+        Serial.println("hour2InputMode");
       }
       else if(hour1InputMode == true) {
         hour1InputMode = false;                 //Hour pointer1 has been set.
         minute2InputMode = true;                //Continue by setting minute pointer2.
-        Serial.println("hourInputMode");
+        Serial.println("hour1InputMode");
       }
       else if(minute2InputMode == true) {
         minute2InputMode = false;               //Minute pointer2 has been set.
         minute1InputMode = true;                //Continue by setting minute pointer1.
-        Serial.println("hourInputMode");
+        Serial.println("minute2InputMode");
       }
       else if(minute1InputMode == true) {
         minute1InputMode = false;               //Minute pointer1 has been set. Time set is done.
         clockStartMode = true;                  //Start clock. Clock starts ticking.
         clockSetFinished = true;
-        Serial.println("minuteInputMode");
+        Serial.println("minute1InputMode");
       }
       else if(clockSetFinished == true) {
         clockSetFinished = false;               //Clear current state in display mode.
@@ -959,15 +960,15 @@ void alarmMessageDisplay() {
     *******************/
     if(alarmTimeDiff <= alarmTimePeriod) {
       SeeedOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
-      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
+      SeeedOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
       if(waterFlowFault == true) {                        //If fault variable is set to 'true', fault message is printed to display.
-        SeeedOled.setTextXY(7, 0);                        //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-        SeeedOled.putString("No water flow!");            //Print fault message to display.
+        SeeedOled.setTextXY(7, 0);                        
+        SeeedOled.putString("No water flow");             //Print fault message to display.
       }
 
       else {  //If this alarm not active, clear the warning message row.
         SeeedOled.setTextXY(7, 0);                        //Set cordinates to the warning message will be printed.
-        SeeedOled.putString("                        ");  //Clear row to enable other warnings to be printed to display.
+        SeeedOled.putString("                ");          //Clear row to enable other warnings to be printed to display.
       }
     }
 
@@ -977,13 +978,13 @@ void alarmMessageDisplay() {
     if(alarmTimePeriod < alarmTimeDiff && alarmTimeDiff <= alarmTimePeriod * 2) {
       if(waterLevelValue == true) {                         //If fault variable is set to 'true', fault message is printed to display.
         SeeedOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
-        SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
-        SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-        SeeedOled.putString("Refill tank!");                //Print fault message to display.
+        SeeedOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
+        SeeedOled.setTextXY(7, 0);                          
+        SeeedOled.putString("Low water level");             //Print fault message to display.
       }
       else {  //If this alarm not active, clear the warning message row.
         SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-        SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
+        SeeedOled.putString("                ");            //Clear row to enable other warnings to be printed to display.      
       }
     }
 
@@ -993,13 +994,13 @@ void alarmMessageDisplay() {
     if(alarmTimePeriod * 2 < alarmTimeDiff && alarmTimeDiff <= alarmTimePeriod * 3) { 
       if(tempValueFault == true) {                          //If fault variable is set to 'true', fault message is printed to display.
         SeeedOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
-        SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
-        SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-        SeeedOled.putString("Too warm!");                   //Print fault message to display.
+        SeeedOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
+        SeeedOled.setTextXY(7, 0);                          
+        SeeedOled.putString("High temperature");            //Print fault message to display.
       }
       else {  //If this alarm not active, clear the warning message row.
         SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-        SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
+        SeeedOled.putString("                ");            //Clear row to enable other warnings to be printed to display.      
       }
     }
 
@@ -1009,19 +1010,19 @@ void alarmMessageDisplay() {
     if(alarmTimePeriod * 3 < alarmTimeDiff && alarmTimeDiff <= alarmTimePeriod * 4) { 
       if(ledLightFault == true) {                           //If fault variable is set to 'true', fault message is printed to display.
         SeeedOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
-        SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
-        SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-        SeeedOled.putString("Check LED light!");            //If measured water flow is below a certain value without the water level sensor indicating the water tank is empty, there is a problem with the water tank hose. "Check water hose!" is printed to display.
+        SeeedOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
+        SeeedOled.setTextXY(7, 0);                          
+        SeeedOled.putString("LED not working");             //If measured water flow is below a certain value without the water level sensor indicating the water tank is empty, there is a problem with the water tank hose. "Check water hose!" is printed to display.
       }
       else {  //If this alarm not active, clear the warning message row.
         SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-        SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.      
+        SeeedOled.putString("                ");            //Clear row to enable other warnings to be printed to display.      
       }
     }
   
-    if(alarmTimePeriod * 4 < alarmTimeDiff) {
+    if(alarmTimeDiff > alarmTimePeriod * 4) {
       SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("                        ");    //Clear row to enable other warnings to be printed to display.
+      SeeedOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
       alarmTimePrev = millis();                           //Read millis() value to reset time delay calculation.
     }  
   }
@@ -1358,36 +1359,46 @@ void loop() {
       }
     }
 
-    //Check readout moisture value according to a time cycle and turn water pump ON for a certain amount of time based on readout.
+    //Check readout moisture value according to a time cycle and enable water pump to start.
     unsigned long checkMoistureCurrent;
 
     checkMoistureCurrent = millis();                  //Get current time stamp from millis().
     if(checkMoistureCurrent - checkMoistureStart >= checkMoisturePeriod) {    //Check if time period has elapsed.                                                             
       checkWaterNeed();                               //Time period has elapsed. Enable/Disable start of water pump.
+      //Start water pump.
+      if(waterPumpEnabled == true) {
+        waterPumpStart();                               //Start water pump (ON).
+      }
       checkMoistureStart = millis();                  //Get current time stamp from millis() to make it loop.                                                                                       
     }
 
-    //Start water pump and let it run for a certain amount of time.
-    unsigned long waterPumpTimeCurrent;
+    Serial.print("waterPumpState");
+    Serial.println(waterPumpState);
+    Serial.print("waterPumpEnabled");
+    Serial.println(waterPumpEnabled);
+    
+    //Stop water pump after it has run for a certain amount of time.
+    unsigned long waterPumpTimeCurrent; 
 
-    if(waterPumpEnabled == true) {
-      waterPumpStart();                               //Start water pump (ON).
-      waterPumpTimeStart = millis();                  //Get current time stamp from millis().
+    //WHY DOES NOT WATER PUMP NOT RUN FOR LONGER THAN ONE SECOND EVEN THOUGH IT IS SUPPOSED TO DO SO!!??
+    //WATERPUMPSTOP IS TRIGGERED EVEN THOUGH IT IS SUPPOSED TO BE A DELAY OF WATER PUMP PERIOD TIME BEFORE STOPPING IT.
+    if(waterPumpState == true) {  
+      waterPumpTimeCurrent = millis();                  //Get current time stamp from millis().
       if(waterPumpTimeCurrent - waterPumpTimeStart >= waterPumpTimePeriod) {  //Check if time period has elapsed.
         waterPumpStop();                              //Time period has elapsed. Stop water pump (OFF).
         waterPumpEnabled = false;                     //Disable water pump from running until next time moisture value readout.
-        waterPumpTimeCurrent = millis();              //Get current time stamp from millis() to make it loop.
-      }
+        waterPumpTimeStart = millis();                //Get current time stamp from millis() to make it loop.
+      } 
     }
-
+    
     //Check if water is being pumped when water pump is running by checking the water flow sensor. If not it will set an alarm.
     unsigned long checkWaterFlowCurrent;
 
-    if(pumpState == true) {
-      checkWaterFlowStart = millis();                 //Get current time stamp of millis().
+    if(waterPumpState == true) {
+      checkWaterFlowCurrent = millis();                 //Get current time stamp of millis().
       if(checkWaterFlowCurrent - checkWaterFlowStart >= checkWaterFlowPeriod) {     //Check if time period has elapsed.
         waterFlowCheck();                             //Time period has elapsed. Check water flow.
-        checkWaterFlowCurrent = millis();             //Get current time stamp from millis() to make it loop.
+        checkWaterFlowStart = millis();               //Get current time stamp from millis() to make it loop.
       }
     }
   }                                                                      
