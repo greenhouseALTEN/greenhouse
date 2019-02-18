@@ -1368,6 +1368,8 @@ void loop() {
       //Start water pump.
       if(waterPumpEnabled == true) {
         waterPumpStart();                               //Start water pump (ON).
+        waterPumpTimeStart = millis();                //Get current time stamp from millis() to make it loop.
+        checkWaterFlowStart = millis();               //Get current time stamp from millis() to make it loop.
       }
       checkMoistureStart = millis();                  //Get current time stamp from millis() to make it loop.                                                                                       
     }
@@ -1380,14 +1382,11 @@ void loop() {
     //Stop water pump after it has run for a certain amount of time.
     unsigned long waterPumpTimeCurrent; 
 
-    //WHY DOES NOT WATER PUMP NOT RUN FOR LONGER THAN ONE SECOND EVEN THOUGH IT IS SUPPOSED TO DO SO!!??
-    //WATERPUMPSTOP IS TRIGGERED EVEN THOUGH IT IS SUPPOSED TO BE A DELAY OF WATER PUMP PERIOD TIME BEFORE STOPPING IT.
     if(waterPumpState == true) {  
       waterPumpTimeCurrent = millis();                  //Get current time stamp from millis().
       if(waterPumpTimeCurrent - waterPumpTimeStart >= waterPumpTimePeriod) {  //Check if time period has elapsed.
         waterPumpStop();                              //Time period has elapsed. Stop water pump (OFF).
         waterPumpEnabled = false;                     //Disable water pump from running until next time moisture value readout.
-        waterPumpTimeStart = millis();                //Get current time stamp from millis() to make it loop.
       } 
     }
     
@@ -1398,7 +1397,6 @@ void loop() {
       checkWaterFlowCurrent = millis();                 //Get current time stamp of millis().
       if(checkWaterFlowCurrent - checkWaterFlowStart >= checkWaterFlowPeriod) {     //Check if time period has elapsed.
         waterFlowCheck();                             //Time period has elapsed. Check water flow.
-        checkWaterFlowStart = millis();               //Get current time stamp from millis() to make it loop.
       }
     }
   }                                                                      
