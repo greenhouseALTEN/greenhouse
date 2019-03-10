@@ -6,129 +6,43 @@
 #include "SeeedOLED.h"
 #include "DHT.h"
 #include "SI114X.h"
-#include "MoistureSensor.h"
+#include "Moisture.h"
+#include "Temperature.h"
+#include "Lighting.h"
+#include "Watering.h"
+#include "Display.h"
+#include "Miscellaneous.h"
 
-/*
-****************************************************************
-* Pin setup for hardware connected to Arduino UNO base shield. *
-****************************************************************/
-//Pin setup Arduino UNO board.
-#define moistureSensorPort1 A0
-#define moistureSensorPort2 A1
-#define moistureSensorPort3 A2
-#define moistureSensorPort4 A3
-#define DHTPIN 4
-#define rotaryEncoderOutpA 11
-#define rotaryEncoderOutpB 10
-#define pumpRelay 8
-#define flowSensor 3
-#define waterLevelSwitch 12
-#define lightRelay 6
-#define clockSetButton 7
-#define clockModeButton 2
-
-//Arduino UNO base shield layout
-/*
-################### ARDUINO UNO ############################
-#|__________________DIGITAL_(PWM_~)_______________________|#
-#||X|X|X|GND|13|12|~11|~10|~9| 8|<>| 7|~6|~5| 4|~3| 2|X|X||#
-#|- - - - - - - - - - - - - - - - - - - - - - - - - - - - |#
-#||A3|      |D4|     |D3|     |D2|     |UART|             |#
-#|                                                        |#
-#||A2|      |D8|     |D7|     |D6|     |D5|               |#
-#|                                                        |#
-#||A1|      |I2C|    |I2C|    |I2C|    |I2C|              |#
-#|      - - - - - - - - - - - - - - - - - - - - - - - - - |#
-#||A0| | |X|X|X|3.3V|5V|GND|GND|Vin|<>|A0|A1|A2|A3|A4|A5| |#
-#|_____|________POWER_____________________ANALOG IN_______|#
-################### ARDUINO UNO ############################
-
-GROVE connector
-A3:   Moisture sensor4
-A2:   Moisture sensor3
-A1:   Moisture sensor2
-A0:   Moisture sensor1
-D4:   Humidity and temperature sensor
-D8:   Water pump relay
-I2C:  OLED display
-D3:   Water flow sensor
-D7:   SET-button
-I2C:  'EMPTY'
-D2:   MODE-button
-D6:   LED lighting relay
-I2C:  Light sensor
-UART: 'EMPTY'
-D5:   'EMPTY'
-I2C:  'EMPTY'
-
-DIGITAL (PWM~)
-GND:  10 kohm resistor in in series with with 12 (I/O).
-12:   10 kohm resistor parallell with signal wire1 to water tank level switch. Resistor is in series with GND (I/O).
-11~:  Signal wire1 to temperature rotary encoder.
-10~:  Signal wire2 to temperature rotary encoder.
-
-POWER
-5V:   Supply wire to water tank level switch in parallell supply wire to temperature rotary encoder.
-GND:  Ground wire to temperature rotary encoder.
-*/
-
-/*
-*********************
-* Global variables. *
-*********************/
 //Moisture sensors.
-MoistureSensor moistureSensor1;           //Create moistureSensor1 from the MoistureSensor class.
-MoistureSensor moistureSensor2;           //Create moistureSensor2 from the MoistureSensor class.
-MoistureSensor moistureSensor3;           //Create moistureSensor3 from the MoistureSensor class.
-MoistureSensor moistureSensor4;           //Create moistureSensor4 from the MoistureSensor class.
-MoistureSensor moistureSensor;            //Create a fictional mean value moisture sensor from the MoistureSensor class.
-int moistureValue1;                       //Individual moisture sensor value for moisture sensor 1.
-int moistureValue2;                       //Individual moisture sensor value for moisture sensor 2.
-int moistureValue3;                       //Individual moisture sensor value for moisture sensor 3.
-int moistureValue4;                       //Individual moisture sensor value for moisture sensor 4.                      
-int moistureMeanValue;                    //Mean value of all 4 moisture sensors.
-bool moistureDry = false;                 //Activates warning message on display based on moisture mean value. 'true' if soil for mean value sensor is too dry.
-bool moistureWet = false;                 //Activates warning message on display based on moisture mean value. 'true' if soil for mean value sensor is too wet.
-int moistureThresholdLow = 300;
-int moistureThresholdHigh = 700;
+Moisture moistureSensor1;                 //Moisture sensor1 created from Moisture class.
+Moisture moistureSensor2;                 //Moisture sensor2 created from Moisture class.
+Moisture moistureSensor3;                 //Moisture sensor3 created from Moisture class.
+Moisture moistureSensor4;                 //Moisture sensor4 created from Moisture class.
+Moisture moistureSensor;                  //Fictional moisture sensor that holds moisture mean value. Created from the Moisture class.
 
 //Temperature and humidity sensor.
 const uint8_t DHTTYPE = DHT11;            //DHT11 = Arduino UNO model is being used.
-DHT humiditySensor(DHTPIN, DHTTYPE);      //Create humidity sensor from DHT class.
-float tempValue;
-//float humidValue;
-bool tempValueFault = false;              //Indicate if read out temperature is higher than temperature treshold that has been set by adjusting temperature rotary encoder. Variable is 'false' when read out temperature is below set temperature threshold.
+DHT humiditySensor(DHTPIN, DHTTYPE);      //Humidity sensor object created from DHT class.
+Temperature tempRotaryEncoder;            //Rotary encoder object created from Temperature class.
 
-//Rotary encoder to adjust temperature threshold.
-int tempThresholdValue = 60;              //Starting value for temperature threshold adjustment is 30°C.
-int aLastState;
+//Light sensor and LED lights.
+SI114X lightSensor;                       //Light sensor object created from SI114X class.
+Lighting ledLights;                       //LED lights object created from Lighting class.
+
+//Water pump, flow sensor and water level sensor.
+Watering waterPump;                       //Water pump object created from Water class.
+ 
+//OLED display.
+Display oledDisplay;                      //OLED display object created from Display class.
+
+
 
 //Debouncing button press on button connected to external interrupt.
 volatile unsigned long pressTimePrev;     //Variable to store previous millis() value.
 int debounceTimePeriod = 170;             //Delay time before interrupt function is started.
 
-//Light sensor.
-SI114X lightSensor;                       //Light sensor object created.
-uint16_t lightValue;                      //Light read out, probably presented in the unit, lux.
-uint16_t uvValue;                       
-//uint16_t irValue;                       //IR read out not in use.
-
-//LED lighting.
-bool ledLightState = false;               //Indicate current status of LED lighting. Variable is 'true' when LED lighting is turned on.
-bool ledLightFault = false;               //Indicate if LED lighting is not turned on/not working when LED lighting has been turned on.
-
-//Water pump and flow sensor.
-volatile int rotations;
-int waterFlowValue; 
-bool waterPumpState = false;              //Indicate current status of water pump. Variable is 'true' when water pump is running.
-bool waterFlowFault = false;              //Indicate if water is being pumped when water pump is running. Variable is 'false' when water flow is above threshold value. 
-int flowThresholdValue = 99;              //Variable value specifies the minimum water flow threshold required to avoid setting water flow fault.
-
-//Water level switch.
-bool waterLevelFault;                     //If variable is 'false' water level is OK. If 'true' tank water level is too low.
 
 //Internal clock to keep track of current time.
-int currentClockTime = 0;
 int hourPointer1 = 0;
 int hourPointer2 = 0;
 int minutePointer1 = 0;                 //1-digit of minute pointer.
@@ -144,8 +58,7 @@ bool pushButton1 = false;
 
 bool clockStartMode = false;
 bool clockSetFinished = false;
-int divider100 = 0;
-int divider50 = 0;                          
+                          
 bool flashClockPointer = false;         //Variable to create lash clock pointer when in "set clock" mode.       
 int x = 0;                              //Toggle variable to flash current clock pointer.
 
@@ -169,7 +82,6 @@ bool flowFaultDisplay = false;
 bool greenhouseProgramStart = false;        //If variable is set to 'true', automatic water and lighting control of greenhouse is turned on.
 
 //Water pump.
-bool waterPumpEnabled = false;              //Enable/Disable water pump to run.
 unsigned int checkMoisturePeriod = 30000;        //Loop time, in milliseconds, for how often water pump is activated based upon measured soil moisture value.         
 unsigned long checkMoistureStart = 0;
 unsigned int checkWaterFlowPeriod = 1500;
@@ -179,9 +91,6 @@ unsigned long waterPumpTimeStart = 0;
 int y = 0;                                  //Toggle variable to clear/set fault variable.
 
 //LED lighting.
-int uvThresholdValue = 4;                   //UV threshold value for turning LED lighting on/off.
-//int lightThresholdValue = 1500;           //Light threshold value (lux) for turning LED lighting on/off.
-bool ledLightEnabled = false;               //Enable/Disable start of LED lighting.
 unsigned int checkLightNeedPeriod = 10000;  //Loop time for how often measured light value is checked. This enables/disables start of LED lighting.
 unsigned long checkLightNeedStart = 0;
 unsigned int checkLightFaultPeriod = 5000;  //Delay time after LED lighting has been turned ON, before checking if it works.
@@ -189,184 +98,19 @@ unsigned long checkLightFaultStart = 0;
 bool insideTimeInterval = false;
 
 
-/*
-==============================================================
-|| Bitmap image 1 to be printed on OLED display at startup. ||
-============================================================== */
-const unsigned char greenhouse[] PROGMEM= {
-//Startup image 1.
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x80, 0xE0, 0x78, 0x18, 0x0C, 0x04, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x04, 0x00,
-0x00, 0x00, 0x00, 0xC0, 0xC0, 0x00, 0x80, 0xC0, 0xC0, 0x00, 0x00, 0x00, 0x80, 0xC0, 0xC0, 0x40,
-0xC0, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x80, 0xC0, 0x40, 0xC0, 0xC0, 0x80, 0x00,
-0x00, 0x00, 0x00, 0x00, 0xC0, 0xC0, 0x80, 0x80, 0xC0, 0xC0, 0xC0, 0xC0, 0x80, 0x00, 0x00, 0x00,
-0x00, 0xFF, 0xFF, 0x80, 0x80, 0xC0, 0xC0, 0xC0, 0xC0, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x80, 0x80, 0xC0, 0xC0, 0xE0, 0xE0, 0xE0, 0x00, 0x00, 0x00, 0x00, 0xC0, 0xC0, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0xC0, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x80, 0xC0, 0xC0, 0xC0, 0xC0,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x80, 0xC0, 0x40, 0xC0, 0xC0, 0x80, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x0F, 0x7F, 0xF0, 0xC0, 0x80, 0x00, 0x00, 0x00, 0x04, 0x06, 0x06, 0x06, 0xFE, 0xFE,
-0x00, 0x00, 0x00, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x00, 0x7C, 0xFF, 0x89, 0x08, 0x08, 0x08,
-0x08, 0x09, 0x0F, 0x0E, 0x00, 0x00, 0x7C, 0xFF, 0x89, 0x08, 0x08, 0x08, 0x08, 0x08, 0x09, 0x0F,
-0x0E, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0xFF, 0xFE, 0x00, 0x00,
-0x00, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFC, 0xFE,
-0x7F, 0x7F, 0xBF, 0xDF, 0xF7, 0xFF, 0xFF, 0xFF, 0x7F, 0x0F, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x80,
-0x00, 0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x07, 0x0F, 0x0C, 0x18, 0x18, 0xF0,
-0xE0, 0x00, 0x00, 0x7C, 0xFF, 0x89, 0x08, 0x08, 0x08, 0x08, 0x08, 0x09, 0x0F, 0x0E, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x01, 0x01,
-0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x03, 0x03, 0x03,
-0x83, 0x43, 0x43, 0xF0, 0x80, 0x40, 0x40, 0x80, 0xC1, 0x43, 0x43, 0xE3, 0x83, 0x43, 0x43, 0xC1,
-0x00, 0xC0, 0x40, 0x80, 0x83, 0x43, 0x40, 0x80, 0x80, 0x40, 0x40, 0xF0, 0x03, 0x03, 0xF0, 0x40,
-0x40, 0x83, 0xC3, 0x00, 0xC0, 0x00, 0x00, 0x00, 0x00, 0xE3, 0x63, 0x80, 0x00, 0x00, 0x01, 0xE4,
-0x02, 0x03, 0x23, 0x23, 0x23, 0xE1, 0x21, 0x20, 0x20, 0x00, 0xE0, 0x20, 0x20, 0x20, 0x21, 0x03,
-0xE3, 0xE3, 0x83, 0x01, 0x00, 0x03, 0xE3, 0x00, 0x00, 0x00, 0x01, 0x03, 0x03, 0x03, 0x03, 0x01,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x01, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x01, 0x02, 0x02, 0x03, 0x01, 0x03, 0x03, 0x01, 0x02, 0x03, 0x01, 0x03, 0x01, 0x0A, 0x0A, 0x07,
-0x00, 0x03, 0x00, 0x03, 0x01, 0x03, 0x03, 0x01, 0x01, 0x02, 0x02, 0x03, 0x00, 0x00, 0x03, 0x02,
-0x02, 0x01, 0x04, 0x03, 0x00, 0x00, 0x00, 0x38, 0x0F, 0x05, 0x04, 0x07, 0x1C, 0x20, 0x00, 0x3F,
-0x20, 0x20, 0x20, 0x20, 0x00, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x3F, 0x22, 0x22, 0x22, 0x22, 0x00,
-0x3F, 0x00, 0x01, 0x07, 0x0C, 0x38, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-};
 
-/*
-==============================================================
-|| Bitmap image 2 to be printed on OLED display at startup. ||
-============================================================== */
-const unsigned char features[] PROGMEM= {
-//Startup image 2.
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1E, 0x70, 0x1C, 0x0E, 0x70, 0x3C, 0x06, 0x64,
-0x54, 0x78, 0x00, 0x7E, 0x44, 0x00, 0x38, 0x54, 0x54, 0x18, 0x7C, 0x04, 0x00, 0x00, 0x00, 0x7E,
-0x40, 0x40, 0x78, 0x54, 0x54, 0x58, 0x00, 0x1C, 0x70, 0x38, 0x04, 0x38, 0x54, 0x54, 0x18, 0x7E,
-0x00, 0x00, 0x00, 0x4C, 0x4A, 0x52, 0x32, 0x1C, 0x70, 0x1C, 0x38, 0x70, 0x0C, 0x7E, 0x00, 0x04,
-0x7E, 0x44, 0x38, 0x44, 0x44, 0x00, 0x7E, 0x04, 0x04, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xF0, 0x5E, 0x46, 0x78, 0xC0, 0x00, 0x00, 0xF8,
-0x10, 0x08, 0x00, 0xF0, 0x18, 0x08, 0x08, 0xFE, 0x00, 0x00, 0xF8, 0x00, 0x00, 0x00, 0x00, 0xF8,
-0x00, 0xFA, 0x00, 0x00, 0xF8, 0x10, 0x08, 0x08, 0x18, 0xF0, 0x00, 0xE0, 0x10, 0x08, 0x08, 0x10,
-0xE0, 0x00, 0x00, 0x00, 0x00, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE, 0x00, 0xFE, 0x0E, 0x18,
-0x70, 0xC0, 0x80, 0xFE, 0x00, 0x00, 0xF8, 0x04, 0x02, 0x02, 0x02, 0x04, 0xF8, 0x00, 0x00, 0x00,
-0x7E, 0x40, 0x40, 0x00, 0x7E, 0x38, 0x44, 0x44, 0xFC, 0x00, 0x7E, 0x04, 0x04, 0x78, 0x00, 0x7E,
-0x44, 0x00, 0x00, 0x00, 0x4C, 0x4A, 0x32, 0x00, 0x38, 0x54, 0x54, 0x18, 0x7C, 0x04, 0x04, 0x78,
-0x00, 0x48, 0x54, 0x20, 0x38, 0x44, 0x44, 0x38, 0x00, 0x7C, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x00, 0x03,
-0x00, 0x00, 0x00, 0x01, 0x03, 0x02, 0x02, 0x03, 0x00, 0x00, 0x01, 0x03, 0x02, 0x02, 0x09, 0x0B,
-0xF8, 0x0B, 0xC8, 0xA0, 0xA3, 0xA0, 0xC0, 0xE0, 0x20, 0x23, 0xE0, 0x20, 0x21, 0xC2, 0x02, 0xE1,
-0x20, 0x20, 0x20, 0xC0, 0x00, 0xC0, 0xA1, 0xA2, 0xC2, 0x02, 0xE1, 0x20, 0x20, 0xA3, 0xA0, 0xC0,
-0x00, 0x20, 0xF3, 0x23, 0xE0, 0x00, 0x00, 0xE1, 0x02, 0x02, 0xE2, 0x21, 0x00, 0xC0, 0xA0, 0xA0,
-0xC0, 0x00, 0x00, 0x40, 0xA0, 0xA0, 0x21, 0xC1, 0xA0, 0xA0, 0xC0, 0x00, 0xE0, 0x20, 0x20, 0xC0,
-0x00, 0x40, 0xA0, 0xA0, 0x20, 0xC0, 0x20, 0x20, 0x20, 0xC0, 0x00, 0xE0, 0x20, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xE0, 0xC0, 0x00, 0x80, 0xE0, 0xE0, 0x80, 0x40, 0x40,
-0x40, 0x80, 0xE0, 0x00, 0x80, 0x40, 0x40, 0x40, 0xE0, 0x40, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0,
-0x43, 0x00, 0x81, 0x42, 0x42, 0x82, 0x02, 0x03, 0xC0, 0xA0, 0x23, 0x20, 0x80, 0x43, 0x40, 0x8F,
-0x02, 0xC2, 0x42, 0x41, 0x80, 0x81, 0x42, 0x42, 0x82, 0x40, 0x43, 0x40, 0x83, 0xC2, 0x42, 0x03,
-0x00, 0x00, 0xF3, 0x1A, 0x09, 0x0A, 0x1A, 0xF3, 0x00, 0x00, 0xFB, 0x00, 0x00, 0x01, 0x02, 0xFA,
-0x8A, 0x88, 0x88, 0x02, 0xFA, 0x0A, 0x09, 0x09, 0x12, 0xE2, 0x02, 0x00, 0x03, 0xF8, 0x08, 0x0B,
-0x08, 0x12, 0xF2, 0x02, 0xE9, 0x01, 0x02, 0xE2, 0xA2, 0x21, 0x00, 0xE3, 0x20, 0x20, 0x60, 0xC0,
-0x00, 0xF8, 0x00, 0x00, 0x20, 0x20, 0xC0, 0x00, 0x20, 0xC0, 0x00, 0xC0, 0x60, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x07, 0x03, 0x00, 0x07, 0x03, 0x04, 0x04,
-0x04, 0x03, 0x07, 0x00, 0x04, 0x05, 0x03, 0x00, 0x07, 0x34, 0xE0, 0x07, 0xC4, 0x77, 0xC0, 0x07,
-0xE0, 0x30, 0x43, 0x45, 0xC5, 0x81, 0x40, 0xE0, 0x44, 0x44, 0x05, 0xC3, 0x43, 0xC5, 0x85, 0x05,
-0xC0, 0x47, 0x40, 0x00, 0x07, 0x04, 0xF5, 0x13, 0x13, 0xE4, 0x04, 0xC4, 0x03, 0x07, 0xC0, 0x00,
-0x00, 0xC0, 0x43, 0x46, 0xC4, 0x44, 0x46, 0xC3, 0x00, 0x00, 0xC7, 0x44, 0x44, 0xC4, 0x80, 0x07,
-0x04, 0x04, 0x04, 0x00, 0x07, 0x04, 0x04, 0x04, 0x03, 0x01, 0x00, 0x00, 0x00, 0x07, 0x04, 0x04,
-0x04, 0x02, 0x01, 0x00, 0x07, 0x00, 0x00, 0x04, 0x05, 0x07, 0x00, 0x1F, 0x04, 0x04, 0x06, 0x03,
-0x00, 0x07, 0x00, 0x06, 0x05, 0x05, 0x07, 0x00, 0x00, 0x09, 0x07, 0x01, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0xC0, 0x00, 0x00, 0xC0, 0x80, 0x00, 0xC0, 0x00, 0x80, 0x80, 0x00, 0x80, 0xC0,
-0x80, 0x00, 0x80, 0x80, 0x00, 0x80, 0x80, 0x00, 0x00, 0x00, 0xC3, 0x4E, 0x43, 0x00, 0xC7, 0x0E,
-0x03, 0x80, 0x8C, 0x0A, 0x8A, 0x0F, 0x00, 0x8F, 0x08, 0x80, 0x07, 0x0A, 0x0A, 0x8A, 0x43, 0x40,
-0x0F, 0x00, 0x80, 0x80, 0x00, 0x80, 0x8F, 0x81, 0x01, 0x00, 0x00, 0x8F, 0x08, 0x08, 0x8F, 0x80,
-0x00, 0x0F, 0x80, 0x80, 0x0F, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x3F, 0x08, 0x08, 0x0C, 0x07, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x07, 0x0E, 0x01, 0x07, 0x0E, 0x01, 0x04, 0x0A, 0x0A, 0x0F, 0x00, 0x0F,
-0x08, 0x07, 0x0A, 0x0A, 0x03, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x02, 0x02, 0x00, 0x0F, 0x00,
-0x07, 0x08, 0x08, 0x07, 0x01, 0x0E, 0x07, 0x03, 0x0E, 0x03, 0x00, 0x00, 0x00, 0xE9, 0x09, 0x06,
-0x00, 0x07, 0xEA, 0x2A, 0x23, 0x2F, 0x00, 0xE0, 0x2F, 0x20, 0x29, 0x4A, 0x84, 0x07, 0x08, 0x08,
-0xE7, 0x00, 0x0F, 0x00, 0x00, 0xA0, 0x00, 0x00, 0x80, 0x80, 0x80, 0x80, 0x00, 0x00, 0xE0, 0x80,
-0x80, 0x00, 0x00, 0x80, 0xC0, 0x80, 0x00, 0xA0, 0x00, 0x00, 0x80, 0x80, 0x80, 0x00, 0x00, 0x00,
-0x80, 0x80, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F, 0x10, 0x10,
-0x10, 0x00, 0x1F, 0x12, 0x12, 0x12, 0x00, 0x1F, 0x10, 0x10, 0x10, 0x0C, 0x07, 0x00, 0x00, 0x00,
-0x1F, 0x10, 0x10, 0x10, 0x00, 0x1F, 0x00, 0x0F, 0x59, 0x50, 0x50, 0x3F, 0x00, 0x00, 0x1F, 0x00,
-0x00, 0x1F, 0x00, 0x00, 0x1F, 0x10, 0x00, 0x1F, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x1F, 0x00, 0x0F,
-0x59, 0x50, 0x79, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-};
 
-/*
-======================================================
-|| Initialize OLED display and show startup images. ||
-====================================================== */
-void viewStartupImage() {
-  if(startupImageDisplay) {
-    Serial.println("startupImageDisplay");
-    Wire.begin();
-    SeeedOled.init();
-    SeeedOled.clearDisplay();                         //Clear display.
-    SeeedOled.setHorizontalMode();
-    SeeedOled.setNormalDisplay();                     //Set display to normal mode (non-inverse mode).
-    SeeedOled.setPageMode();                          //Set addressing mode to Page Mode.
-/*
-    //Startup image 1.
-    SeeedOled.drawBitmap(greenhouse, (128*64)/8);   //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
-    delay(4000);                                    //Image shown for 4 seconds.
-    SeeedOled.clearDisplay();                       //Clear the display.
 
-    //Startup image 2.
-    SeeedOled.drawBitmap(features, (128*64)/8);       //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
-    delay(3000);                                      //Image shown for 3 seconds.
-    SeeedOled.clearDisplay();                         //Clear the display.
-*/  
-    startupImageDisplay = false;                      //Clear current screen display state.
-    setTimeDisplay = true;                            //Set next display mode to be printed to display.  
-    hour2InputMode = true;                             //Set state in next display mode.
-  }
-}
+
+
+
+
 
 /*
 =========================================================================
 || VALUE READ OUT DISPLAY MODE. Print read out values to OLED display. ||
 ========================================================================= */
+/*
 void viewReadoutValues() {
   //Clear redundant value digits from previous read out for all sensor values.
   SeeedOled.setTextXY(0, 42);
@@ -387,11 +131,10 @@ void viewReadoutValues() {
   SeeedOled.putString("      ");
 
   //Printing read out values from the greenhouse to display.
-  /*
   ************************
   |Moisture sensor value.|
   ************************/
-  SeeedOled.setTextXY(0, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+ /* SeeedOled.setTextXY(0, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Moisture: ");        //Print string to display.
   SeeedOled.setTextXY(0, 42);
   SeeedOled.putNumber(moistureMeanValue);   //Print mean moisture value to display.
@@ -411,7 +154,7 @@ void viewReadoutValues() {
   /*******************
   |Temp sensor value.|
   ********************/
-  SeeedOled.setTextXY(1, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  /*SeeedOled.setTextXY(1, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Temp: ");            //Print string to display.
   SeeedOled.setTextXY(1, 42);
   SeeedOled.putNumber(tempValue);           //Print temperature value to display.
@@ -419,7 +162,7 @@ void viewReadoutValues() {
   /***********************
   |UV-light sensor value.|
   ************************/
-  SeeedOled.setTextXY(2, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  /*SeeedOled.setTextXY(2, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("UV-light: ");        //Print string to display.
   SeeedOled.setTextXY(2, 42);
   SeeedOled.putNumber(uvValue);             //Print UV-light value to display.
@@ -427,7 +170,7 @@ void viewReadoutValues() {
   /********************
   |Light sensor value.|
   *********************/
-  SeeedOled.setTextXY(3, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  /*SeeedOled.setTextXY(3, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Light: ");           //Print string to display.
   SeeedOled.setTextXY(3, 42);
   SeeedOled.putNumber(lightValue);          //Print light value in the unit, lux, to display.
@@ -436,7 +179,7 @@ void viewReadoutValues() {
   /**********************
   |Temp threshold value.|
   ***********************/
-  SeeedOled.setTextXY(4, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  /*SeeedOled.setTextXY(4, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Temp lim: ");        //Print string to display.
   SeeedOled.setTextXY(4, 42);
   SeeedOled.putNumber(tempThresholdValue / 2);    //Print temperature threshold value to display. Value 24 corresponds to 12°C, temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
@@ -444,7 +187,7 @@ void viewReadoutValues() {
   /*************************
   |Water flow sensor value.|
   **************************/
-  SeeedOled.setTextXY(5, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  /*SeeedOled.setTextXY(5, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Flow Sens: ");       //Print string to display.
   SeeedOled.setTextXY(5, 42);
   SeeedOled.putNumber(waterFlowValue);      //Print water flow value to display.
@@ -453,193 +196,39 @@ void viewReadoutValues() {
   //Printing separator line to separate read out values from error/warning messages.
   SeeedOled.setTextXY(6, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("----------------");  //Print string to display.
-}
+}*/
+
+
+
+
 
 /*
-==========================================
-|| Read light values from light sensor. ||
-========================================== */
-void lightRead() {
-  lightValue = lightSensor.ReadVisible();
-  uvValue = lightSensor.ReadUV();
-  //irValue = lightSensor.ReadIR();
-}
-
-/*
-===========================
-|| Turn ON LED lighting. ||
-=========================== */
-void ledLightStart() {
-  digitalWrite(lightRelay, HIGH);                                 //Turn on LED lighting.
-  ledLightState = true;                                           //Update current LED lighting state, 'true' means lighting is on.
-  Serial.println("LED lighting ON");
-}
-
-/*
-=======================================
-|| Check if LED lighting is working. ||
-======================================= */
-  //Alarm if light read out value does not get above light threshold when LED lighting is turned on.
-void ledLightCheck() {  
-  if(ledLightState == true && uvValue < uvThresholdValue) {        
-    ledLightFault = true;                                       //If read out light value does not get above light threshold (lower light limit), fault variable is set to 'true' to alert user.
-  }
-  else {
-    ledLightFault = false;
-  }
-  Serial.println("Check LED lighting fault");
-}
-
-/*
-============================
-|| Turn OFF LED lighting. ||
-============================ */
-void ledLightStop() {  
-  digitalWrite(lightRelay, LOW);                                //Turn off LED lighting.
-  ledLightState = false;                                        //Update current LED lighting state, 'false' means lighting is off.
-  Serial.println("LED lighting OFF");
-}
-
-/*
-======================================================================================
-|| Check current clock time and light need to enable/disable start of LED lighting. ||
-====================================================================================== */
-void checkLightNeed() {
-  //Check if current time is inside specified time interval: 06:31 - 23:31 where LED lighting is allowed to be turned ON.
-  if(currentClockTime >= 631 && currentClockTime < 2332) {
-    insideTimeInterval = true;   
-  } else {
-    insideTimeInterval = false;   
-  }
-  
-  //Check if measured light value is below light threshold value.
-  if(insideTimeInterval == true) {
-    if(uvValue < uvThresholdValue) {
-      ledLightEnabled = true;       //Enable LED lighting to be turned on.
-    }
-    else {
-      ledLightEnabled = false;      //Disable LED lighting from being turned on.
-    }
-  }
-  Serial.println("Check light need");
-}
-
-/*
-==============================
-|| Read water level switch. ||
-============================== */
-bool waterLevelRead() {
-  bool fault = false;
-  fault = digitalRead(waterLevelSwitch);    //If variable is 'false' water level is OK. If 'true' tank water level is too low.
-  return fault;
-}        
-
-/*
-===========================================================================================
-|| Count number of rotations on flow sensor, runs every time interrupt pin is triggered. ||
-=========================================================================================== */
-void flowCount() {
-  //Interrupt function to count number of rotations that flow sensor makes when water is being pumped.
-  rotations++;
-}
-
-/*
-===============================================
-|| Start water pump, read water flow sensor. ||
-=============================================== */
-void waterPumpStart() {                
-  digitalWrite(pumpRelay, HIGH);          //Start water pump.
-  waterPumpState = true;                  //Update current water pump state, 'true' means water pump is running.
-  Serial.println("Water pump ON");
-
-  //Calculate water flow (Liter/hour) by counting number of rotations that flow sensor makes. Water flow sensor is connected to interrupt pin.
-  if(waterPumpState == true) {            //Only check water flow when water pump is running.
-    rotations = 0;                        
-    delay(1000);                          //Count number of rotations during one second to calculate water flow in Liter/hour. 
-    waterFlowValue = (rotations * 60) / 7.5;   //Calculate the flow rate in Liter/hour.
-  }
-  else if(waterPumpState == false) {
-    waterFlowValue = 0;                   //Clearing water flow value when pump is not running to prevent any faulty value from water flow sensor.
-  }
-}
-
-/*
-======================
-|| Stop water pump. ||
-====================== */
-void waterPumpStop() {
-  digitalWrite(pumpRelay, LOW);         //Stop water pump.
-  waterPumpState = false;               //Update current water pump state, 'false' means water pump not running.
-  Serial.println("Water pump OFF");
-}
-
-/*
-========================================================================
-|| Check if water flow is above a certain level when pump is running. ||
-======================================================================== */
-void waterFlowCheck() {
-  Serial.println("Check water flow");
-  if(waterFlowValue < flowThresholdValue) {  //Check current water flow.
-    waterFlowFault = true;              //Set fault code.  
-    Serial.println("Water flow not OK");
-  }
-  else {
-    waterFlowFault = false;             //Clear fault code.
-    Serial.println("Water flow OK");
-  }
-}
-
-/*
-======================================
-|| Enable/Disable water pump start. ||
-====================================== */
-void checkWaterNeed() {
-  //Water pump is enabled if soil moisture is too dry or at the same time as no water related fault codes are set.
-  if(moistureDry == true && moistureWet == false) {            
-    if(waterLevelFault == false && waterFlowFault == false) {   //Make sure no water related fault codes are set.
-      waterPumpEnabled = true;                                  //Enable water pump to run let it start when activated.
-    }
-    else {
-      waterPumpEnabled = false;                                 //Disable water pump to prevent it from starting.  
-    }
-  }
-  Serial.println("Check water need");
-}
-
-/*
-=============================================================================================================
-|| Timer interrupt to read temperature threshold value, that is being adjusted by rotary encoder.          ||
-|| Timer interrupt is also used to work as a second ticker for the built clock, included in this function. ||
-============================================================================================================= */
-ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold value set by rotary encoder.
-
-  /*************************************
-  |Temperature rotary encoder read out.|
-  **************************************/
+=======================================================================================================================================================
+|| Timer interrupt to read temperature threshold value adjustments (set by rotary encoder) and to make pointer digits flash when in "set clock mode" ||
+======================================================================================================================================================= */
+ISR(TIMER2_COMPA_vect) {  //Timer interrupt with a frequency of 100Hz to read temperature threshold value set by rotary encoder.
   //Reading preset temperature threshold thas is being adjusted by rotary encoder knob.
-  int minTemp = 28;   //Temperature value can be set within the boundaries of 14 - 40°C (minTemp - maxTemp). Temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
-  int maxTemp = 80;
-  int aState;
-
-  aState = digitalRead(rotaryEncoderOutpA);                         //Reads the current state of the rotary knob, outputA.
+  divider10++;
+  if(divider10 == 10) {                                               //Divides the signal by 10 to make the function update set temperature (adjusted by the rotary encoder) with a frequency of 10Hz.
+    divider10 = 0;
+    int aState;
+    aState = digitalRead(rotaryEncoderOutpA);                         //Reads the current state of the rotary knob, outputA.
   
-  if(aState != aLastState) {                                        //A turn on rotary knob is detected by comparing previous and current state of outputA.
-    if(digitalRead(rotaryEncoderOutpB) != aState && tempThresholdValue <= maxTemp) { //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
-      tempThresholdValue++;                                         //Clockwise rotation means increasing position value. Position value is only increased if less than max value.
+    if(aState != aLastState) {                                        //A turn on rotary knob is detected by comparing previous and current state of outputA.
+      if(digitalRead(rotaryEncoderOutpB) != aState && tempThresholdValue <= TEMP_VALUE_MAX) { //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
+        tempThresholdValue++;                                         //Clockwise rotation means increasing position value. Position value is only increased if less than max value.
+      }
+      else if(tempThresholdValue > TEMP_VALUE_MIN) {
+        tempThresholdValue--;                                         //Counter clockwise rotation means decreasing position value.
+      }
     }
-    else if(tempThresholdValue > minTemp) {
-      tempThresholdValue--;                                         //Counter clockwise rotation means decreasing position value.
-    }
+  aLastState = aState;                                                //Updates the previous state of outputA with current state.
   }
-  aLastState = aState;                                              //Updates the previous state of outputA with current state.
-
-  /***************************************************
-  |Internal clock used to keep track of current time.|
-  ****************************************************/
-  //Internal clock.
+  
+  //Flash clock pointer digits with a frequency of 2Hz.
   divider50++;                        
-    if(divider50 == 50) {               //Gives 2Hz pulse to feed the flashing of pointer digits when in clock set mode.
-    divider50 = 0;                      //Reset divider variable.
+  if(divider50 == 50) {                                       //Divides the signal by 50 to give a 2Hz pulse to feed the flashing of pointer digits when in clock set mode.
+    divider50 = 0;                                            //Reset divider variable.
     x++;
     if(x == 1) {
       flashClockPointer = true;
@@ -648,56 +237,56 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
       flashClockPointer = false;
       x = 0;
     }
-  } 
+  }
+} 
   
-  if(clockStartMode == true) {          //This function runs in a frequency of 100Hz. To the second pointer tick in 1Hz frequency this variable as a divider.
-    divider100++;                       
+/*
+==================================================================
+|| Timer interrupt to feed clock function with a signal of 1Hz. ||
+================================================================== */
+ISR(TIMER1_COMPA_vect) {  //Timer interrupt with a frequency of 1Hz to feed internal clock with signal to increment its second pointer.
+  //Internal clock used to keep track of current time. This function will be run once every second.
+  if(clockStartMode == true) {          //When set 'true' clock starts ticking.                       
       
-    if(divider100 == 100) {             //Gives a 1Hz pulse to feed the second pointer."
-      //This function will be run every second, 1Hz and therefore it will work as second pointer that increases its value/ticks every second.
-      divider100 = 0;                   //Reset divider variable.
-      secondPointer1++;                 //Increase second pointer every time this function runs.
-      
-      //Second pointer.
-      if(secondPointer1 == 10) {        //If 1-digit second pointer reaches a value of 10 (elapsed time is 10 seconds).
-        secondPointer2++;               //Increase 10-digit second pointer.
-        secondPointer1 = 0;             //Clear 1-digit pointer.
-      }
-      if(secondPointer2 == 6) {         //If 10-digit pointer reaches a value of 6 (elapsed time is 60 seconds).
-        minutePointer1++;               //Increase minute pointer.
-        secondPointer2 = 0;             //Clear 10-digit second pointer.
-      }
-      //Minute pointer.
-      if(minutePointer1 == 10) {        //If 1-digit minute pointer reaches a value of 10 (elapsed time is 10 minutes).
-        minutePointer2++;               //Increase 10-digit minute pointer.
-        minutePointer1 = 0;             //Clear 1-digit minute pointer.
-      }
-      if(minutePointer2 == 6) {         //If 10-digit minute pointer reaches a value of 6 (elapsed time is 60 minutes).
-        hourPointer1++;                 //Increase 1-digit hour pointer.
-        minutePointer2 = 0;              //Clear 10-digit minute pointer.
-      }
-      //Hour pointer.
-      if(hourPointer1 == 10) {          //If 1-digit hour pointer reaches a value of 10 (elapsed time is 10 hours).
-        hourPointer2++;                 //Increase 10-digit hour pointer.
-        hourPointer1 = 0;               //Clear 1-digit hour pointer.
-      }
-      if(hourPointer2 == 2 && hourPointer1 == 4) {  //If 1-digit and 10-digit hourPointer combined reaches 24 (elapsed time is 24 hours).
-        hourPointer1 = 0;                           //Clear both hour digits.
-        hourPointer2 = 0;
-      }
-
-      //Convert clock pointer into single int variable. Value of this variable represent clock time.                
-      currentClockTime = 0;
-      currentClockTime += (hourPointer2 * 1000);
-      currentClockTime += (hourPointer1 * 100);
-      currentClockTime += (minutePointer2 * 10);
-      currentClockTime += minutePointer1;
-
-      if(currentClockTime < 60) {           //Prevent clock time from seeing 00:00 as less than 23:00.       
-        currentClockTime += 2400;
-      }
-      //Serial.println(currentClockTime);
+    //Second pointer1.
+    if(secondPointer1 == 10) {        //If 1-digit second pointer reaches a value of 10 (elapsed time is 10 seconds).
+      secondPointer2++;               //Increase 10-digit second pointer.
+      secondPointer1 = 0;             //Clear 1-digit pointer.
     }
+    if(secondPointer2 == 6) {         //If 10-digit pointer reaches a value of 6 (elapsed time is 60 seconds).
+      minutePointer1++;               //Increase minute pointer.
+      secondPointer2 = 0;             //Clear 10-digit second pointer.
+    }
+    //Minute pointer.
+    if(minutePointer1 == 10) {        //If 1-digit minute pointer reaches a value of 10 (elapsed time is 10 minutes).
+      minutePointer2++;               //Increase 10-digit minute pointer.
+      minutePointer1 = 0;             //Clear 1-digit minute pointer.
+    }
+    if(minutePointer2 == 6) {         //If 10-digit minute pointer reaches a value of 6 (elapsed time is 60 minutes).
+      hourPointer1++;                 //Increase 1-digit hour pointer.
+      minutePointer2 = 0;              //Clear 10-digit minute pointer.
+    }
+    //Hour pointer.
+    if(hourPointer1 == 10) {          //If 1-digit hour pointer reaches a value of 10 (elapsed time is 10 hours).
+      hourPointer2++;                 //Increase 10-digit hour pointer.
+      hourPointer1 = 0;               //Clear 1-digit hour pointer.
+    }
+    if(hourPointer2 == 2 && hourPointer1 == 4) {  //If 1-digit and 10-digit hourPointer combined reaches 24 (elapsed time is 24 hours).
+      hourPointer1 = 0;                           //Clear both hour digits.
+      hourPointer2 = 0;
+    }
+
+    //Convert clock pointer into single int variable. Value of this variable represent clock time.                
+    currentClockTime = 0;
+    currentClockTime += (hourPointer2 * 1000);
+    currentClockTime += (hourPointer1 * 100);
+    currentClockTime += (minutePointer2 * 10);
+    currentClockTime += minutePointer1;
+
+    if(currentClockTime < 60) {           //Prevent clock time from seeing 00:00 as less than 23:00.       
+      currentClockTime += 2400;
+    }
+    //Serial.println(currentClockTime);
   }
 }
 
@@ -851,7 +440,7 @@ void toggleDisplayMode() {
       alarmMessageEnabled = false;
       flowFaultDisplay = true;                    //Set next display mode to be printed to display.
       greenhouseProgramStart = false;             //Stop greenhouse program.
-      waterPumpStop();                            //Stop water pump.
+      waterPump.stopPump();                       //Stop water pump.
     }
   pressTimePrev = millis();
   }
@@ -932,21 +521,6 @@ void setClockDisplay() {
   SeeedOled.putNumber(secondPointer2);                   //Print second digit of second pointer value to display.
   SeeedOled.setTextXY(6, 27);                           
   SeeedOled.putNumber(secondPointer1);                   //Print first digit of second pointer value to display.
-}
-
-/*
-============================================================================================
-|| Compare read out temperature with threshold value set by adjustment of rotary encoder. ||
-============================================================================================ */
-bool tempThresholdCompare() {
-  bool fault = false;
-  if(tempValue > tempThresholdValue/2) {    //Compare readout temperature value with temperature threshold value set by rotary encoder. Temp threshold value is divided by 2 to give correct temperature value.
-    fault = true;                           //Readout temperature higher than temperature threshold value, fault variable set to 'true'.
-  }
-  else {
-    fault = false;                          //Readot temperature lower than temperature threshold value, fault variable set to 'false'.
-  }
-  return fault;
 }
 
 /*
@@ -1041,6 +615,7 @@ void alarmMessageDisplay() {
 ===========================================================================
 || SERVICE MODE DISPLAY MODE. Print service mode screen to OLED display. ||
 =========================================================================== */
+/*
 void viewServiceMode() {
   //Clear redundant value digits from previous read out for all sensor values.
   SeeedOled.setTextXY(0, 39);
@@ -1149,57 +724,8 @@ void viewServiceMode() {
   SeeedOled.setTextXY(7, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
   SeeedOled.putNumber(waterLevelFault);                 //Print moisture sensor1 value.
 }
+*/
 
-/*
-==========================================================================================
-|| Calculate moisture mean value from moisture measurements and evaluate soil humidity. ||
-========================================================================================== */
-int calculateMoistureMean(int moistureValue1, int moistureValue2, int moistureValue3, int moistureValue4) {
-  int moistureValues[4] = {moistureValue1, moistureValue2, moistureValue3, moistureValue4};
-  int moistureMax = 0;                                      //Variable used to store a moisture value when comparing it to other moisture sensor values and finally store the highest moisture value.
-  int moistureMin = moistureValues[0];                      //First value in array of values used as reference value. Variable used to store a moisture value when comparing it to other moisture sensor values and finally store the lowest moisture value.
-  int maxIndex;                                             //Index in array for max moisture value.
-  int minIndex;                                             //Index in array for min moisture value.
-  int moistureSum = 0;
-  int moistureMean;                                         //Stores the moisture mean value before returned to main program.
-  
-  //Since 4 different moisture sensors are used to measure soil moisture in the four different post and specific watering for each individual pots is not possible. The watering action is only based upon a mean value of the moisture readouts. Min and max value are sorted out and not used in case any sensor is not working correctly. 
-  for(int i=0; i<sizeof(moistureValues)/sizeof(int); i++) { //Looping through all measured moisture values to find the highest and lowest moisture values.
-    if(moistureValues[i] > moistureMax) {                   //Identify the highest measured moisture value.
-      moistureMax = moistureValues[i];
-      maxIndex = i;                                         //Identify which moisture sensor that has the max value to be able to delete it from mean moisture value calculation.
-    }
-
-    if(moistureValues[i] < moistureMin) {                   //Identify the lowest measured moisture value.
-      moistureMin = moistureValues[i];
-      minIndex = i;                                         //Identify which moisture sensor that has the min value to be able to delete it from mean moisture value calculation.
-    }
-  }
-
-  //Remove maximum and minimum moisture values from moisture array.
-  moistureValues[minIndex] = 0;                             
-  moistureValues[maxIndex] = 0;                             
-
-  for(int i=0; i<sizeof(moistureValues)/sizeof(int); i++) {
-    moistureSum += moistureValues[i];                       //Sum the remaining moisture sensor values.
-  }
-  moistureMean = moistureSum / 2;                           //Calculate mean moisture value with max and min values excluded.
-
-  //Evaluate soil humidity based on moisture mean value.
-  if(moistureMean <= moistureThresholdLow) {                //Soil humidity is too low.
-    moistureDry = true;                                     //Variables used by checkWaterNeed-function to determine if water pump should be enabled.
-    moistureWet = false;
-  }
-  else if(moistureMean > moistureThresholdLow && moistureMean <= moistureThresholdHigh) { //Soil humidity is good.
-    moistureWet = false;                                    //Variables used by checkWaterNeed-function to determine if water pump should be enabled.
-    moistureDry = false;
-  }
-  else if(moistureMean > moistureThresholdHigh) {           //Soil humidity is to high.
-    moistureWet = true;                                     //Variables used by checkWaterNeed-function to determine if water pump should be enabled.
-    moistureDry = false;
-  }
-  return moistureMean;
-}
 /*
 =========================================================================
 || FLOW FAULT DISPLAY MODE. Print service mode screen to OLED display. ||
@@ -1258,15 +784,15 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
 
-  pinMode(moistureSensorPort1, INPUT);
-  pinMode(moistureSensorPort2, INPUT);
-  pinMode(moistureSensorPort3, INPUT);
-  pinMode(moistureSensorPort4, INPUT);
+  pinMode(SENSOR_PORT1, INPUT);
+  pinMode(SENSOR_PORT2, INPUT);
+  pinMode(SENSOR_PORT3, INPUT);
+  pinMode(SENSOR_PORT4, INPUT);
   
   pinMode(flowSensor, INPUT);
-  attachInterrupt(1, flowCount, RISING);  //Initialize interrupt to enable water flow sensor to calculate water flow pumped by water pump.
+  attachInterrupt(1, Watering::flowCount, RISING);  //Initialize interrupt to enable water flow sensor to calculate water flow pumped by water pump.
 
-  attachInterrupt(0, toggleDisplayMode, RISING); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
+  attachInterrupt(0, toggleDisplayMode, RISING);    //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
   
   pinMode(pumpRelay, OUTPUT);
   //pinMode(pumpButton, INPUT);
@@ -1286,17 +812,28 @@ void setup() {
   
   lightSensor.Begin();                    //Initializing light sensor.
 
-  //Enable time interrupt to read temperature threshold value set by rotary encoder.
-  cli();  //Stop interrupts.
-  //Set timer1 interrupt at 100Hz
-  TCCR1A = 0;     //Set entire TCCR1A register to 0.
-  TCCR1B = 0;     //Set entire TCCR1B register to 0.
-  TCNT1 = 0;      //Initialize counter value to 0.
-  OCR1A = 156;    //match reg. = 16MHz / (prescaler * desired interrupt freq. - 1) = 16000000 / (1024 * 100 - 1) = 156 (must be < 65536).
-  TCCR1B |= (1 << WGM12);               //Turn on CTC mode.
-  TCCR1B |= (1 << CS12) | (1 << CS10);  //Set CS10 and CS12 bits for 1024 prescaler.
-  TIMSK1 |= (1 << OCIE1A);              //Enable timer compare interrupt.
-  sei();  //Allow interrupts again.
+  
+  cli();                    //Stop interrupts.
+
+  //Timer1 setup with interrupt frequency of 1Hz to feed internal clock.
+  TCCR1A = 0;                             //Set entire TCCR1A register to 0.
+  TCCR1B = 0;                             //Set entire TCCR1B register to 0.
+  TCNT1 = 0;                              //Initialize counter value to 0.
+  OCR1A = 15624;                          //match reg. = (16MHz / (prescaler * desired interrupt freq.)) - 1 = (16000000 / (1024 * 1)) - 1 = 15624 (must be < 65536).
+  TCCR1B |= (1 << WGM12);                 //Turn on CTC mode.
+  TCCR1B |= (1 << CS12) | (1 << CS10);    //Set CS10 and CS12 bits for 1024 prescaler.
+  TIMSK1 |= (1 << OCIE1A);                //Enable timer compare interrupt.
+
+  //Timer2 setup with interrupt frequency of 100Hz read temperature threshold value adjustmenst by rotary encoder.
+  TCCR2A = 0;                             //Set entire TCCR0A register to 0.
+  TCCR2B = 0;                             //Set entire TCCR0B register to 0.
+  TCNT2 = 0;                              //Initialize counter value to 0.
+  OCR2A = 156;                            //match reg. = (16MHz / (prescaler * desired interrupt freq.)) - 1 = (16000000 / (1024 * 100)) - 1 = 156.25 (must be < 256).
+  TCCR2A |= (1 << WGM21);                 //Turn on CTC mode.
+  TCCR2B |= (1 << CS21);                  //Set CS21 for 1024 prescaler.
+  TIMSK2 |= (1 << OCIE2A);                //Enable timer compare interrupt.
+  
+  sei();                    //Allow interrupts again.
 }
 
 /*
@@ -1305,10 +842,57 @@ void setup() {
 ******************************************/
 void loop() {
   // put your main code here, to run repeatedly:
+  unsigned short moistureValue1;                                    //Moisture sensor value from moisture sensor 1.
+  unsigned short moistureValue2;                                    //Moisture sensor value from moisture sensor 2.
+  unsigned short moistureValue3;                                    //Moisture sensor value from moisture sensor 3.
+  unsigned short moistureValue4;                                    //Moisture sensor value from moisture sensor 4.                      
+  unsigned short moistureMeanValue;                                 //Mean value from moisture readouts for all 4 moisture sensors.
+
+  moistureValue1 = moistureSensor1.readValue(SENSOR_PORT1);         //Read moistureSensor1 value to check soil humidity.
+  moistureValue2 = moistureSensor2.readValue(SENSOR_PORT2);         //Read moistureSensor2 value to check soil humidity.
+  moistureValue3 = moistureSensor3.readValue(SENSOR_PORT3);         //Read moistureSensor3 value to check soil humidity.
+  moistureValue4 = moistureSensor4.readValue(SENSOR_PORT4);         //Read moistureSensor4 value to check soil humidity.
+
+  moistureMeanValue = moistureSensor.calculateMean(moistureValue1, moistureValue2, moistureValue3, moistureValue4);   //Calculate moisture mean value from all 4 moisture sensors.
   
-  //Set current time and toggle between different screen display modes.
+  moistureSensor.evaluateValue(moistureMeanValue, &moistureDry, &moistureWet);                                        //Set and/or clear the internal fault code variables: moistureDry and moistureWet. Fault code is active when set to 'true'.
+
+  unsigned short tempValue;                                         //Readout temperature value.
+  unsigned short humidValue;                                        //Readot air humidity value.
+  tempValue = humiditySensor.readTemperature(false);                //Read temperature.
+  //humidValue = humiditySensor.readHumidity();                     //Read air humidity.
+  tempValueFault = tempRotaryEncoder.thresholdCompare(tempValue);   //Compare readout temperature with set themperature threshold value. Fault code is active 'true' if readout temperature value is higher than temperature treshold set by rotary encoder.
+  
+  
+  uint16_t lightValue;                                          
+  uint16_t uvValue;                                             
+  //uint16_t irValue;                                             
+  lightValue = lightSensor.ReadVisible();                           //Light readout, unit in lumen.
+  uvValue = lightSensor.ReadUV();                                   //UV readout, unit in lumen.
+  //irValue = lightSensor.ReadIR();                                   //IR readout, unit in UN index.
+
+  ledLightEnabled = ledLights.checkLightNeed(uvValue);              //Check if LED lighting is needed and if it is allowed to be turned ON.
+  ledLightState = ledLights.startLed();                             //Start LED lighting if it is enabled and update its current state.
+  ledLightFault = ledLights.ledLightCheck(uvValue);                 //Check if LED lights functionality. Fault code is active 'true' if readout light value is not increased while LED lighting is turned ON.
+  ledLightState = ledLights.stopLed();                              //Stop LED lighting if it is not enabled and update its current state.
+
+  unsigned short waterFlowValue;                                
+  waterPumpEnabled = waterPump.checkWaterNeed();                    //Check if water is needed and if water pump is allowed to be turned ON.
+  waterLevelFault = waterPump.readWaterLevel();                     //Check water level in water tank.
+  //waterPumpState = waterPump.startPump(&waterFlowValue);            //Start water pump if it is enabled, calculate the flow in which water is being pumped and update the water pump's current state.
+  waterFlowFault = waterPump.flowCheck(waterFlowValue);             //Check if water flow is above threshold value when water pump is running.                       
+  //waterPumpState = waterPump.stopPump();                            //Stop water pump (OFF).
+
+  oledDisplay.printToScreen(STARTUP_IMAGE);
+  //oledDisplay.printToScreen(SET_TIME);
+  //oledDisplay.printToScreen(READOUT_VALUES);
+  //oledDisplay.printToScreen(SERVICE_MODE);
+  //oledDisplay.printToScreen(FLOW_FAULT);
+  
+  //Set current time and toggle water flow fault code status.
   pushButton1 = digitalRead(clockSetButton);                        //Check if SET-button is being pressed.
 
+/*
   //Different functions to be run depending of which screen display mode that is currently active.
   if(startupImageDisplay == true) {
     viewStartupImage();                                             //Initialize the OLED Display and show startup images.
@@ -1328,10 +912,7 @@ void loop() {
   }
   
   //Continuesly read out sensor values, calculate values and alert user if any fault code is set.
-  moistureValue1 = moistureSensor1.moistureRead(moistureSensorPort1);                                   //Read moistureSensor1 value to check soil humidity.
-  moistureValue2 = moistureSensor2.moistureRead(moistureSensorPort2);                                   //Read moistureSensor2 value to check soil humidity.
-  moistureValue3 = moistureSensor3.moistureRead(moistureSensorPort3);                                   //Read moistureSensor3 value to check soil humidity.
-  moistureValue4 = moistureSensor4.moistureRead(moistureSensorPort4);                                   //Read moistureSensor4 value to check soil humidity.
+
   moistureMeanValue = calculateMoistureMean(moistureValue1, moistureValue2, moistureValue3, moistureValue4);    //Mean value from all sensor readouts.
   
   tempValue = humiditySensor.readTemperature(false);                                                    //Read temperature value from DHT-sensor. "false" gives the value in °C.
@@ -1406,5 +987,6 @@ void loop() {
         waterFlowCheck();                             //Time period has elapsed. Check water flow.
       }
     }
-  }                                                                      
+  }  
+  */                                                                    
 }
