@@ -43,13 +43,6 @@ Clock internalClock;                      //Clock object created from ClockTime 
 unsigned long alarmTimePrev = 0;        //Used to read relative time 
 unsigned long alarmTimePeriod = 2100;   //Variable value specifies in milliseconds, for how long time each warning message will be shown on display before cleared and/or replaced by next warning message.
 
-//Toggle display modes.
-bool startupImageDisplay = true;        //Any variable is set to 'true' when that screen mode is currently printed to display.
-bool setTimeDisplay = false;                 
-bool readoutValuesDisplay = false;
-bool serviceModeDisplay = false;
-bool clockViewFinished = false;
-bool flowFaultDisplay = false;
 
 /*
 ---------------------
@@ -619,9 +612,9 @@ void setup() {
   pinMode(SENSOR_PORT4, INPUT);
   
   pinMode(flowSensor, INPUT);
-  attachInterrupt(1, Watering::flowCount, RISING);  //Initialize interrupt to enable water flow sensor to calculate water flow pumped by water pump.
+  attachInterrupt(1, Watering::flowCount, RISING);          //Initialize interrupt to enable water flow sensor to calculate water flow pumped by water pump.
 
-  attachInterrupt(0, Display::toggleDisplayMode, RISING);    //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
+  attachInterrupt(0, Display::toggleDisplayMode, RISING);   //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
   
   pinMode(pumpRelay, OUTPUT);;
   
@@ -682,7 +675,6 @@ void loop() {
   moistureValue4 = moistureSensor4.readValue(SENSOR_PORT4);         //Read moistureSensor4 value to check soil humidity.
 
   moistureMeanValue = moistureSensor.calculateMean(moistureValue1, moistureValue2, moistureValue3, moistureValue4);   //Calculate moisture mean value from all 4 moisture sensors.
-  
   moistureSensor.evaluateValue(moistureMeanValue, &moistureDry, &moistureWet);                                        //Set and/or clear the internal fault code variables: moistureDry and moistureWet. Fault code is active when set to 'true'.
 
   unsigned short tempValue;                                         //Readout temperature value.
