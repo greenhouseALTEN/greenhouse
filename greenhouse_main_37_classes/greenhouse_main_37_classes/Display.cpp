@@ -10,7 +10,7 @@ void Display::printToScreen(displayMode x) {
     case STARTUP_IMAGE:
       viewStartupImage();                     //Initialize the OLED Display and print startup images to display.
       break;
-    case SET_TIME:
+    case SET_CLOCK:
       //setClockTime();                       //Display time set screen only if current time has not been set.
       //setClockDisplay();
       break;
@@ -26,21 +26,134 @@ void Display::printToScreen(displayMode x) {
   }
 }
 
+/*
+======================================================================================
+|| Toggle set modes and screen display modes when clockModeButton is being pressed. ||
+====================================================================================== */
+void Display::toggleDisplayMode() {
+  if((millis() - pressTimePrev) >= DEBOUNCE_TIME_PERIOD) {  //Debouncing button press to avoid multiple interrupts, display toggles.
+
+    //Check if water flow fault code is active. If it is set 'true', FLOW_FAULT display will be activated next time mode-button is being pressed to let user resolve the fault code.
+    if(waterFlowFault == true) {
+      displayState = FLOW_FAULT;                //Set next display mode to be printed to display. 
+    }
+
+    switch(displayState) {
+      case SET_CLOCK:
+        switch(clockInputState) {
+          case HOUR2:
+            clockInputState = HOUR1;              //Hour pointer2 has been set. Continue by setting hour pointer1.
+            Serial.println("hour1InputMode");
+            break;
+          case HOUR1:
+            clockInputState = MINUTE2;            //Hour pointer1 has been set. Continue by setting minute pointer2.
+            Serial.println("minute2InputMode");
+            break;
+          case MINUTE2:
+            clockInputState = MINUTE1;            //Minute pointer2 has been set. Continue by setting minute pointer1.
+            Serial.println("minute1InputMode");
+            break;
+          case MINUTE1:
+            clockInputState = COMPLETED;          //Clock setting completed.
+            clockStartEnabled = true;             //Start clock. Clock starts ticking.
+            Serial.println("clockSettingCompleted");
+            break;
+          case COMPLETED:
+            displayState = READOUT_VALUES;        //Set next display mode to be printed to display.
+            alarmMessageEnabled = true;           //Enable any alarm message to be printed to display.
+            greenhouseProgramStart = true;        //Start greenhouse program.
+            Serial.println("READOUT_VALUES(displayMode)");
+            break;           
+        }
+      case READOUT_VALUES:
+        displayState = SERVICE_MODE;              //Set next display mode to be printed to display.
+        alarmMessageEnabled = false;              //Disable any alarm message from being printed to display.
+        Serial.println("SERVICE_MODE(displayMode)");
+        break;
+      case SERVICE_MODE:
+        displayState = READOUT_VALUES;            //Set next display mode to be printed to display.
+        alarmMessageEnabled = false;              //Disable any alarm message from being printed to display.
+        Serial.println("READOUT_VALUES(displayMode)");     
+        break;
+      case FLOW_FAULT:
+        waterPump.stopPump();                     //Stop water pump.
+        greenhouseProgramStart = false;           //Stop greenhouse program.
+        alarmMessageEnabled = false;              //Disable any alarm message from being printed to display.
+        Serial.println("FLOW_FAULT(displayMode)"); 
+
+        //In flow fault display mode user will have the chance to clear the fault code. Check if water flow fault code has been cleared by user or not.
+        if(waterFlowFault == false) {               //Fault code has been cleared by user. Continue to run greenhouse program.               
+          displayState = SERVICE_MODE;              //Since using interrupt for toggeling display mode, next display mode to be printed to display is READOUT_VALUES even though SERVICE_MODE display is set active mode here.
+          greenhouseProgramStart = true;            //Continue greenhouse program.
+          alarmMessageEnabled = true;               //Enable any alarm message from being printed to display.
+          Serial.println("Resume program");  
+        }
+        else if(waterFlowFault == true) {           //If flow fault code has not been cleared, reboot greenhouse program.
+          waterFlowFault = false;                   //Clear water flow fault code.
+          internalClock.resetTime();                //Reset clock time.
+          displayState = STARTUP_IMAGE;             //Set next display mode to be printed to display.                
+          Serial.println("Reboot program");             
+        }
+        break;
+    }
+    pressTimePrev = millis();
+  }
+}
+
+/*
+===================================
+|| Print custom text to display. ||
+=================================== */
 void Display::stringToDisplay(unsigned short x, unsigned short y, char text[]) {
   SeeedOled.setTextXY(x, y);                  //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
   SeeedOled.putString(text);                  //Print text to display.
 }
 
+/*
+=======================================
+|| Print number variable to display. ||
+======================================= */
 void Display::numberToDisplay(unsigned short x, unsigned short y, int variable) {
   SeeedOled.setTextXY(x, y);                  //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
   SeeedOled.putNumber(variable);              //Print value to display.
 }
 
-void Display::blankToDisplay(unsigned short x, unsigned short y, int numOfBlank) {
-  for(int i=0; i<numOfBlank; i++) {           //Print blank space to display. Each loop one blank space is printed.
+/*
+======================================================
+|| Clear any character/s (print blanks) at display. ||
+====================================================== */
+void Display::blankToDisplay(unsigned short x, unsigned short y, int numOfBlanks) {
+  for(int i=0; i<numOfBlanks; i++) {          //Print blank space to display. Each loop one blank space is printed.
     SeeedOled.setTextXY(x, y);                //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
     SeeedOled.putString(" ");                 //Blank symbol.
     y++;                                      //Increase column cordinate to print next blank space in the same row.
+  }
+}
+
+/*
+==========================================================================================
+|| Alternate print and clear variable value (flash) to display with a frequency of 2Hz. ||
+========================================================================================== */
+void Display::flashNumberDisplay(unsigned short x, unsigned short y, unsigned short variable) {
+  unsigned short numDigits = 0;               //Store number of digits in variable value;
+  if(variable == 0) {                         //If variable equal to 0 it contains 1 digit.
+    numDigits = 1;
+  }
+  while(variable != 0) {
+    numDigits++;
+    variable /= 10;                           //Result of division between values with type 'int' only gives an integer. If variable less than 10 result of division is 0.
+  }
+
+  if(characterFlashEnabled == true) {
+    for(int i=0; i<numDigits; i++) {          //Print blank space to display. Each loop one blank space is printed.
+      SeeedOled.setTextXY(x, y);              //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
+      SeeedOled.putString(" ");               //Blank symbol.
+      y++;                                    //Increase column cordinate to print next blank space in the same row.
+    }
+  }
+  else {
+    SeeedOled.setTextXY(x, y);                //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
+    SeeedOled.putNumber(variable);            //Print variable value.
   }
 }
 
@@ -195,7 +308,7 @@ void Display::blankToDisplay(unsigned short x, unsigned short y, int numOfBlank)
 || Initialize OLED display and show startup images. ||
 ====================================================== */
 void Display::viewStartupImage() {
-  Serial.println("startupImageDisplay");
+  Serial.println("STARTUP_IMAGE (displayMode)");
   //Initiate the OLED display.
   Wire.begin();
   SeeedOled.init();
@@ -205,16 +318,15 @@ void Display::viewStartupImage() {
   SeeedOled.setPageMode();                          //Set addressing mode to Page Mode.
 /*
   //Startup image 1.
-  SeeedOled.drawBitmap(greenhouse, (128*64)/8);   //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
-  delay(4000);                                    //Image shown for 4 seconds.
-  SeeedOled.clearDisplay();                       //Clear the display.
+  SeeedOled.drawBitmap(greenhouse, (128*64)/8);     //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
+  delay(4000);                                      //Image shown for 4 seconds.
+  SeeedOled.clearDisplay();                         //Clear the display.
 
   //Startup image 2.
   SeeedOled.drawBitmap(features, (128*64)/8);       //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
   delay(3000);                                      //Image shown for 3 seconds.
   SeeedOled.clearDisplay();                         //Clear the display.
 */  
-  //startupImageDisplay = false;                      //Clear current screen display state.
-  //setTimeDisplay = true;                            //Set next display mode to be printed to display.  
-  //hour2InputMode = true;                            //Set state in next display mode.
+  displayState = SET_CLOCK;                         //Set next display mode to be printed to display.
+  Serial.println("SET_CLOCK (displayMode");
 }

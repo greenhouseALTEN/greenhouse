@@ -5,6 +5,7 @@
 #include "Lighting.h"
 #include "Temperature.h"
 #include "Watering.h"
+#include "ClockTime.h"
 #include "SeeedOLED.h"
 #include "Wire.h"
 
@@ -24,8 +25,8 @@ static const unsigned char pumpRelay = 8;
 static const unsigned char flowSensor = 3;
 static const unsigned char waterLevelSwitch = 12;
 static const unsigned char lightRelay = 6;
-static const unsigned char clockSetButton = 7;
-static const unsigned char clockModeButton = 2;
+static const unsigned char SET_BUTTON = 7;
+static const unsigned char MODE_BUTTON = 2;
 
 //Arduino UNO base shield layout
 /*
@@ -76,7 +77,6 @@ POWER
 GND:  Ground wire to temperature rotary encoder.
 */
 
-
 //Moisture.
 static const unsigned short MOISTURE_THRESHOLD_LOW = 300;
 static const unsigned short MOISTURE_THRESHOLD_HIGH = 700;
@@ -104,19 +104,38 @@ static bool waterPumpState = false;                           //Indicate current
 static bool waterLevelFault = false;                          //Fault code is active 'true' if water surface in water tank is too low to let the float sensor float.
 static bool waterFlowFault = false;                           //Fault code is active 'true' if water flow is below threshold value when water pump is running (ON). 
 static const unsigned short FLOW_THRESHOLD_VALUE = 99;        //Specifies water flow threshold in Liter/hour which must be exceeded to avoid water flow fault code from being activated.
-
-
+Watering waterPump;                                           //Water pump object created from Water class.
 
 //Internal clock to keep track of current time.
+bool setButton = false;
 static int currentClockTime = 0;
+static bool clockStartEnabled = false;                        //Start/Stop clock internal clock.
+static bool characterFlashEnabled = false;                    //Variable to flash clock pointer when in "set clock" mode.       
+static unsigned short x = 0;                                  //Toggle variable to flash current clock pointer.
+unsigned short hourPointer1 = 0;
+unsigned short hourPointer2 = 0;
+unsigned short minutePointer1 = 0;                            //1-digit of minute pointer.
+unsigned short minutePointer2 = 0;                            //10-digit of minute pointer.
+unsigned short secondPointer1 = 0;                            //1-digit of second pointer.
+unsigned short secondPointer2 = 0;                            //10-digit of second pointer.
+ClockTime internalClock;                                      //Clock object created from ClockTime class.
 
 //Timer interrupts for Timer1 and Timer2.
 static unsigned short divider50 = 0;                          //Variable to devide the frequency in which time interrupt fucntion is called by 50.
 static unsigned short divider10 = 0;                          //Variable to devide the frequency in which time interrupt fucntion is called by 10.
 
+//Display modes.
+typedef enum {STARTUP_IMAGE, SET_CLOCK, READOUT_VALUES, SERVICE_MODE, FLOW_FAULT} displayMode;   //Enum with 'typedef' for the different display modes that can be printed to the OLED display. 'typedef' enables passing a certain variable name to represent a certain variable value instead of using the value itself.
+static displayMode displayState = STARTUP_IMAGE;              //Set initial display mode to be printed to display. CAN THIS VARIABLE BECOME A PRIVATE MEMBER OF DISPLAY CLASS???
+typedef enum {HOUR2, HOUR1, MINUTE2, MINUTE1, COMPLETED} clockInputMode; //Enum with 'typedef' for the different clock input modes used to set internal clock time. 
+static clockInputMode clockInputState = HOUR2;                //Set initial clock input mode when entering set clock time function.
+static bool alarmMessageEnabled = false;                      //Variable set 'true' means any active alarm is enabled to be printed to display.
 
-typedef enum {STARTUP_IMAGE, SET_TIME, READOUT_VALUES, SERVICE_MODE, FLOW_FAULT} displayMode;   //Enum with 'typedef' for the different display modes that can be printed to the OLED display. The 'typedef' makes it possible to pass the display mode name instead of passing an integer that corresponds to that specific display that will be printed to display. 
+//Debouncing button press on button connected to external interrupt.
+volatile unsigned long pressTimePrev;                         //Variable to store previous millis() value.
+static const unsigned short DEBOUNCE_TIME_PERIOD = 170;       //Delay time before interrupt function is started when an interrupt has been triggered by a MODE-button press. Also used as debounce delay for SET-button.
 
-
+//Greenhouse program.
+static bool greenhouseProgramStart = false;                   //Variable set to 'true' means automatic water and lighting control of greenhouse is turned ON.
 
 #endif  /* Miscellaneous_H_ */

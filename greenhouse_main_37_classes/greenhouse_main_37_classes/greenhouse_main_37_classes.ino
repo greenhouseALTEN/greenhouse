@@ -30,40 +30,16 @@ SI114X lightSensor;                       //Light sensor object created from SI1
 Lighting ledLights;                       //LED lights object created from Lighting class.
 
 //Water pump, flow sensor and water level sensor.
-Watering waterPump;                       //Water pump object created from Water class.
+//Watering waterPump;                       //Water pump object created from Water class. Object created in "Micellaneous.h" instead.
  
 //OLED display.
-Display oledDisplay;                      //OLED display object created from Display class.
+Display oledDisplay;                      //OLED display object created from Display class. 
 
+//Internal clock.
+//ClockTime internalClock;                  //Clock object created from ClockTime class. Object created in "Micellaneous.h" instead.
 
-
-//Debouncing button press on button connected to external interrupt.
-volatile unsigned long pressTimePrev;     //Variable to store previous millis() value.
-int debounceTimePeriod = 170;             //Delay time before interrupt function is started.
-
-
-//Internal clock to keep track of current time.
-int hourPointer1 = 0;
-int hourPointer2 = 0;
-int minutePointer1 = 0;                 //1-digit of minute pointer.
-int minutePointer2 = 0;                 //10-digit of minute pointer.
-int secondPointer1 = 0;                 //1-digit of second pointer.
-int secondPointer2 = 0;                 //10-digit of second pointer.
-bool hour2InputMode = true;
-bool hour1InputMode = false;
-bool minute2InputMode = false;
-bool minute1InputMode = false;
-bool pushButton1 = false;
-
-
-bool clockStartMode = false;
-bool clockSetFinished = false;
-                          
-bool flashClockPointer = false;         //Variable to create lash clock pointer when in "set clock" mode.       
-int x = 0;                              //Toggle variable to flash current clock pointer.
 
 //Alarm messages to display.
-bool alarmMessageEnabled = false;       //Enable any alarm to be printed to display. If variable is 'true' alarm is enable to be printed to display.
 unsigned long alarmTimePrev = 0;        //Used to read relative time 
 unsigned long alarmTimePeriod = 2100;   //Variable value specifies in milliseconds, for how long time each warning message will be shown on display before cleared and/or replaced by next warning message.
 
@@ -79,7 +55,7 @@ bool flowFaultDisplay = false;
 ---------------------
 |Greenhouse program.|
 --------------------*/
-bool greenhouseProgramStart = false;        //If variable is set to 'true', automatic water and lighting control of greenhouse is turned on.
+
 
 //Water pump.
 unsigned int checkMoisturePeriod = 30000;        //Loop time, in milliseconds, for how often water pump is activated based upon measured soil moisture value.         
@@ -231,22 +207,22 @@ ISR(TIMER2_COMPA_vect) {  //Timer interrupt with a frequency of 100Hz to read te
     divider50 = 0;                                            //Reset divider variable.
     x++;
     if(x == 1) {
-      flashClockPointer = true;
+      characterFlashEnabled = true;
     }
     else {
-      flashClockPointer = false;
+      characterFlashEnabled = false;
       x = 0;
     }
   }
 } 
   
 /*
-==================================================================
-|| Timer interrupt to feed clock function with a signal of 1Hz. ||
-================================================================== */
+=============================================================
+|| Timer interrupt to feed clock function with 1Hz signal. ||
+============================================================= */
 ISR(TIMER1_COMPA_vect) {  //Timer interrupt with a frequency of 1Hz to feed internal clock with signal to increment its second pointer.
   //Internal clock used to keep track of current time. This function will be run once every second.
-  if(clockStartMode == true) {          //When set 'true' clock starts ticking.                       
+  if(clockStartEnabled = true) {      //When set 'true' clock starts ticking.                       
       
     //Second pointer1.
     if(secondPointer1 == 10) {        //If 1-digit second pointer reaches a value of 10 (elapsed time is 10 seconds).
@@ -290,166 +266,16 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt with a frequency of 1Hz to feed inte
   }
 }
 
-/*
-===============================================================
-|| Set current time by using SET- and MODE-buttons as input. ||
-=============================================================== */
-void setClockTime() {
-  //Set current clock time by toggling each hour pointer and minute pointer individualy.
-  if(pushButton1 == true && hour2InputMode == true) {
-    delay(170);                                                 //Delay to avoid contact bounce.
-    hourPointer2++;                                             //Increase hour pointer every time button is pressed.
-    if(hourPointer2 == 3) {                                     //If 10-digit hour pointer reaches 3, clear digit.
-      hourPointer2 = 0;
-    }
-  }
-  else if(pushButton1 == true && hour1InputMode == true) {
-    delay(170);                                                 //Delay to debounce button press.
-    hourPointer1++;                                             //Increase hour pointer every time button is pressed.
 
-    if(hourPointer2 == 2) {                                     //If hour pointer2 is equal to 2, hour pointer 1 is only allowed to reach a maximum value of 4.
-      if(hourPointer1 == 5) {
-        hourPointer1 = 0;
-      }
-    }
-    else {
-      if(hourPointer1 == 10) {                                  //If 1-digit hour pointer reaches 10, clear digit.
-      hourPointer1 = 0;
-      }
-    }
-  }
-  else if(pushButton1 == true && minute2InputMode == true) {
-    delay(170);                                                 
-    minutePointer2++;
-    if(minutePointer2 == 6) {                                   //If 10-digit minute pointer reaches a value of 6, clear 10-digit minute pointer.
-      minutePointer2 = 0;    
-    }
-  }
-  else if(pushButton1 == true && minute1InputMode == true) {
-    delay(170);                                                 
-    minutePointer1++;
-    if(minutePointer1 == 10) {                                 //If 10-digit minute pointer reaches a value of 10, clear 1-digit minute pointer.
-      minutePointer1 = 0;    
-    }
-  }
 
-  //Replace clock time represenation. When current clock time is 24 hours is replaced with 00.
-  if(clockStartMode == true) {
-    if(hourPointer2 == 2 && hourPointer1 == 4) {                //If 10-digit hour pointer reaches a value of 2 and 1-digit hour pointer reaches a value of 4 (elapsed time is 24 hours).
-      hourPointer2 = 0;                                         //Clear both hour pointer values.
-      hourPointer1 = 0;
-    }
-  }
-}
 
-/*
-======================
-|| Reset clock time ||
-====================== */
-void resetClockTime() {
-  //Stop clock and reset all clock pointers.
-  clockStartMode = false;                       //Stop clock from ticking.
-  hourPointer2 = 0;                             //Reset all clock pointers individualy.
-  hourPointer1 = 0;
-  minutePointer2 = 0;
-  minutePointer1 = 0; 
-  secondPointer2 = 0;                           
-  secondPointer1 = 0; 
-  Serial.println("resetClockTime");                                           
-}
 
-/*
-======================================================================================
-|| Toggle set modes and screen display modes when clockModeButton is being pressed. ||
-====================================================================================== */
-void toggleDisplayMode() {
-  //Debouncing button press to avoid multiple interrupts, display toggles.
-  if((millis() - pressTimePrev) >= debounceTimePeriod) {
 
-    //Toggle display modes every time MODE-button is pressed.
-    if(setTimeDisplay == true) {
-      Serial.println("setTimeDisplay");
-      if(hour2InputMode == true) {
-        hour2InputMode = false;                 //Hour pointer2 has been set.
-        hour1InputMode = true;                  //Continue by setting hour pointer1.
-        Serial.println("hour2InputMode");
-      }
-      else if(hour1InputMode == true) {
-        hour1InputMode = false;                 //Hour pointer1 has been set.
-        minute2InputMode = true;                //Continue by setting minute pointer2.
-        Serial.println("hour1InputMode");
-      }
-      else if(minute2InputMode == true) {
-        minute2InputMode = false;               //Minute pointer2 has been set.
-        minute1InputMode = true;                //Continue by setting minute pointer1.
-        Serial.println("minute2InputMode");
-      }
-      else if(minute1InputMode == true) {
-        minute1InputMode = false;               //Minute pointer1 has been set. Time set is done.
-        clockStartMode = true;                  //Start clock. Clock starts ticking.
-        clockSetFinished = true;
-        Serial.println("minute1InputMode");
-      }
-      else if(clockSetFinished == true) {
-        clockSetFinished = false;               //Clear current state in display mode.
-        setTimeDisplay = false;                 //Clear current display mode.
-        readoutValuesDisplay = true;            //Set next display mode to be printed to display.
-        alarmMessageEnabled = true;             //Enable any alarm message to be printed to display.
-        greenhouseProgramStart = true;          //Start greenhouse program.
-        Serial.println("clockSetFinished");
-      }
-    }
-    else if(readoutValuesDisplay == true) {
-      readoutValuesDisplay = false;               //Clear current screen display mode to enable next display mode to shown next time MODE-button is pressed.
-      alarmMessageEnabled = false;                //Disable any alarm message from being printed to display.
-      //SeeedOled.clearDisplay();                   //Clear display.
-      serviceModeDisplay = true;                  //Set next display mode to be printed to display.
-      Serial.println("readoutValuesDisplay");
-    }
-    else if(serviceModeDisplay == true) {
-      serviceModeDisplay = false;                 //Clear current screen display mode to enable next display mode to shown next time MODE-button is pressed.
-      //SeeedOled.clearDisplay();                   //Clear display.
-      readoutValuesDisplay = true;                //Set next display mode to be printed to display.
-      alarmMessageEnabled = true;                 //Enable any alarm message from being printed to display.
-      Serial.println("serviceModeDisplay");
-    }
-    else if(flowFaultDisplay == true) {
-      flowFaultDisplay = false;                   //Clear current screen display mode to enable next display mode to shown next time MODE-button is pressed.
-      //SeeedOled.clearDisplay();                   //Clear display.
-      Serial.println("flowFaultDisplay");
-      
-      //Check if water flow fault code has been cleared by user or not.
-      if(waterFlowFault == false) {               //Fault code has been cleared by user. Continue to run greenhouse program.               
-        greenhouseProgramStart = true;            
-        readoutValuesDisplay = true;              //Set next display mode to be printed to display.
-        alarmMessageEnabled = true;               //Enable any alarm message from being printed to display.
-        Serial.println("Resume program"); 
-      }
-      else if(waterFlowFault == true) {           //If flow fault code is not cleared, reboot greenhouse program.
-        waterFlowFault = false;                   //Clear water flow fault code.
-        resetClockTime();                         //Reset clock time.
-        startupImageDisplay = true;               //Reboot greenhouse program by printing the startup image to display.                
-        Serial.println("Go to startupImageDisplay");             
-      }
-    }
-
-    //Check if water flow fault code is active. If active enter flow fault display to handle fault code.
-    if(waterFlowFault == true) {
-      readoutValuesDisplay = false;               //Clear any of current screen display modes to enable next display mode to shown next time MODE-button is pressed.
-      serviceModeDisplay = false;
-      alarmMessageEnabled = false;
-      flowFaultDisplay = true;                    //Set next display mode to be printed to display.
-      greenhouseProgramStart = false;             //Stop greenhouse program.
-      waterPump.stopPump();                       //Stop water pump.
-    }
-  pressTimePrev = millis();
-  }
-}
-
-/*
+/* AVAILABLE IN DISPLAY CLASS!!!
 ===================================================================================================
 || SET CLOCK TIME DISPLAY MODE. Print clock values to OLED display to let user set current time. ||
 =================================================================================================== */
+/* 
 void setClockDisplay() {
   SeeedOled.setTextXY(0, 0);                            //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
   SeeedOled.putString("Set current time");              //Print text to display.
@@ -468,7 +294,7 @@ void setClockDisplay() {
 
   //Flashing individual clock time pointers to display which clock parameter that is currently set.
   //Hour pointer2
-  if(flashClockPointer == true && hour2InputMode == true) {
+  if(characterFlashEnabled == true && hour2InputMode == true) {
     SeeedOled.setTextXY(6, 20);                           
     SeeedOled.putString(" ");                             //Clear display where 10-digit hour pointer value is located.    
   }
@@ -478,7 +304,7 @@ void setClockDisplay() {
   }
   
   //Hour pointer1.
-  if(flashClockPointer == true && hour1InputMode == true) {
+  if(characterFlashEnabled == true && hour1InputMode == true) {
     SeeedOled.setTextXY(6, 21);                           
     SeeedOled.putString(" ");                             //Clear display where 1-digit hour pointer value is located.
 
@@ -493,7 +319,7 @@ void setClockDisplay() {
   SeeedOled.putString(":");                               //Print symbol to display.
 
   //Minute pointer2.
-  if(flashClockPointer == true && minute2InputMode == true) {
+  if(characterFlashEnabled == true && minute2InputMode == true) {
     SeeedOled.setTextXY(6, 23);                           
     SeeedOled.putString(" ");    
   }                  
@@ -503,7 +329,7 @@ void setClockDisplay() {
   }
 
   //Minute pointer1.
-  if(flashClockPointer == true && minute1InputMode == true) {
+  if(characterFlashEnabled == true && minute1InputMode == true) {
     SeeedOled.setTextXY(6, 24);                           
     SeeedOled.putString(" ");                
   }
@@ -522,6 +348,7 @@ void setClockDisplay() {
   SeeedOled.setTextXY(6, 27);                           
   SeeedOled.putNumber(secondPointer1);                   //Print first digit of second pointer value to display.
 }
+*/
 
 /*
 ============================================================================================================
@@ -730,6 +557,7 @@ void viewServiceMode() {
 =========================================================================
 || FLOW FAULT DISPLAY MODE. Print service mode screen to OLED display. ||
 ========================================================================= */
+/*
 bool resolveFlowFault() {    
   bool fault;
   
@@ -775,6 +603,7 @@ bool resolveFlowFault() {
   }
   return fault;                                 //Return current fault status.
 }
+*/
 
 /*
 *******************************
@@ -792,10 +621,9 @@ void setup() {
   pinMode(flowSensor, INPUT);
   attachInterrupt(1, Watering::flowCount, RISING);  //Initialize interrupt to enable water flow sensor to calculate water flow pumped by water pump.
 
-  attachInterrupt(0, toggleDisplayMode, RISING);    //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
+  attachInterrupt(0, Display::toggleDisplayMode, RISING);    //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
   
-  pinMode(pumpRelay, OUTPUT);
-  //pinMode(pumpButton, INPUT);
+  pinMode(pumpRelay, OUTPUT);;
   
   pinMode(waterLevelSwitch, INPUT);
   
@@ -805,8 +633,8 @@ void setup() {
   pinMode(rotaryEncoderOutpB, INPUT);
   aLastState = digitalRead(rotaryEncoderOutpA);      //Read initial position value.
 
-  pinMode(clockSetButton, INPUT);
-  pinMode(clockModeButton, INPUT);
+  pinMode(SET_BUTTON, INPUT);
+  pinMode(MODE_BUTTON, INPUT);
   
   humiditySensor.begin();                 //Initializing humidity sensor.
   
@@ -883,14 +711,12 @@ void loop() {
   waterFlowFault = waterPump.flowCheck(waterFlowValue);             //Check if water flow is above threshold value when water pump is running.                       
   //waterPumpState = waterPump.stopPump();                            //Stop water pump (OFF).
 
-  oledDisplay.printToScreen(STARTUP_IMAGE);
-  //oledDisplay.printToScreen(SET_TIME);
-  //oledDisplay.printToScreen(READOUT_VALUES);
-  //oledDisplay.printToScreen(SERVICE_MODE);
-  //oledDisplay.printToScreen(FLOW_FAULT);
+  //Set current time and clear/set water flow fault code.
+  setButton = digitalRead(SET_BUTTON);                              //Check if SET-button is being pressed.
+
+  oledDisplay.printToScreen(displayState);                          //Print current active display state to display. Display state variable by interrupt function activated by pressing SET-button. 
   
-  //Set current time and toggle water flow fault code status.
-  pushButton1 = digitalRead(clockSetButton);                        //Check if SET-button is being pressed.
+
 
 /*
   //Different functions to be run depending of which screen display mode that is currently active.
