@@ -7,7 +7,7 @@ class Display {
 public:
   Display(){}                                   //Empty constructor.
   void printToScreen(displayMode x);
-  void toggleDisplayMode();
+  static void toggleDisplayMode();
 private:
   void viewStartupImage();
   void stringToDisplay(unsigned short x, unsigned short y, char text[]);

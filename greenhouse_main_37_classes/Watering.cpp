@@ -16,7 +16,7 @@ bool Watering::readWaterLevel() {
 ===========================================================================================
 || Count number of rotations on flow sensor, runs every time interrupt pin is triggered. ||
 =========================================================================================== */
-static void Watering::flowCount() {
+void Watering::flowCount() {
   //Interrupt function to count number of rotations that flow sensor propeller makes when water is being pumped.
   rotations++;
 }

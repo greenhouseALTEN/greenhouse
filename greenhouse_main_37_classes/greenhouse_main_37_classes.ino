@@ -30,13 +30,13 @@ SI114X lightSensor;                       //Light sensor object created from SI1
 Lighting ledLights;                       //LED lights object created from Lighting class.
 
 //Water pump, flow sensor and water level sensor.
-//Watering waterPump;                       //Water pump object created from Water class. Object created in "Micellaneous.h" instead.
+Watering waterPump;                       //Water pump object created from Water class.
  
 //OLED display.
 Display oledDisplay;                      //OLED display object created from Display class. 
 
 //Internal clock.
-//ClockTime internalClock;                  //Clock object created from ClockTime class. Object created in "Micellaneous.h" instead.
+Clock internalClock;                      //Clock object created from ClockTime class.
 
 
 //Alarm messages to display.
@@ -715,7 +715,6 @@ void loop() {
   setButton = digitalRead(SET_BUTTON);                              //Check if SET-button is being pressed.
 
   oledDisplay.printToScreen(displayState);                          //Print current active display state to display. Display state variable by interrupt function activated by pressing SET-button. 
-  
 
 
 /*

@@ -1,11 +1,11 @@
-#include "ClockTime.h"
+#include "Clock.h"
 #include "Miscellaneous.h"
 
 /*
 ===============================================================
 || Set current time by using SET- and MODE-button as inputs. ||
 =============================================================== */
-void ClockTime::setTime() {
+void Clock::setTime() {
   switch(clockInputState) {
     case HOUR2:                                                 //Set hour pointer1.
       if(setButton == true) {
@@ -65,7 +65,7 @@ void ClockTime::setTime() {
 ======================
 || Reset clock time ||
 ====================== */
-void ClockTime::resetTime() {
+void Clock::resetTime() {
   //Stop clock and reset all clock pointers.
   clockStartEnabled = false;              //Stop clock from ticking.
   hourPointer2 = 0;                       //Reset all clock pointers individualy.

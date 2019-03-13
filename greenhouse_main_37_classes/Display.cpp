@@ -76,7 +76,6 @@ void Display::toggleDisplayMode() {
         Serial.println("READOUT_VALUES(displayMode)");     
         break;
       case FLOW_FAULT:
-        waterPump.stopPump();                     //Stop water pump.
         greenhouseProgramStart = false;           //Stop greenhouse program.
         alarmMessageEnabled = false;              //Disable any alarm message from being printed to display.
         Serial.println("FLOW_FAULT(displayMode)"); 
@@ -90,6 +89,8 @@ void Display::toggleDisplayMode() {
         }
         else if(waterFlowFault == true) {           //If flow fault code has not been cleared, reboot greenhouse program.
           waterFlowFault = false;                   //Clear water flow fault code.
+          Watering waterPump;                       //Create a temporary water pump object created from Water class.
+          Clock internalClock;                      //Create a temporary internal clock object from Clock class.
           internalClock.resetTime();                //Reset clock time.
           displayState = STARTUP_IMAGE;             //Set next display mode to be printed to display.                
           Serial.println("Reboot program");             
