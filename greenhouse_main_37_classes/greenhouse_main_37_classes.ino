@@ -683,7 +683,6 @@ void loop() {
   //humidValue = humiditySensor.readHumidity();                     //Read air humidity.
   tempValueFault = tempRotaryEncoder.thresholdCompare(tempValue);   //Compare readout temperature with set themperature threshold value. Fault code is active 'true' if readout temperature value is higher than temperature treshold set by rotary encoder.
   
-  
   uint16_t lightValue;                                          
   uint16_t uvValue;                                             
   //uint16_t irValue;                                             

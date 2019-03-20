@@ -62,9 +62,9 @@ void Clock::setTime() {
 }
 
 /*
-======================
-|| Reset clock time ||
-====================== */
+=================
+|| Reset clock ||
+================= */
 void Clock::resetTime() {
   //Stop clock and reset all clock pointers.
   clockStartEnabled = false;              //Stop clock from ticking.
