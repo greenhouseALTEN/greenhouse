@@ -168,9 +168,19 @@ void Display::viewSetClock() {
   Serial.println("viewSetClock");
   stringToDisplay(2, 0, "Set current time");
   stringToDisplay(3, 0, "Use the buttons:");
-  stringToDisplay(4, 0, "SET = inc. p.val");
-  stringToDisplay(5, 0, "MODE = h or min");
-  delay(4000);
+  stringToDisplay(5, 0, "SET = inc. p.val");
+  stringToDisplay(6, 0, "MODE = h or min");
+
+  stringToDisplay(8, 30, "HH");
+  stringToDisplay(8, 50, "MM");
+  stringToDisplay(8, 70, "SS");
+
+  numberToDisplay(9, 30, hourPointer2);
+  numberToDisplay(9, 38, hourPointer1);
+  numberToDisplay(9, 50, minutePointer2);
+  numberToDisplay(9, 58, minutePointer1);
+  numberToDisplay(9, 70, secondPointer2);
+  numberToDisplay(9, 78, secondPointer2);
 }
 
 //Add the function alarms to display!! Write alarms to display. alarmMessageDisplay()
@@ -317,11 +327,13 @@ void Display::viewSetClock() {
 ===================================================== */
 void Display::viewStartupImage() {
   Serial.println("STARTUP_IMAGE");
-  
+
+/*
   //Startup image.
   SeeedGrayOled.drawBitmap(greenhouse, 128*128/8);  //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
   delay(4000);                                      //Image shown for 4 seconds.
   SeeedGrayOled.clearDisplay();                     //Clear the display.
+*/
 
-  displayState = SET_CLOCK;
+  displayState = SET_CLOCK;                         //Set next display mode to be printed to display.
 }
