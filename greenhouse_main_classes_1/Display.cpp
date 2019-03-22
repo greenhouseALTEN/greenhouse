@@ -106,7 +106,7 @@ void Display::toggleDisplayMode() {
 ===================================
 || Print custom text to display. ||
 =================================== */
-void Display::stringToDisplay(unsigned short x, unsigned short y, char text[]) {
+void Display::stringToDisplay(unsigned char x, unsigned char y, char text[]) {
   SeeedGrayOled.setTextXY(x, y);                  //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putString(text);                  //Print text to display.
 }
@@ -115,7 +115,7 @@ void Display::stringToDisplay(unsigned short x, unsigned short y, char text[]) {
 =======================================
 || Print number variable to display. ||
 ======================================= */
-void Display::numberToDisplay(unsigned short x, unsigned short y, int variable) {
+void Display::numberToDisplay(unsigned char x, unsigned char y, int variable) {
   SeeedGrayOled.setTextXY(x, y);                  //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putNumber(variable);              //Print value to display.
 }
@@ -124,7 +124,7 @@ void Display::numberToDisplay(unsigned short x, unsigned short y, int variable) 
 ======================================================
 || Clear any character/s (print blanks) at display. ||
 ====================================================== */
-void Display::blankToDisplay(unsigned short x, unsigned short y, int numOfBlanks) {
+void Display::blankToDisplay(unsigned char x, unsigned char y, int numOfBlanks) {
   for(int i=0; i<numOfBlanks; i++) {          //Print blank space to display. Each loop one blank space is printed.
     SeeedGrayOled.setTextXY(x, y);                //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
     SeeedGrayOled.putString(" ");                 //Blank symbol.
@@ -164,16 +164,22 @@ void Display::flashNumberDisplay(unsigned short x, unsigned short y, unsigned sh
 || Print current clock values to display to let user set current time. ||
 ========================================================================= */
 void Display::viewSetClock() {
-  
   Serial.println("viewSetClock");
+
+  //1 symbol = 8 px
+  //1 blank space = 12 px
+  
   stringToDisplay(2, 0, "Set current time");
   stringToDisplay(3, 0, "Use the buttons:");
   stringToDisplay(5, 0, "SET = inc. p.val");
   stringToDisplay(6, 0, "MODE = h or min");
+  stringToDisplay(7, 30, "HH MM SS");
+  stringToDisplay(8, 30, "H");
+  stringToDisplay(8, 38, "L");
+  stringToDisplay(8, 78, "SS");
 
-  stringToDisplay(8, 30, "HH");
-  stringToDisplay(8, 50, "MM");
-  stringToDisplay(8, 70, "SS");
+  stringToDisplay(9, 45, ":");
+  stringToDisplay(9, 66, ":");
 
   numberToDisplay(9, 30, hourPointer2);
   numberToDisplay(9, 38, hourPointer1);
@@ -181,6 +187,12 @@ void Display::viewSetClock() {
   numberToDisplay(9, 58, minutePointer1);
   numberToDisplay(9, 70, secondPointer2);
   numberToDisplay(9, 78, secondPointer2);
+
+  SeeedGrayOled.setTextXY(10, 11);
+  SeeedGrayOled.putString("XXXXX");
+  SeeedGrayOled.setTextXY(11, 19);
+  SeeedGrayOled.putString("XXXXX");
+  
 }
 
 //Add the function alarms to display!! Write alarms to display. alarmMessageDisplay()
