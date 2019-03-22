@@ -6,7 +6,7 @@
 #include "Temperature.h"
 #include "Watering.h"
 #include "Clock.h"
-#include "SeeedOLED.h"
+#include "SeeedGrayOled.h"
 #include "Wire.h"
 
 /*

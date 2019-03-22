@@ -6,10 +6,11 @@
 class Display {
 public:
   Display(){}                                   //Empty constructor.
-  void printToScreen(displayMode x);
+  void printToScreen();
   static void toggleDisplayMode();
 private:
   void viewStartupImage();
+  void viewSetClock();
   void stringToDisplay(unsigned short x, unsigned short y, char text[]);
   void numberToDisplay(unsigned short x, unsigned short y, int variable);
   void blankToDisplay(unsigned short x, unsigned short y, int numOfBlanks);
