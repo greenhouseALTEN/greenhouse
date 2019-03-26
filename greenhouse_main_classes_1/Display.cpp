@@ -6,7 +6,7 @@
 || Run the function that corresponds to selected display mode. ||
 ================================================================= */
 void Display::printToScreen() {
-  SeeedGrayOled.setVerticalMode();            //In Vertical addressing mode the data flows from top part of display to bottom part of display, from left to right side.
+  //SeeedGrayOled.setVerticalMode();            //In Vertical addressing mode the data flows from top part of display to bottom part of display, from left to right side.
   switch(displayState) {
     case STARTUP_IMAGE:
       viewStartupImage();                     //Initialize the OLED Display and print startup images to display.
@@ -107,6 +107,7 @@ void Display::toggleDisplayMode() {
 || Print custom text to display. ||
 =================================== */
 void Display::stringToDisplay(unsigned char x, unsigned char y, char text[]) {
+  y *= 8;                                         //To align symbol with rest printed text. Each symbol requires 8px in width.
   SeeedGrayOled.setTextXY(x, y);                  //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putString(text);                  //Print text to display.
 }
@@ -116,6 +117,7 @@ void Display::stringToDisplay(unsigned char x, unsigned char y, char text[]) {
 || Print number variable to display. ||
 ======================================= */
 void Display::numberToDisplay(unsigned char x, unsigned char y, int variable) {
+  y *= 8;                                         //To align symbol with rest printed text. Each symbol requires 8px in width.
   SeeedGrayOled.setTextXY(x, y);                  //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putNumber(variable);              //Print value to display.
 }
@@ -125,10 +127,11 @@ void Display::numberToDisplay(unsigned char x, unsigned char y, int variable) {
 || Clear any character/s (print blanks) at display. ||
 ====================================================== */
 void Display::blankToDisplay(unsigned char x, unsigned char y, int numOfBlanks) {
-  for(int i=0; i<numOfBlanks; i++) {          //Print blank space to display. Each loop one blank space is printed.
+  y *= 8;                                         //To align symbol with rest printed text. Each symbol requires 8px in width.
+  for(int i=0; i<numOfBlanks; i++) {              //Print blank space to display. Each loop one blank space is printed.
     SeeedGrayOled.setTextXY(x, y);                //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
     SeeedGrayOled.putString(" ");                 //Blank symbol.
-    y++;                                      //Increase column cordinate to print next blank space in the same row.
+    y++;                                          //Increase column cordinate to print next blank space in the same row.
   }
 }
 
@@ -165,34 +168,22 @@ void Display::flashNumberDisplay(unsigned short x, unsigned short y, unsigned sh
 ========================================================================= */
 void Display::viewSetClock() {
   Serial.println("viewSetClock");
-
-  //1 symbol = 8 px
-  //1 blank space = 12 px
   
   stringToDisplay(2, 0, "Set current time");
   stringToDisplay(3, 0, "Use the buttons:");
   stringToDisplay(5, 0, "SET = inc. p.val");
   stringToDisplay(6, 0, "MODE = h or min");
-  stringToDisplay(7, 30, "HH MM SS");
-  stringToDisplay(8, 30, "H");
-  stringToDisplay(8, 38, "L");
-  stringToDisplay(8, 78, "SS");
+ 
+  stringToDisplay(9, 4, "HH MM SS");
+  stringToDisplay(10, 6, ":");
+  stringToDisplay(10, 9, ":");
 
-  stringToDisplay(9, 45, ":");
-  stringToDisplay(9, 66, ":");
-
-  numberToDisplay(9, 30, hourPointer2);
-  numberToDisplay(9, 38, hourPointer1);
-  numberToDisplay(9, 50, minutePointer2);
-  numberToDisplay(9, 58, minutePointer1);
-  numberToDisplay(9, 70, secondPointer2);
-  numberToDisplay(9, 78, secondPointer2);
-
-  SeeedGrayOled.setTextXY(10, 11);
-  SeeedGrayOled.putString("XXXXX");
-  SeeedGrayOled.setTextXY(11, 19);
-  SeeedGrayOled.putString("XXXXX");
-  
+  numberToDisplay(10, 4, hourPointer2);
+  numberToDisplay(10, 5, hourPointer1);
+  numberToDisplay(10, 7, minutePointer2);
+  numberToDisplay(10, 8, minutePointer1);
+  numberToDisplay(10, 10, secondPointer2);
+  numberToDisplay(10, 11, secondPointer2);
 }
 
 //Add the function alarms to display!! Write alarms to display. alarmMessageDisplay()
@@ -340,12 +331,11 @@ void Display::viewSetClock() {
 void Display::viewStartupImage() {
   Serial.println("STARTUP_IMAGE");
 
-/*
   //Startup image.
   SeeedGrayOled.drawBitmap(greenhouse, 128*128/8);  //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
   delay(4000);                                      //Image shown for 4 seconds.
   SeeedGrayOled.clearDisplay();                     //Clear the display.
-*/
+
 
   displayState = SET_CLOCK;                         //Set next display mode to be printed to display.
 }
