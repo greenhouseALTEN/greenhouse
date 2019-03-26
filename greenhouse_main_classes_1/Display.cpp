@@ -15,9 +15,10 @@ void Display::printToScreen() {
       viewStartupImage();                     //Initialize the OLED Display and print startup images to display.
       break;
     case SET_CLOCK:
+      Serial.println("hello");
       stringToDisplay(0, 7, "SET CLOCK");     //Print current display state to upper right corner of display.
-      viewSetClock();                         //Display time set screen only if current time has not been set.
-      internalClock.setTime();                //Reset clock time.
+      viewSetClock();                         //Display "set time" screen.
+      internalClock.setTime();                //Set current time.
       break;
     case READOUT_VALUES:
       stringToDisplay(0, 2, "READOUT VALUES");//Print current display state to upper right corner of display.
@@ -147,6 +148,7 @@ void Display::blankToDisplay(unsigned char x, unsigned char y, int numOfBlanks) 
 ========================================================================================== */
 void Display::flashNumberDisplay(unsigned short x, unsigned short y, unsigned short variable) {
   unsigned short numDigits = 0;               //Store number of digits in variable value;
+  y *= 8;                                     //To align symbol with rest printed text. Each symbol requires 8px in width.
   if(variable == 0) {                         //If variable equal to 0 it contains 1 digit.
     numDigits = 1;
   }
@@ -154,18 +156,22 @@ void Display::flashNumberDisplay(unsigned short x, unsigned short y, unsigned sh
     numDigits++;
     variable /= 10;                           //Result of division between values with type 'int' only gives an integer. If variable less than 10 result of division is 0.
   }
+ static bool blinkCursor = false;
 
-  if(characterFlashEnabled == true) {
+  if(blinkCursor) {
     for(int i=0; i<numDigits; i++) {          //Print blank space to display. Each loop one blank space is printed.
-      SeeedGrayOled.setTextXY(x, y);              //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
-      SeeedGrayOled.putString(" ");               //Blank symbol.
-      y++;                                    //Increase column cordinate to print next blank space in the same row.
+      SeeedGrayOled.setTextXY(x, y);          //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
+      SeeedGrayOled.putString(" ");           //Blank symbol.
+      y += 8;                                 //Increase column cordinate to print next blank space in the same row.
     }
+    blinkCursor = false;
   }
   else {
-    SeeedGrayOled.setTextXY(x, y);                //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
-    SeeedGrayOled.putNumber(variable);            //Print variable value.
+    SeeedGrayOled.setTextXY(x, y);            //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
+    SeeedGrayOled.putNumber(variable);        //Print variable value.
+    blinkCursor = true;
   }
+  
 }
 
 /*
@@ -173,7 +179,6 @@ void Display::flashNumberDisplay(unsigned short x, unsigned short y, unsigned sh
 || Print current clock values to display to let user set current time. ||
 ========================================================================= */
 void Display::viewSetClock() {
-  Serial.println("SET_CLOCK");
   
   stringToDisplay(2, 0, "Set current time");
   stringToDisplay(3, 0, "Use the buttons:");
@@ -190,6 +195,23 @@ void Display::viewSetClock() {
   numberToDisplay(10, 8, minutePointer1);
   numberToDisplay(10, 10, secondPointer2);
   numberToDisplay(10, 11, secondPointer2);
+  
+ 
+  //Flash (show/clear) individual clock pointers to display which clock parameter that is currently being set.
+  switch(clockInputState) {
+    case HOUR2:
+      flashNumberDisplay(10, 4, hourPointer2);    //Toggle show/clear clock pointer with a frequency of 2 Hz.
+      break;
+    case HOUR1:
+      flashNumberDisplay(10, 5, hourPointer1);    //Toggle show/clear clock pointer with a frequency of 2 Hz.
+      break;
+    case MINUTE2:
+      flashNumberDisplay(10, 7, minutePointer2);  //Toggle show/clear clock pointer with a frequency of 2 Hz.
+      break;
+    case MINUTE1:
+      flashNumberDisplay(10, 8, hourPointer1);    //Toggle show/clear clock pointer with a frequency of 2 Hz.
+      break;
+  }
 }
 
 //Add the function alarms to display!! Write alarms to display. alarmMessageDisplay()
@@ -337,12 +359,12 @@ void Display::viewSetClock() {
 void Display::viewStartupImage() {
   Serial.println("STARTUP_IMAGE");
 
-  
+  /*
   //Startup image.
   SeeedGrayOled.drawBitmap(greenhouse, 128*128/8);  //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
   delay(4000);                                      //Image shown for 4 seconds.
   SeeedGrayOled.clearDisplay();                     //Clear the display.
-  
+  */
 
   displayState = SET_CLOCK;                         //Set next display mode to be printed to display.
 }

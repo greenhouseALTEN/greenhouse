@@ -33,10 +33,10 @@ Lighting ledLights;                       //LED lights object created from Light
 Watering waterPump;                       //Water pump object created from Water class.
  
 //OLED display.
-Display oledDisplay;                      //OLED display object created from Display class. 
+static Display oledDisplay;                      //OLED display object created from Display class. 
 
 //Internal clock.
-Clock internalClock;                      //Clock object created from ClockTime class.
+static Clock internalClock;                      //Clock object created from ClockTime class.
 
 
 //Alarm messages to display.
@@ -658,20 +658,8 @@ ISR(RTC_CNT_vect) {
       //Serial.println(currentClockTime);
     }
   }
-  
-  /****************************************************
-  |Flash clock pointer values when in "set time" mode.|
-  *****************************************************/
-  x++;                                      //Toggle variable.
-  if(x == 1) {
-    characterFlashEnabled = true;           //Toggle variable to flash clock pointer when in "set time" mode.
-  }
-  else {
-    characterFlashEnabled = false;
-    x = 0;
-  }
-
   RTC.INTFLAGS = 0x3;                       //Clearing OVF and CMP interrupt flags to enable new interrupt to take place according the preset time period.
+  
 }
 
 /*
