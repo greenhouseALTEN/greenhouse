@@ -109,8 +109,8 @@ static const unsigned short FLOW_THRESHOLD_VALUE = 99;        //Specifies water 
 static bool setButton = false;
 static int currentClockTime = 0;
 static bool clockStartEnabled = false;                        //Start/Stop clock internal clock.
-static bool characterFlashEnabled = false;                    //Variable to flash clock pointer when in "set clock" mode.       
-static unsigned short x = 0;                                  //Toggle variable to flash current clock pointer.
+static bool characterFlashEnabled = false;                    //Toggle variable to flash clock pointer when in "set time" mode.       
+static unsigned short x = 0;                                  //Toggle variable.
 static unsigned short hourPointer1 = 0;
 static unsigned short hourPointer2 = 0;
 static unsigned short minutePointer1 = 0;                     //1-digit of minute pointer.
@@ -119,8 +119,8 @@ static unsigned short secondPointer1 = 0;                     //1-digit of secon
 static unsigned short secondPointer2 = 0;                     //10-digit of second pointer.
 
 //Timer interrupts for Timer1 and Timer2.
-static unsigned short divider50 = 0;                          //Variable to devide the frequency in which time interrupt fucntion is called by 50.
-static unsigned short divider10 = 0;                          //Variable to devide the frequency in which time interrupt fucntion is called by 10.
+static unsigned short divider10 = 0;                          //Variable to devide the frequency of that timer interrupt function is triggered. Divide by 10.
+static unsigned short divider5 = 0;                           //Variable to devide the frequency of that timer interrupt function is triggered. Divide by 5.
 
 //Display modes.
 typedef enum {STARTUP_IMAGE, SET_CLOCK, READOUT_VALUES, SERVICE_MODE, FLOW_FAULT} displayMode;   //Enum with 'typedef' for the different display modes that can be printed to the OLED display. 'typedef' enables passing a certain variable name to represent a certain variable value instead of using the value itself.

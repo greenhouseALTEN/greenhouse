@@ -1,27 +1,34 @@
 #include "Display.h"
 #include "Miscellaneous.h"
 
+Clock Display::internalClock;                 //Create a temporary internal clock object from Clock class to be able to access functions within its class.
+Watering Display::waterPump;                  //Create a temporary water pump object from Watering class to be able to access functions within its class.
+  
 /*
 =================================================================
 || Run the function that corresponds to selected display mode. ||
 ================================================================= */
 void Display::printToScreen() {
-  //SeeedGrayOled.setVerticalMode();            //In Vertical addressing mode the data flows from top part of display to bottom part of display, from left to right side.
+  SeeedGrayOled.setVerticalMode();            //In Vertical addressing mode the data flows from top part of display to bottom part of display, from left to right side.
   switch(displayState) {
     case STARTUP_IMAGE:
       viewStartupImage();                     //Initialize the OLED Display and print startup images to display.
       break;
     case SET_CLOCK:
+      stringToDisplay(0, 7, "SET CLOCK");     //Print current display state to upper right corner of display.
       viewSetClock();                         //Display time set screen only if current time has not been set.
-      //setClockDisplay();
+      internalClock.setTime();                //Reset clock time.
       break;
     case READOUT_VALUES:
+      stringToDisplay(0, 2, "READOUT VALUES");//Print current display state to upper right corner of display.
       //viewReadoutValues();                  //Print read out values from the greenhouse to display.
       break;
     case SERVICE_MODE:
+      stringToDisplay(0, 4, "SERVICE MODE");  //Print current display state to upper right corner of display.
       //viewServiceMode();                    //Service mode screen is printed to display.
       break;
     case FLOW_FAULT:
+      stringToDisplay(0, 6, "FLOW FAULT");    //Print current display state to upper right corner of display.
       //waterFlowFault = resolveFlowFault();  //Water flow fault display mode is printed to display. It contains fault code instruction and possibility to reset fault code.  
       break;
   }
@@ -31,7 +38,7 @@ void Display::printToScreen() {
 ======================================================================================
 || Toggle set modes and screen display modes when clockModeButton is being pressed. ||
 ====================================================================================== */
-void Display::toggleDisplayMode() {
+ void Display::toggleDisplayMode() {
   if((millis() - pressTimePrev) >= DEBOUNCE_TIME_PERIOD) {  //Debouncing button press to avoid multiple interrupts, display toggles.
 
     //Check if water flow fault code is active. If it is set 'true', FLOW_FAULT display will be activated next time mode-button is being pressed to let user resolve the fault code.
@@ -90,8 +97,7 @@ void Display::toggleDisplayMode() {
         }
         else if(waterFlowFault == true) {           //If flow fault code has not been cleared, reboot greenhouse program.
           waterFlowFault = false;                   //Clear water flow fault code.
-          Watering waterPump;                       //Create a temporary water pump object created from Water class.
-          Clock internalClock;                      //Create a temporary internal clock object from Clock class.
+          waterPump.stopPump();
           internalClock.resetTime();                //Reset clock time.
           displayState = STARTUP_IMAGE;             //Set next display mode to be printed to display.                
           Serial.println("Reboot program");             
@@ -106,7 +112,7 @@ void Display::toggleDisplayMode() {
 ===================================
 || Print custom text to display. ||
 =================================== */
-void Display::stringToDisplay(unsigned char x, unsigned char y, char text[]) {
+void Display::stringToDisplay(unsigned char x, unsigned char y, char* text) {
   y *= 8;                                         //To align symbol with rest printed text. Each symbol requires 8px in width.
   SeeedGrayOled.setTextXY(x, y);                  //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putString(text);                  //Print text to display.
@@ -167,7 +173,7 @@ void Display::flashNumberDisplay(unsigned short x, unsigned short y, unsigned sh
 || Print current clock values to display to let user set current time. ||
 ========================================================================= */
 void Display::viewSetClock() {
-  Serial.println("viewSetClock");
+  Serial.println("SET_CLOCK");
   
   stringToDisplay(2, 0, "Set current time");
   stringToDisplay(3, 0, "Use the buttons:");
@@ -331,11 +337,12 @@ void Display::viewSetClock() {
 void Display::viewStartupImage() {
   Serial.println("STARTUP_IMAGE");
 
+  
   //Startup image.
   SeeedGrayOled.drawBitmap(greenhouse, 128*128/8);  //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
   delay(4000);                                      //Image shown for 4 seconds.
   SeeedGrayOled.clearDisplay();                     //Clear the display.
-
+  
 
   displayState = SET_CLOCK;                         //Set next display mode to be printed to display.
 }

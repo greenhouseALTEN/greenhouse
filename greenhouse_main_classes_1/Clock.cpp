@@ -49,7 +49,8 @@ void Clock::setTime() {
         if(minutePointer1 == 10) {                              //If 10-digit minute pointer reaches a value of 10, clear 1-digit minute pointer.
           minutePointer1 = 0;    
         }
-      } 
+      }
+      Serial.println("setTime");
    }
 
   //Replace clock time represenation. When current clock time is 24 hours is replaced with 00.

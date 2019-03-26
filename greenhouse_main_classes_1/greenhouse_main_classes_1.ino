@@ -602,6 +602,79 @@ bool resolveFlowFault() {
 */
 
 /*
+===========================================================================================================================================================
+|| Timer interrupt triggered with frequency of 10 Hz used as second ticker for internal clock and to flash clock pointer values when in "set time" mode. ||
+=========================================================================================================================================================== */
+ISR(RTC_CNT_vect) {
+  //Timer interrupt triggered with a frequency of 10 Hz.
+  /***************************************************
+  |Internal clock used to keep track of current time.|
+  ****************************************************/
+  if(clockStartEnabled == true) {           //Check if internal clock is enabled to run.
+    divider10++;                            //Increase divider variable.                   
+      
+    if(divider10 == 10) {                   //This part of the function will run once every second and therefore will provide a 1Hz pulse to feed the second pointer."
+      divider10 = 0;                        //Clear divider variable.
+      secondPointer1++;                     //Increase second pointer every time this function runs.
+      
+      //Second pointer.
+      if(secondPointer1 == 10) {            //If 1-digit second pointer reaches a value of 10 (elapsed time is 10 seconds).
+        secondPointer2++;                   //Increase 10-digit second pointer.
+        secondPointer1 = 0;                 //Clear 1-digit pointer.
+      }
+      if(secondPointer2 == 6) {             //If 10-digit pointer reaches a value of 6 (elapsed time is 60 seconds).
+        minutePointer1++;                   //Increase minute pointer.
+        secondPointer2 = 0;                 //Clear 10-digit second pointer.
+      }
+      //Minute pointer.
+      if(minutePointer1 == 10) {            //If 1-digit minute pointer reaches a value of 10 (elapsed time is 10 minutes).
+        minutePointer2++;                   //Increase 10-digit minute pointer.
+        minutePointer1 = 0;                 //Clear 1-digit minute pointer.
+      }
+      if(minutePointer2 == 6) {             //If 10-digit minute pointer reaches a value of 6 (elapsed time is 60 minutes).
+        hourPointer1++;                     //Increase 1-digit hour pointer.
+        minutePointer2 = 0;                 //Clear 10-digit minute pointer.
+      }
+      //Hour pointer.
+      if(hourPointer1 == 10) {              //If 1-digit hour pointer reaches a value of 10 (elapsed time is 10 hours).
+        hourPointer2++;                     //Increase 10-digit hour pointer.
+        hourPointer1 = 0;                   //Clear 1-digit hour pointer.
+      }
+      if(hourPointer2 == 2 && hourPointer1 == 4) {  //If 1-digit and 10-digit hourPointer combined reaches 24 (elapsed time is 24 hours).
+        hourPointer1 = 0;                           //Clear both hour digits.
+        hourPointer2 = 0;
+      }
+
+      //Convert clock pointer into single int variable. Value of this variable represent clock time.                
+      currentClockTime = 0;
+      currentClockTime += (hourPointer2 * 1000);
+      currentClockTime += (hourPointer1 * 100);
+      currentClockTime += (minutePointer2 * 10);
+      currentClockTime += minutePointer1;
+
+      if(currentClockTime < 60) {           //Prevent clock time from seeing 00:00 as less than 23:00.       
+        currentClockTime += 2400;
+      }
+      //Serial.println(currentClockTime);
+    }
+  }
+  
+  /****************************************************
+  |Flash clock pointer values when in "set time" mode.|
+  *****************************************************/
+  x++;                                      //Toggle variable.
+  if(x == 1) {
+    characterFlashEnabled = true;           //Toggle variable to flash clock pointer when in "set time" mode.
+  }
+  else {
+    characterFlashEnabled = false;
+    x = 0;
+  }
+
+  RTC.INTFLAGS = 0x3;                       //Clearing OVF and CMP interrupt flags to enable new interrupt to take place according the preset time period.
+}
+
+/*
 *******************************
 * Arduino program setup code. *
 *******************************/
@@ -644,6 +717,31 @@ void setup() {
   
   lightSensor.Begin();                    //Initializing light sensor.
 
+  cli();                                              //Stop any external interrups.
+
+  //RTC setup:
+  while(RTC.STATUS != 0) {
+    //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register.
+    Serial.println("waiting for 1");                          
+  } 
+  RTC.CLKSEL = 0x00;                                  //32.768 kHz signal from OSCULP32K selected.
+  RTC.PERL = 0x0A;                                    //Lower part of 16,384 value in PER-register (PERL) to be used as overflow value to reset the RTC counter.
+  RTC.PERH = 0x10;                                    //Upper part of 16,384 value in PER-register (PERH) to be used as overflow value to reset the RTC counter.
+  RTC.INTCTRL = (RTC.INTCTRL & 0b11111100) | 0b01;    //Enable interrupt-on-counter overflow by setting OVF-bit in INCTRL register.
+  while(RTC.STATUS != 0) {
+    //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register.   
+    Serial.println("waiting for 2");               
+  }                                                      
+  RTC.CTRLA = 0x05;                                   //No using prescaler set, CORREN enabled (0b100),  RTCEN bit set to 1 (0b1).
+                                         
+  while(RTC.STATUS != 0) {
+    //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register. 
+    Serial.println("waiting for 3");                        
+  }  
+  Serial.println("RTC config complete");
+
+  sei();                                              //Allow external interrupt again.   
+                                         
   /*
   cli();                    //Stop interrupts.
 
