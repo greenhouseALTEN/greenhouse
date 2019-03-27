@@ -613,7 +613,7 @@ ISR(RTC_CNT_vect) {
   if(clockStartEnabled == true) {           //Check if internal clock is enabled to run.
     divider10++;                            //Increase divider variable.                   
       
-    if(divider10 == 10) {                   //This part of the function will run once every second and therefore will provide a 1Hz pulse to feed the second pointer."
+    if(divider10 >= 10) {                   //This part of the function will run once every second and therefore will provide a 1 Hz pulse to feed the second pointer.
       divider10 = 0;                        //Clear divider variable.
       secondPointer1++;                     //Increase second pointer every time this function runs.
       

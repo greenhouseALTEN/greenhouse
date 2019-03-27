@@ -156,7 +156,7 @@ void Display::flashNumberDisplay(unsigned short x, unsigned short y, unsigned sh
     numDigits++;
     variable /= 10;                           //Result of division between values with type 'int' only gives an integer. If variable less than 10 result of division is 0.
   }
- static bool blinkCursor = false;
+ static bool blinkCursor = false;             //Initiate variable only once (without having it as a global variable).
 
   if(blinkCursor) {
     for(int i=0; i<numDigits; i++) {          //Print blank space to display. Each loop one blank space is printed.
