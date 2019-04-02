@@ -1,6 +1,7 @@
 #ifndef Miscellaneous_H_
 #define Miscellaneous_H_
 #include "Arduino.h"
+#include "multi_channel_relay.h"
 #include "Moisture.h"
 #include "Lighting.h"
 #include "Temperature.h"
@@ -21,12 +22,12 @@ static const unsigned char SENSOR_PORT4 = A3;
 static const unsigned char DHTPIN = 4;
 static const unsigned char rotaryEncoderOutpA = 11;
 static const unsigned char rotaryEncoderOutpB = 10;
-static const unsigned char pumpRelay = 8;
 static const unsigned char flowSensor = 3;
 static const unsigned char waterLevelSwitch = 12;
-static const unsigned char lightRelay = 6;
 static const unsigned char SET_BUTTON = 7;
 static const unsigned char MODE_BUTTON = 2;
+static const unsigned char WATER_PUMP = 1;
+static const unsigned char LED_LIGHTING = 2;
 
 //Arduino UNO base shield layout
 /*
@@ -35,13 +36,13 @@ static const unsigned char MODE_BUTTON = 2;
 #|__________________DIGITAL_(PWM_~)_______________________|#
 #||X|X|X|GND|13|12|~11|~10|~9| 8|<>| 7|~6|~5| 4|~3| 2|X|X||#
 #|                                                        |#
-#|                                                        |#
-#|     |A3|      |D4|      |D3|      |D2|      |UART|     |#
-#|                                                        |#
-#|     |A2|      |D8|      |D7|      |D6|      |D5|       |#
-#|                                                        |#
-#|     |A1|      |I2C|     |I2C|     |I2C|     |I2C|      |#
-#|                                                        |#
+#|     |A3|                                               |#
+#|               |D4|      |D3|      |D2|      |UART|     |#
+#|     |A2|                                               |#
+#|               |D8|      |D7|      |D6|      |D5|       |#
+#|     |A1|                                               |#
+#|               |I2C|     |I2C|     |I2C|     |I2C|      |#
+#|     |A0|                                               |#
 #|                                                        |#
 #|______________POWER_____________________ANALOG IN_______|#
 #||A0| | |X|X|X|3.3V|5V|GND|GND|Vin|<>|A0|A1|A2|A3|A4|A5| |#
@@ -49,19 +50,19 @@ static const unsigned char MODE_BUTTON = 2;
 ################### ARDUINO UNO ############################
 
 GROVE connector
-A3:   Moisture sensor4
-A2:   Moisture sensor3
-A1:   Moisture sensor2
-A0:   Moisture sensor1
-D4:   Humidity and temperature sensor
-D8:   Water pump relay
-I2C:  OLED display
-D3:   Water flow sensor
-D7:   SET-button
-I2C:  'EMPTY'
-D2:   MODE-button
-D6:   LED lighting relay
-I2C:  Light sensor
+A3:   Moisture Sensor4
+A2:   Moisture Sensor3
+A1:   Moisture Sensor2
+A0:   Moisture Sensor1
+D4:   Humidity & Temperature Sensor
+D8:   'EMPTY'
+I2C:  4-Channel Relay
+D3:   Water Flow Sensor
+D7:   SET-Button
+I2C:  Light Sensor
+D2:   MODE-Button
+D6:   'EMPTY'
+I2C:  OLED Display
 UART: 'EMPTY'
 D5:   'EMPTY'
 I2C:  'EMPTY'

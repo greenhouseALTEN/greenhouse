@@ -2,7 +2,7 @@
 *************************
 * Included header files *
 *************************/
-#include "Wire.h"
+#include <Wire.h>
 #include "SeeedGrayOLED.h"
 #include "DHT.h"
 #include "SI114X.h"
@@ -29,15 +29,17 @@ Temperature tempRotaryEncoder;            //Rotary encoder object created from T
 SI114X lightSensor;                       //Light sensor object created from SI114X class.
 Lighting ledLights;                       //LED lights object created from Lighting class.
 
+//4-Channel Relay
+Multi_Channel_Relay relay;                //Relay object created from Multi_Channel_Relay class.
+
 //Water pump, flow sensor and water level sensor.
 Watering waterPump;                       //Water pump object created from Water class.
  
 //OLED display.
-static Display oledDisplay;                      //OLED display object created from Display class. 
+static Display oledDisplay;               //OLED display object created from Display class. 
 
 //Internal clock.
-static Clock internalClock;                      //Clock object created from ClockTime class.
-
+static Clock internalClock;               //Clock object created from ClockTime class.
 
 //Alarm messages to display.
 unsigned long alarmTimePrev = 0;        //Used to read relative time 
@@ -688,11 +690,7 @@ void setup() {
 
   attachInterrupt(0, Display::toggleDisplayMode, RISING);   //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
   
-  pinMode(pumpRelay, OUTPUT);;
-  
   pinMode(waterLevelSwitch, INPUT);
-  
-  pinMode(lightRelay, OUTPUT);
   
   pinMode(rotaryEncoderOutpA, INPUT);
   pinMode(rotaryEncoderOutpB, INPUT);
@@ -729,30 +727,6 @@ void setup() {
   Serial.println("RTC config complete");
 
   sei();                                              //Allow external interrupt again.   
-                                         
-  /*
-  cli();                    //Stop interrupts.
-
-  //Timer1 setup with interrupt frequency of 1Hz to feed internal clock.
-  TCCR1A = 0;                             //Set entire TCCR1A register to 0.
-  TCCR1B = 0;                             //Set entire TCCR1B register to 0.
-  TCNT1 = 0;                              //Initialize counter value to 0.
-  OCR1A = 15624;                          //match reg. = (16MHz / (prescaler * desired interrupt freq.)) - 1 = (16000000 / (1024 * 1)) - 1 = 15624 (must be < 65536).
-  TCCR1B |= (1 << WGM12);                 //Turn on CTC mode.
-  TCCR1B |= (1 << CS12) | (1 << CS10);    //Set CS10 and CS12 bits for 1024 prescaler.
-  TIMSK1 |= (1 << OCIE1A);                //Enable timer compare interrupt.
-
-  //Timer2 setup with interrupt frequency of 100Hz read temperature threshold value adjustmenst by rotary encoder.
-  TCCR2A = 0;                             //Set entire TCCR0A register to 0.
-  TCCR2B = 0;                             //Set entire TCCR0B register to 0.
-  TCNT2 = 0;                              //Initialize counter value to 0.
-  OCR2A = 156;                            //match reg. = (16MHz / (prescaler * desired interrupt freq.)) - 1 = (16000000 / (1024 * 100)) - 1 = 156.25 (must be < 256).
-  TCCR2A |= (1 << WGM21);                 //Turn on CTC mode.
-  TCCR2B |= (1 << CS21);                  //Set CS21 for 1024 prescaler.
-  TIMSK2 |= (1 << OCIE2A);                //Enable timer compare interrupt.
-  
-  sei();                    //Allow interrupts again.
-  */
 }
 
 /*
@@ -805,6 +779,9 @@ void loop() {
 
   oledDisplay.printToScreen();                                      //Print current display state to display. Display state variable change in the interrupt function activated by pressing MODE-button. 
 
+  relay.turn_on_channel(1);
+  delay(2000);
+  relay.turn_off_channel(1);
 
 /*
   //Different functions to be run depending of which screen display mode that is currently active.

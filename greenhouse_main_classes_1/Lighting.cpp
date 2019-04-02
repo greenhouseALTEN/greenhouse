@@ -1,6 +1,8 @@
 #include "Miscellaneous.h"
 #include "Lighting.h"
 
+Multi_Channel_Relay::relay;                 //Create a temporary relay object from Multi_Channel_Relay class to be able to access functions within its class.
+
 /*
 ==================================================================================================
 || Check current clock time and the current light need to enable/disable start of LED lighting. ||
@@ -37,7 +39,7 @@ bool Lighting::startLed() {
   bool state = false;
 
   if(ledLightEnabled == true) {
-    digitalWrite(lightRelay, HIGH);                             //Turn on LED lighting.
+    relay.turn_on_channel(LED_LIGHTING);                        //Turn on LED lighting.
     state = true;                                               //Update current LED lighting state, 'true' means lighting is turned ON.
     Serial.println("LED lighting ON");
   }
@@ -52,7 +54,7 @@ bool Lighting::stopLed() {
   bool state = true;
 
   if(ledLightEnabled == false) {
-    digitalWrite(lightRelay, LOW);                              //Turn off LED lighting.
+    relay.turn_off_channel(LED_LIGHTING);                       //Turn off LED lighting.
     state = false;                                              //Update current LED lighting state, 'false' means lighting is turned OFF.
     Serial.println("LED lighting OFF");
   }
