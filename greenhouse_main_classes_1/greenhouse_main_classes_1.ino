@@ -23,23 +23,12 @@ Moisture moistureSensor;                  //Fictional moisture sensor that holds
 //Temperature and humidity sensor.
 const uint8_t DHTTYPE = DHT11;            //DHT11 = Arduino UNO model is being used.
 DHT humiditySensor(DHTPIN, DHTTYPE);      //Humidity sensor object created from DHT class.
-Temperature tempRotaryEncoder;            //Rotary encoder object created from Temperature class.
 
-//Light sensor and LED lights.
+//Light sensor.
 SI114X lightSensor;                       //Light sensor object created from SI114X class.
-Lighting ledLights;                       //LED lights object created from Lighting class.
 
 //4-Channel Relay
 Multi_Channel_Relay relay;                //Relay object created from Multi_Channel_Relay class.
-
-//Water pump, flow sensor and water level sensor.
-Watering waterPump;                       //Water pump object created from Water class.
- 
-//OLED display.
-static Display oledDisplay;               //OLED display object created from Display class. 
-
-//Internal clock.
-static Clock internalClock;               //Clock object created from ClockTime class.
 
 //Alarm messages to display.
 unsigned long alarmTimePrev = 0;        //Used to read relative time 
@@ -749,11 +738,11 @@ void loop() {
   moistureMeanValue = moistureSensor.calculateMean(moistureValue1, moistureValue2, moistureValue3, moistureValue4);   //Calculate moisture mean value from all 4 moisture sensors.
   moistureSensor.evaluateValue(moistureMeanValue, &moistureDry, &moistureWet);                                        //Set and/or clear the internal fault code variables: moistureDry and moistureWet. Fault code is active when set to 'true'.
 
-  unsigned short tempValue;                                         //Readout temperature value.
-  unsigned short humidValue;                                        //Readot air humidity value.
-  tempValue = humiditySensor.readTemperature(false);                //Read temperature.
-  //humidValue = humiditySensor.readHumidity();                     //Read air humidity.
-  tempValueFault = tempRotaryEncoder.thresholdCompare(tempValue);   //Compare readout temperature with set themperature threshold value. Fault code is active 'true' if readout temperature value is higher than temperature treshold set by rotary encoder.
+  unsigned short tempValue;                                                   //Readout temperature value.
+  unsigned short humidValue;                                                  //Readot air humidity value.
+  tempValue = humiditySensor.readTemperature(false);                          //Read temperature.
+  //humidValue = humiditySensor.readHumidity();                               //Read air humidity.
+  tempValueFault = Temperature::getInstance().thresholdCompare(tempValue);    //Compare readout temperature with set themperature threshold value. Fault code is active 'true' if readout temperature value is higher than temperature treshold set by rotary encoder.
   
   uint16_t lightValue;                                          
   uint16_t uvValue;                                             
@@ -762,22 +751,22 @@ void loop() {
   uvValue = lightSensor.ReadUV();                                   //UV readout, unit in lumen.
   //irValue = lightSensor.ReadIR();                                   //IR readout, unit in UN index.
 
-  ledLightEnabled = ledLights.checkLightNeed(uvValue);              //Check if LED lighting is needed and if it is allowed to be turned ON.
-  ledLightState = ledLights.startLed();                             //Start LED lighting if it is enabled and update its current state.
-  ledLightFault = ledLights.ledLightCheck(uvValue);                 //Check if LED lights functionality. Fault code is active 'true' if readout light value is not increased while LED lighting is turned ON.
-  ledLightState = ledLights.stopLed();                              //Stop LED lighting if it is not enabled and update its current state.
+  ledLightEnabled = Lighting::getInstance().checkLightNeed(uvValue);              //Check if LED lighting is needed and if it is allowed to be turned ON.
+  ledLightState = Lighting::getInstance().startLed();                             //Start LED lighting if it is enabled and update its current state.
+  ledLightFault = Lighting::getInstance().ledLightCheck(uvValue);                 //Check if LED lights functionality. Fault code is active 'true' if readout light value is not increased while LED lighting is turned ON.
+  ledLightState = Lighting::getInstance().stopLed();                              //Stop LED lighting if it is not enabled and update its current state.
 
   unsigned short waterFlowValue;                                
-  waterPumpEnabled = waterPump.checkWaterNeed();                    //Check if water is needed and if water pump is allowed to be turned ON.
-  waterLevelFault = waterPump.readWaterLevel();                     //Check water level in water tank.
-  //waterPumpState = waterPump.startPump(&waterFlowValue);            //Start water pump if it is enabled, calculate the flow in which water is being pumped and update the water pump's current state.
-  waterFlowFault = waterPump.flowCheck(waterFlowValue);             //Check if water flow is above threshold value when water pump is running.                       
-  //waterPumpState = waterPump.stopPump();                            //Stop water pump (OFF).
+  waterPumpEnabled = Watering::getInstance().checkWaterNeed();                    //Check if water is needed and if water pump is allowed to be turned ON.
+  waterLevelFault = Watering::getInstance().readWaterLevel();                     //Check water level in water tank.
+  waterPumpState = Watering::getInstance().startPump(&waterFlowValue);            //Start water pump if it is enabled, calculate the flow in which water is being pumped and update the water pump's current state.
+  waterFlowFault = Watering::getInstance().flowCheck(waterFlowValue);             //Check if water flow is above threshold value when water pump is running.                       
+  waterPumpState = Watering::getInstance().stopPump();                            //Stop water pump (OFF).
 
   //Set current time and clear/set water flow fault code.
   setButton = digitalRead(SET_BUTTON);                              //Check if SET-button is being pressed.
 
-  oledDisplay.printToScreen();                                      //Print current display state to display. Display state variable change in the interrupt function activated by pressing MODE-button. 
+  Display::getInstance().printToScreen();                           //Print current display state to display. Display state variable change in the interrupt function activated by pressing MODE-button. 
 
   relay.turn_on_channel(1);
   delay(2000);

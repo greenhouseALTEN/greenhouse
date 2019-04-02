@@ -1,8 +1,5 @@
 #include "Display.h"
 #include "Miscellaneous.h"
-
-Clock Display::internalClock;                 //Create a temporary internal clock object from Clock class to be able to access functions within its class.
-Watering Display::waterPump;                  //Create a temporary water pump object from Watering class to be able to access functions within its class.
   
 /*
 =================================================================
@@ -18,7 +15,7 @@ void Display::printToScreen() {
       Serial.println("hello");
       stringToDisplay(0, 7, "SET CLOCK");     //Print current display state to upper right corner of display.
       viewSetClock();                         //Display "set time" screen.
-      internalClock.setTime();                //Set current time.
+      Clock::getInstance().setTime();         //Set current time.
       break;
     case READOUT_VALUES:
       stringToDisplay(0, 2, "READOUT VALUES");//Print current display state to upper right corner of display.
@@ -98,8 +95,8 @@ void Display::printToScreen() {
         }
         else if(waterFlowFault == true) {           //If flow fault code has not been cleared, reboot greenhouse program.
           waterFlowFault = false;                   //Clear water flow fault code.
-          waterPump.stopPump();
-          internalClock.resetTime();                //Reset clock time.
+          Watering::getInstance().stopPump();       //Stop water pump.
+          Clock::getInstance().resetTime();         //Reset clock time.
           displayState = STARTUP_IMAGE;             //Set next display mode to be printed to display.                
           Serial.println("Reboot program");             
         }

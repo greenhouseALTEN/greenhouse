@@ -26,8 +26,8 @@ static const unsigned char flowSensor = 3;
 static const unsigned char waterLevelSwitch = 12;
 static const unsigned char SET_BUTTON = 7;
 static const unsigned char MODE_BUTTON = 2;
-static const unsigned char WATER_PUMP = 1;
-static const unsigned char LED_LIGHTING = 2;
+static const unsigned char WATER_PUMP = 4;
+static const unsigned char LED_LIGHTING = 3;
 
 //Arduino UNO base shield layout
 /*

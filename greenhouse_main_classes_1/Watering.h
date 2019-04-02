@@ -4,7 +4,10 @@
 
 class Watering {
 public:
-  Watering(){}                                    //Empty constructor.
+  static Watering &getInstance() {
+    static Watering waterPump;                    //Object created on first use. Using getInstance will make sure only one object is created and the same one is used throughout entire program no matter from which part of the program it is called.          
+    return waterPump;
+  }                            
   bool readWaterLevel();
   static void flowCount();
   bool startPump(unsigned short *waterFlowValue);
@@ -13,7 +16,7 @@ public:
   bool stopPump();
 
 private:
-
+  Watering(){}                                    //Empty constructor.
 };
 
 #endif  /* Watering_H_ */

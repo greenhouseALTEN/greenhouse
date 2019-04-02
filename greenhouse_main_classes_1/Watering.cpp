@@ -1,7 +1,6 @@
 #include "Watering.h"
 #include "Miscellaneous.h"
 
-Multi_Channel_Relay::relay;                 //Create a temporary relay object from Multi_Channel_Relay class to be able to access functions within its class.
 
 /*
 ==============================
@@ -30,7 +29,7 @@ void Watering::flowCount() {
 bool Watering::startPump(unsigned short *waterFlowValue) {
   bool state = false;
                   
-  relay.turn_on_channel(WATER_PUMP);            //Start water pump.
+//  relay.turn_on_channel(WATER_PUMP);            //Start water pump.
   state = true;                                 //Update current water pump state, 'true' means water pump is running.
   Serial.println("Water pump ON");
 
@@ -53,7 +52,7 @@ bool Watering::startPump(unsigned short *waterFlowValue) {
 bool Watering::stopPump() {
   bool state = true;
   
-  relay.turn_off_channel(WATER_PUMP);   //Stop water pump.
+//  relay.turn_off_channel(WATER_PUMP);   //Stop water pump.
   state = false;                        //Update current water pump state, 'false' means water pump not running.
   Serial.println("Water pump OFF");
   return state;

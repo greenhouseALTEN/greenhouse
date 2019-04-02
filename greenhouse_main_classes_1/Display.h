@@ -5,14 +5,15 @@
 
 class Display {
 public:
-  Display() {}                                    //Empty constructor.
+  static Display &getInstance() {
+    static Display oledDisplay;                   //Object created on first use. Using getInstance will make sure only one object is created and the same one is used throughout entire program no matter from which part of the program it is called.     
+    return oledDisplay;                           
+  }   
   void printToScreen();
   static void toggleDisplayMode();
  
 private:
-  static Clock internalClock;                     //Create a temporary internal clock object from Clock class to be able to access functions within its class.
-  static Watering waterPump;                      //Create a temporary water pump object created from Water class to be able to access functions within its class.
-
+  Display() {}                                    //Empty constructor.
   void viewStartupImage();
   void viewSetClock();
   void stringToDisplay(unsigned char x, unsigned char y, char* text);
