@@ -28,7 +28,7 @@ DHT humiditySensor(DHTPIN, DHTTYPE);      //Humidity sensor object created from 
 SI114X lightSensor;                       //Light sensor object created from SI114X class.
 
 //4-Channel Relay
-Multi_Channel_Relay relay;                //Relay object created from Multi_Channel_Relay class.
+MultiChannelRelay relay;                //Relay object created from MultiChannelRelay class.
 
 //Alarm messages to display.
 unsigned long alarmTimePrev = 0;        //Used to read relative time 
@@ -757,11 +757,11 @@ void loop() {
   ledLightState = Lighting::getInstance().stopLed();                              //Stop LED lighting if it is not enabled and update its current state.
 
   unsigned short waterFlowValue;                                
-  waterPumpEnabled = Watering::getInstance().checkWaterNeed();                    //Check if water is needed and if water pump is allowed to be turned ON.
-  waterLevelFault = Watering::getInstance().readWaterLevel();                     //Check water level in water tank.
-  waterPumpState = Watering::getInstance().startPump(&waterFlowValue);            //Start water pump if it is enabled, calculate the flow in which water is being pumped and update the water pump's current state.
-  waterFlowFault = Watering::getInstance().flowCheck(waterFlowValue);             //Check if water flow is above threshold value when water pump is running.                       
-  waterPumpState = Watering::getInstance().stopPump();                            //Stop water pump (OFF).
+  waterPumpEnabled = Watering::getInstance()->checkWaterNeed();                    //Check if water is needed and if water pump is allowed to be turned ON.
+  waterLevelFault = Watering::getInstance()->readWaterLevel();                     //Check water level in water tank.
+  waterPumpState = Watering::getInstance()->startPump(&waterFlowValue);            //Start water pump if it is enabled, calculate the flow in which water is being pumped and update the water pump's current state.
+  waterFlowFault = Watering::getInstance()->flowCheck(waterFlowValue);             //Check if water flow is above threshold value when water pump is running.                       
+  waterPumpState = Watering::getInstance()->stopPump();                            //Stop water pump (OFF).
 
   //Set current time and clear/set water flow fault code.
   setButton = digitalRead(SET_BUTTON);                              //Check if SET-button is being pressed.

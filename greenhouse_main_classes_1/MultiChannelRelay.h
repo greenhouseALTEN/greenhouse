@@ -1,5 +1,5 @@
 /*
- * multi_channel_relay.cpp
+ * MultiChannelRelay.cpp
  * Seeed multi channel relay Arduino library
  *
  * Copyright (c) 2018 Seeed Technology Co., Ltd.
@@ -24,8 +24,8 @@
 
 #pragma once
 
-#ifndef MULTI_CHANNEL_RELAY_H
-#define MULTI_CHANNEL_RELAY_H
+#ifndef MultiChannelRelay_H
+#define MultiChannelRelay_H
 
 // Architecture specific include
 #if defined(ARDUINO_ARCH_AVR)	
@@ -59,9 +59,9 @@
 #define CMD_READ_I2C_ADDR					0x12
 #define CMD_READ_FIRMWARE_VER			0x13
 
-class Multi_Channel_Relay{
+class MultiChannelRelay{
 	public: 		
-		Multi_Channel_Relay();
+		MultiChannelRelay();
 		
 		/**
 		 * Begin Multi Channel Relay by a I2C address.
@@ -118,10 +118,17 @@ class Multi_Channel_Relay{
 		 * @return device address
 		*/
 		uint8_t scanI2CDevice(void);
+
+    //Modification made by me.
+    static MultiChannelRelay *getInstance();
 	
 	private:
+//		MultiChannelRelay() {}                        //Empty constructor.
 		int _i2cAddr;  //  This is the I2C address you want to use 
 		int channel_state;  // Value to save channel state
+    
+    //Modification made by me.
+    static MultiChannelRelay *relay; 
 };
 
 

@@ -1,6 +1,16 @@
 #include "Watering.h"
 #include "Miscellaneous.h"
 
+//Modification made by me.
+Watering* Watering::waterPump = 0;    //Initialize pointer to zero so that it can be initialized in first call to getInstance.
+
+Watering* Watering::getInstance(){    //Getting the singelton instance of the class. Making sure not creating multiple instances by checking if an object has previously been created. If it has it will use that one instead of creating a new one.
+  if (waterPump == 0)
+  {
+    waterPump = new Watering();
+  }
+  return waterPump;
+}
 
 /*
 ==============================
@@ -29,7 +39,7 @@ void Watering::flowCount() {
 bool Watering::startPump(unsigned short *waterFlowValue) {
   bool state = false;
                   
-//  relay.turn_on_channel(WATER_PUMP);            //Start water pump.
+  MultiChannelRelay::getInstance()->turn_on_channel(WATER_PUMP);            //Start water pump.
   state = true;                                 //Update current water pump state, 'true' means water pump is running.
   Serial.println("Water pump ON");
 
@@ -52,7 +62,7 @@ bool Watering::startPump(unsigned short *waterFlowValue) {
 bool Watering::stopPump() {
   bool state = true;
   
-//  relay.turn_off_channel(WATER_PUMP);   //Stop water pump.
+  //MultiChannelRelay::getInstance().turn_off_channel(WATER_PUMP);   //Stop water pump.
   state = false;                        //Update current water pump state, 'false' means water pump not running.
   Serial.println("Water pump OFF");
   return state;

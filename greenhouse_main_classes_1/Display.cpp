@@ -95,7 +95,7 @@ void Display::printToScreen() {
         }
         else if(waterFlowFault == true) {           //If flow fault code has not been cleared, reboot greenhouse program.
           waterFlowFault = false;                   //Clear water flow fault code.
-          Watering::getInstance().stopPump();       //Stop water pump.
+          Watering::getInstance()->stopPump();       //Stop water pump.
           Clock::getInstance().resetTime();         //Reset clock time.
           displayState = STARTUP_IMAGE;             //Set next display mode to be printed to display.                
           Serial.println("Reboot program");             

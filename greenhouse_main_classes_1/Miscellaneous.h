@@ -1,7 +1,7 @@
 #ifndef Miscellaneous_H_
 #define Miscellaneous_H_
 #include "Arduino.h"
-#include "multi_channel_relay.h"
+#include "MultiChannelRelay.h"
 #include "Moisture.h"
 #include "Lighting.h"
 #include "Temperature.h"
