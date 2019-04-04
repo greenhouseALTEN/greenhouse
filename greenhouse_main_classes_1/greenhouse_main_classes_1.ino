@@ -762,8 +762,7 @@ void loop() {
   //ledLightState = Lighting::getInstance()->startLed();                             //Start LED lighting if it is enabled and update its current state.
   //ledLightFault = Lighting::getInstance()->ledLightCheck(uvValue);                 //Check if LED lights functionality. Fault code is active 'true' if readout light value is not increased while LED lighting is turned ON.
   //ledLightState = Lighting::getInstance()->stopLed();                              //Stop LED lighting if it is not enabled and update its current state.
-
-  unsigned short waterFlowValue;                                
+                               
   //waterPumpEnabled = Watering::getInstance()->checkWaterNeed();                    //Check if water is needed and if water pump is allowed to be turned ON.
   //waterLevelFault = Watering::getInstance()->readWaterLevel();                     //Check water level in water tank.
   //waterPumpState = Watering::getInstance()->startPump(&waterFlowValue);            //Start water pump if it is enabled, calculate the flow in which water is being pumped and update the water pump's current state.

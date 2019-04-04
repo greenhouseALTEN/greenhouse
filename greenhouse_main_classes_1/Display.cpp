@@ -151,7 +151,7 @@ void Display::blankToDisplay(unsigned char x, unsigned char y, int numOfBlanks) 
   for(int i=0; i<numOfBlanks; i++) {              //Print blank space to display. Each loop one blank space is printed.
     SeeedGrayOled.setTextXY(x, y);                //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
     SeeedGrayOled.putString(" ");                 //Blank symbol.
-    y++;                                          //Increase column cordinate to print next blank space in the same row.
+    y += 8;                                       //Increase column cordinate to print next blank space in the same row. Any character has a width of 8 pixels.
   }
 }
 
@@ -232,6 +232,16 @@ void Display::viewSetClock() {
 || Print readout values from sensors to display. ||
 =================================================== */
 void Display::viewReadoutValues() {
+  //Clear redundant value digits from previous readouts for all sensor values. Function takes the following parameters: (Row number, column number, number of blank spaces to be printed).
+  blankToDisplay(2, 11, 3);                     //Moisture value.
+  blankToDisplay(3, 11, 3);                     //Soil status.
+  blankToDisplay(4, 11, 5);                     //Light Value.
+  blankToDisplay(5, 11, 2);                     //UV-light value.
+  blankToDisplay(6, 11, 2);                     //Temperature value.
+  blankToDisplay(7, 11, 2);                     //Temperature threshold value.
+  blankToDisplay(8, 11, 3);                     //Humidity value.
+  blankToDisplay(9, 11, 3);                     //Water flow value.
+  
   /*********************
   |Moisture mean value and soil status.|
   *********************/
@@ -262,11 +272,22 @@ void Display::viewReadoutValues() {
   |Temperature value and temperature threshold value set by rotary encoder.|
   **************************************************************************/
   stringToDisplay(6, 0, "Temp.:");              
-  numberToDisplay(6, 11, tempValue);            //Light value, unit in lumen.
+  numberToDisplay(6, 11, tempValue);            //Temperature value.
 
   stringToDisplay(7, 0, "Temp.lim.:");              
-  numberToDisplay(7, 11, tempThresholdValue);   //Light value, unit in lumen.
+  numberToDisplay(7, 11, tempThresholdValue/2); //Set temperature threshold value divided by two. Adjusted by rotary encoder. Value 60 / 2 is 30°C.
 
+  /********************
+  |Air humidity value.|
+  *********************/
+  stringToDisplay(8, 0, "Humidity:");              
+  numberToDisplay(8, 11, humidValue);           //Air humidity value, unit in %.
+
+  /*************************
+  |Water flow sensor value.|
+  **************************/
+  stringToDisplay(9, 0, "Water flw:");              
+  numberToDisplay(9, 11, waterFlowValue);       //Calculated water flow value based on the water that flows through water flow sensor. 
 }
 
 

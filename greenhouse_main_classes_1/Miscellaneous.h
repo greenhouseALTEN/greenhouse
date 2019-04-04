@@ -109,6 +109,7 @@ static bool waterPumpState = false;                           //Indicate current
 static bool waterLevelFault = false;                          //Fault code is active 'true' if water surface in water tank is too low to let the float sensor float.
 static bool waterFlowFault = false;                           //Fault code is active 'true' if water flow is below threshold value when water pump is running (ON). 
 static const unsigned short FLOW_THRESHOLD_VALUE = 99;        //Specifies water flow threshold in Liter/hour which must be exceeded to avoid water flow fault code from being activated.
+static unsigned short waterFlowValue;                         //Calculated water flow value based on the water that flows through water flow sensor. 
 
 //Internal clock to keep track of current time.
 static bool setButton = false;
