@@ -1,23 +1,15 @@
 #include "Clock.h"
 #include "Miscellaneous.h"
 
-Clock* Clock::internalClock = 0;        //Initialize pointer to zero so that it can be initialized in first call to getInstance.
-Clock* Clock::getInstance(){            //Getting the singelton instance of class. Making sure to not create multiple objects of the class by checking if an object previously has been created and in this case use that one instead of creating a new one.
-  if (internalClock == 0)
-  {
-    internalClock = new Clock();
-  }
-  return internalClock;
-}
-
 /*
 ===============================================================
 || Set current time by using SET- and MODE-button as inputs. ||
 =============================================================== */
 void Clock::setTime() {
+  bool buttonState = Config::State().setButton;                 //Read global variable value.
   switch(clockInputState) {
     case HOUR2:                                                 //Set hour pointer1.
-      if(setButton == true) {
+      if(buttonState == true) {
         delay(DEBOUNCE_TIME_PERIOD);                            //Delay to avoid contact bounce.
         hourPointer2++;                                         //Increase hour pointer every time button is pressed.
           if(hourPointer2 == 3) {                               //If 10-digit hour pointer reaches 3, clear digit.
@@ -26,7 +18,7 @@ void Clock::setTime() {
       }
       break;
     case HOUR1:                                                 //Set hour pointer2.
-      if(setButton == true) {
+      if(buttonState == true) {
         delay(DEBOUNCE_TIME_PERIOD);                            //Delay to avoid contact bounce.
         hourPointer1++;                                         //Increase hour pointer every time button is pressed.
 
@@ -43,7 +35,7 @@ void Clock::setTime() {
       }
       break;
     case MINUTE2:                                               //Set ninute pointer2.
-      if(setButton == true) {
+      if(buttonState == true) {
         delay(DEBOUNCE_TIME_PERIOD);                                                 
         minutePointer2++;
         if(minutePointer2 == 6) {                               //If 10-digit minute pointer reaches a value of 6, clear 10-digit minute pointer.
@@ -52,7 +44,7 @@ void Clock::setTime() {
       }
       break;
     case MINUTE1:                                               //Set minute pointer1.
-      if(setButton == true) {
+      if(buttonState == true) {
         delay(DEBOUNCE_TIME_PERIOD);                                                 
         minutePointer1++;
         if(minutePointer1 == 10) {                              //If 10-digit minute pointer reaches a value of 10, clear 1-digit minute pointer.

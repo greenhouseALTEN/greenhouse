@@ -1,5 +1,5 @@
 /*
- * MultiChannelRelay.h
+ * multi_channel_relay.h
  * Seeed multi channel relay Arduino library
  *
  * Copyright (c) 2018 Seeed Technology Co., Ltd.
@@ -22,24 +22,14 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "MultiChannelRelay.h"
+#include "multi_channel_relay.h"
 
-//Modification made by me.
-MultiChannelRelay* MultiChannelRelay::relay = 0;      //Initialize pointer to zero so that it can be initialized in first call to getInstance.
-MultiChannelRelay* MultiChannelRelay::getInstance(){  //Getting the singelton instance of class. Making sure to not create multiple objects of the class by checking if an object previously has been created and in this case use that one instead of creating a new one.
-  if (relay == 0)
-  {
-    relay = new MultiChannelRelay();
-  }
-  return relay;
-}
-
-MultiChannelRelay::MultiChannelRelay()
+Multi_Channel_Relay::Multi_Channel_Relay()
 {
 
 }
 
-void MultiChannelRelay::begin(int address)
+void Multi_Channel_Relay::begin(int address)
 {
   Wire.begin();  
   channel_state = 0;
@@ -47,7 +37,7 @@ void MultiChannelRelay::begin(int address)
   
 }
 
-uint8_t MultiChannelRelay::getFirmwareVersion(void)
+uint8_t Multi_Channel_Relay::getFirmwareVersion(void)
 {
   Wire.beginTransmission(_i2cAddr);
   Wire.write(CMD_READ_FIRMWARE_VER);
@@ -58,7 +48,7 @@ uint8_t MultiChannelRelay::getFirmwareVersion(void)
   return Wire.read();
 }
 
-void MultiChannelRelay::changeI2CAddress(uint8_t old_addr, uint8_t new_addr)
+void Multi_Channel_Relay::changeI2CAddress(uint8_t old_addr, uint8_t new_addr)
 {  
   Wire.beginTransmission(old_addr);
   Wire.write(CMD_SAVE_I2C_ADDR);
@@ -68,12 +58,12 @@ void MultiChannelRelay::changeI2CAddress(uint8_t old_addr, uint8_t new_addr)
   _i2cAddr = new_addr;
 }
 
-uint8_t MultiChannelRelay::getChannelState(void)
+uint8_t Multi_Channel_Relay::getChannelState(void)
 {
 	return channel_state;
 }
 
-void MultiChannelRelay::channelCtrl(uint8_t state)
+void Multi_Channel_Relay::channelCtrl(uint8_t state)
 {
   channel_state = state;
 
@@ -83,7 +73,7 @@ void MultiChannelRelay::channelCtrl(uint8_t state)
   Wire.endTransmission();
 }
 
-void MultiChannelRelay::turn_on_channel(uint8_t channel)
+void Multi_Channel_Relay::turn_on_channel(uint8_t channel)
 {
   channel_state |= (1 << (channel-1));
 
@@ -93,7 +83,7 @@ void MultiChannelRelay::turn_on_channel(uint8_t channel)
   Wire.endTransmission();
 }
 
-void MultiChannelRelay::turn_off_channel(uint8_t channel)
+void Multi_Channel_Relay::turn_off_channel(uint8_t channel)
 {
   channel_state &= ~(1 << (channel-1));
   
@@ -103,7 +93,7 @@ void MultiChannelRelay::turn_off_channel(uint8_t channel)
   Wire.endTransmission();
 }
 
-uint8_t MultiChannelRelay::scanI2CDevice(void)
+uint8_t Multi_Channel_Relay::scanI2CDevice(void)
 {
   byte error = 0, address = 0, result = 0;
   int nDevices;

@@ -1,39 +1,27 @@
 #include "Display.h"
 #include "Miscellaneous.h"
-
-Display* Display::oledDisplay = 0;            //Initialize pointer to zero so that it can be initialized in first call to getInstance.
-Display* Display::getInstance(){              //Getting the singelton instance of class. Making sure to not create multiple objects of the class by checking if an object previously has been created and in this case use that one instead of creating a new one.
-  if (oledDisplay == 0)
-  {
-    oledDisplay = new Display();
-  }
-  return oledDisplay;
-}
-
+#include "SeeedGrayOLED.h"
+#include "Clock.h"
+#include "Watering.h"
+  
 /*
 =================================================================
 || Run the function that corresponds to selected display mode. ||
 ================================================================= */
-void Display::printToScreen(unsigned short moistureValue1, unsigned short moistureValue2, unsigned short moistureValue3, unsigned short moistureValue4, unsigned short moistureMeanValue,
-                            unsigned short tempValue, unsigned short humidityValue, unsigned short tempThresholdValue, uint16_t lightValue, uint16_t uvValue,
-                            bool setButton, bool flashClockCursor) {
-  
+void Display::printToScreen(unsigned short moistureValue1, unsigned short moistureValue2, unsigned short moistureValue3, unsigned short moistureValue4, unsigned short moistureMeanValue, unsigned short tempValue, unsigned short humidityValue, uint16_t lightValue, uint16_t uvValue) {
   SeeedGrayOled.setVerticalMode();            //In Vertical addressing mode the data flows from top part of display to bottom part of display, from left to right side.
-  Serial.print("displayState: ");
-  Serial.println(displayState);
   switch(displayState) {
     case STARTUP_IMAGE:
       viewStartupImage();                     //Initialize the OLED Display and print startup images to display.
       break;
     case SET_CLOCK:
       stringToDisplay(0, 7, "SET CLOCK");     //Print current display state to upper right corner of display.
-      viewSetClock(flashClockCursor);    //Display "set time" screen.
-      Clock::getInstance()->setTime();        //Set current time.
-      //displayState = READOUT_VALUES;          //PASS SET CLOCK VIEW.
+      viewSetClock();                         //Display "set time" screen.
+      Clock::getInstance().setTime();         //Set current time.
       break;
     case READOUT_VALUES:
       stringToDisplay(0, 2, "READOUT VALUES");//Print current display state to upper right corner of display.
-      viewReadoutValues(moistureMeanValue, tempValue, humidityValue, tempThresholdValue, lightValue, uvValue);                    //Print read out values from the greenhouse to display.
+      //viewReadoutValues();                  //Print read out values from the greenhouse to display.
       break;
     case SERVICE_MODE:
       stringToDisplay(0, 4, "SERVICE MODE");  //Print current display state to upper right corner of display.
@@ -57,6 +45,7 @@ void Display::printToScreen(unsigned short moistureValue1, unsigned short moistu
     if(waterFlowFault == true) {
       displayState = FLOW_FAULT;                //Set next display mode to be printed to display. 
     }
+
     switch(displayState) {
       case SET_CLOCK:
         switch(clockInputState) {
@@ -75,8 +64,6 @@ void Display::printToScreen(unsigned short moistureValue1, unsigned short moistu
           case MINUTE1:
             clockInputState = COMPLETED;          //Clock setting completed.
             clockStartEnabled = true;             //Start clock. Clock starts ticking.
-            Serial.print("clockStartEnabled_display: ");
-            Serial.println(clockStartEnabled);
             Serial.println("clockSettingCompleted");
             break;
           case COMPLETED:
@@ -84,10 +71,8 @@ void Display::printToScreen(unsigned short moistureValue1, unsigned short moistu
             alarmMessageEnabled = true;           //Enable any alarm message to be printed to display.
             greenhouseProgramStart = true;        //Start greenhouse program.
             Serial.println("READOUT_VALUES");
-            //SeeedGrayOled.clearDisplay();         //Clear the display.
-            break;          
+            break;           
         }
-        break; 
       case READOUT_VALUES:
         displayState = SERVICE_MODE;              //Set next display mode to be printed to display.
         alarmMessageEnabled = false;              //Disable any alarm message from being printed to display.
@@ -102,9 +87,8 @@ void Display::printToScreen(unsigned short moistureValue1, unsigned short moistu
         greenhouseProgramStart = false;           //Stop greenhouse program.
         alarmMessageEnabled = false;              //Disable any alarm message from being printed to display.
         Serial.println("FLOW_FAULT"); 
-        
+
         //In flow fault display mode user will have the chance to clear the fault code. Check if water flow fault code has been cleared by user or not.
-        
         if(waterFlowFault == false) {               //Fault code has been cleared by user. Continue to run greenhouse program.               
           displayState = SERVICE_MODE;              //Since using interrupt for toggeling display mode, next display mode to be printed to display is READOUT_VALUES even though SERVICE_MODE display is set active mode here.
           greenhouseProgramStart = true;            //Continue greenhouse program.
@@ -113,9 +97,9 @@ void Display::printToScreen(unsigned short moistureValue1, unsigned short moistu
         }
         else if(waterFlowFault == true) {           //If flow fault code has not been cleared, reboot greenhouse program.
           waterFlowFault = false;                   //Clear water flow fault code.
-          Watering::getInstance()->stopPump();       //Stop water pump.
-          Clock::getInstance()->resetTime();         //Reset clock time.
-          displayState = STARTUP_IMAGE;             //Set next display mode to be printed to display.                
+          displayState = STARTUP_IMAGE;             //Set next display mode to be printed to display.  
+          //Watering::getInstance().stopPump();       //Stop water pump.
+          //Clock::getInstance().resetTime();         //Reset clock time.   //MOVE TO OTHER FUNCTION INSTEAD!
           Serial.println("Reboot program");             
         }
         break;
@@ -153,7 +137,7 @@ void Display::blankToDisplay(unsigned char x, unsigned char y, int numOfBlanks) 
   for(int i=0; i<numOfBlanks; i++) {              //Print blank space to display. Each loop one blank space is printed.
     SeeedGrayOled.setTextXY(x, y);                //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
     SeeedGrayOled.putString(" ");                 //Blank symbol.
-    y += 8;                                       //Increase column cordinate to print next blank space in the same row. Any character has a width of 8 pixels.
+    y++;                                          //Increase column cordinate to print next blank space in the same row.
   }
 }
 
@@ -161,7 +145,7 @@ void Display::blankToDisplay(unsigned char x, unsigned char y, int numOfBlanks) 
 ==========================================================================================
 || Alternate print and clear variable value (flash) to display with a frequency of 2Hz. ||
 ========================================================================================== */
-void Display::flashNumberDisplay(unsigned short x, unsigned short y, unsigned short variable, bool flashClockCursor) {
+void Display::flashNumberDisplay(unsigned short x, unsigned short y, unsigned short variable) {
   unsigned short numDigits = 0;               //Store number of digits in variable value;
   y *= 8;                                     //To align symbol with rest printed text. Each symbol requires 8px in width.
   if(variable == 0) {                         //If variable equal to 0 it contains 1 digit.
@@ -171,29 +155,29 @@ void Display::flashNumberDisplay(unsigned short x, unsigned short y, unsigned sh
     numDigits++;
     variable /= 10;                           //Result of division between values with type 'int' only gives an integer. If variable less than 10 result of division is 0.
   }
- static bool blinkCursor = false;             //Initiate variable only once (Instead of declaring it as a global variable).
+ static bool blinkCursor = false;             //Initiate variable only once (without having it as a global variable).
 
-  //Toggle between printing variable value and blank space to make cursor flash on display.
-  switch(flashClockCursor) {
-    case true:
-      for(int i=0; i<numDigits; i++) {          //Print blank space to display. Each loop one blank space is printed.
-        SeeedGrayOled.setTextXY(x, y);          //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
-        SeeedGrayOled.putString(" ");           //Blank symbol.
-        y += 8;                                 //Increase column cordinate to print next blank space in the same row.
-      }
-      break;
-    case false:
-      SeeedGrayOled.setTextXY(x, y);            //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
-      SeeedGrayOled.putNumber(variable);        //Print variable value.
-      break;
+  if(blinkCursor) {
+    for(int i=0; i<numDigits; i++) {          //Print blank space to display. Each loop one blank space is printed.
+      SeeedGrayOled.setTextXY(x, y);          //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
+      SeeedGrayOled.putString(" ");           //Blank symbol.
+      y += 8;                                 //Increase column cordinate to print next blank space in the same row.
+    }
+    blinkCursor = false;
   }
+  else {
+    SeeedGrayOled.setTextXY(x, y);            //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
+    SeeedGrayOled.putNumber(variable);        //Print variable value.
+    blinkCursor = true;
+  }
+  
 }
 
 /*
 =========================================================================
 || Print current clock values to display to let user set current time. ||
 ========================================================================= */
-void Display::viewSetClock(bool flashClockCursor) {
+void Display::viewSetClock() {
   
   stringToDisplay(2, 0, "Set current time");
   stringToDisplay(3, 0, "Use the buttons:");
@@ -215,83 +199,21 @@ void Display::viewSetClock(bool flashClockCursor) {
   //Flash (show/clear) individual clock pointers to display which clock parameter that is currently being set.
   switch(clockInputState) {
     case HOUR2:
-      flashNumberDisplay(10, 4, hourPointer2, flashClockCursor);    //Toggle show/clear clock pointer with a frequency of 2 Hz.
+      flashNumberDisplay(10, 4, hourPointer2);    //Toggle show/clear clock pointer with a frequency of 2 Hz.
       break;
     case HOUR1:
-      flashNumberDisplay(10, 5, hourPointer1, flashClockCursor);    //Toggle show/clear clock pointer with a frequency of 2 Hz.
+      flashNumberDisplay(10, 5, hourPointer1);    //Toggle show/clear clock pointer with a frequency of 2 Hz.
       break;
     case MINUTE2:
-      flashNumberDisplay(10, 7, minutePointer2, flashClockCursor);  //Toggle show/clear clock pointer with a frequency of 2 Hz.
+      flashNumberDisplay(10, 7, minutePointer2);  //Toggle show/clear clock pointer with a frequency of 2 Hz.
       break;
     case MINUTE1:
-      flashNumberDisplay(10, 8, hourPointer1, flashClockCursor);    //Toggle show/clear clock pointer with a frequency of 2 Hz.
+      flashNumberDisplay(10, 8, hourPointer1);    //Toggle show/clear clock pointer with a frequency of 2 Hz.
       break;
   }
 }
 
-/*
-===================================================
-|| Print readout values from sensors to display. ||
-=================================================== */
-void Display::viewReadoutValues(unsigned short moistureMeanValue, unsigned short tempValue, unsigned short humidityValue, unsigned short tempThresholdValue, uint16_t lightValue, uint16_t uvValue) {
-  //Clear redundant value digits from previous readouts for all sensor values. Function takes the following parameters: (Row number, column number, number of blank spaces to be printed).
-  blankToDisplay(2, 11, 3);                     //Moisture value.
-  blankToDisplay(3, 11, 3);                     //Soil status.
-  blankToDisplay(4, 11, 5);                     //Light Value.
-  blankToDisplay(5, 11, 2);                     //UV-light value.
-  blankToDisplay(6, 11, 2);                     //Temperature value.
-  blankToDisplay(7, 11, 2);                     //Temperature threshold value.
-  blankToDisplay(8, 11, 3);                     //Humidity value.
-  blankToDisplay(9, 11, 3);                     //Water flow value.
-  
-  /*********************
-  |Moisture mean value and soil status.|
-  *********************/
-  stringToDisplay(2, 0, "Moisture:");
-  numberToDisplay(2, 11, moistureMeanValue);    //Moisture mean value calculated from all four moisture sensor readouts.
-  
-  stringToDisplay(3, 0, "Soil:");               //Prints "Dry", "OK" or "Wet" to display based on soil humidity.
-  if(moistureDry == true) {
-    stringToDisplay(3, 11, "Dry");
-  }
-  else if(moistureDry == false && moistureWet == false) {
-    stringToDisplay(3, 11, "OK");
-  }
-  else if(moistureWet == true) {
-    stringToDisplay(3, 11, "Wet");
-  }
-
-  /***************************
-  |Light and UV-light values.|
-  ****************************/
-  stringToDisplay(4, 0, "Light:");              
-  numberToDisplay(4, 11, lightValue);           //Light value, unit in lumen.
-
-  stringToDisplay(5, 0, "UV-light:");
-  numberToDisplay(5, 11, uvValue);              //UV-light value, unit in UN-index.
-
-  /*************************************************************************
-  |Temperature value and temperature threshold value set by rotary encoder.|
-  **************************************************************************/
-  stringToDisplay(6, 0, "Temp.:");              
-  numberToDisplay(6, 11, tempValue);            //Temperature value.
-
-  stringToDisplay(7, 0, "Temp.lim.:");              
-  numberToDisplay(7, 11, tempThresholdValue/2); //Set temperature threshold value divided by two. Adjusted by rotary encoder. Value 60 / 2 is 30°C.
-
-  /********************
-  |Air humidity value.|
-  *********************/
-  stringToDisplay(8, 0, "Humidity:");              
-  numberToDisplay(8, 11, humidityValue);        //Air humidity value, unit in %.
-
-  /*************************
-  |Water flow sensor value.|
-  **************************/
-  stringToDisplay(9, 0, "Water flw:");              
-  numberToDisplay(9, 11, waterFlowValue);       //Calculated water flow value based on the water that flows through water flow sensor. 
-}
-
+//Add the function alarms to display!! Write alarms to display. alarmMessageDisplay()
 
   /*
   -----------------------------------------------------------------------------
@@ -434,6 +356,8 @@ void Display::viewReadoutValues(unsigned short moistureMeanValue, unsigned short
 || Initialize OLED display and show startup image. ||
 ===================================================== */
 void Display::viewStartupImage() {
+  Serial.println("STARTUP_IMAGE");
+
   /*
   //Startup image.
   SeeedGrayOled.drawBitmap(greenhouse, 128*128/8);  //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
@@ -442,5 +366,4 @@ void Display::viewStartupImage() {
   */
 
   displayState = SET_CLOCK;                         //Set next display mode to be printed to display.
-  clockInputState = HOUR2;                          
 }

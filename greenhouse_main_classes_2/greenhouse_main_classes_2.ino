@@ -3,9 +3,10 @@
 * Included header files *
 *************************/
 #include <Wire.h>
-#include "SeeedGrayOLED.h"
 #include "DHT.h"
 #include "SI114X.h"
+#include "SeeedGrayOLED.h"
+#include "multi_channel_relay.h"
 #include "Moisture.h"
 #include "Temperature.h"
 #include "Lighting.h"
@@ -21,21 +22,19 @@ Moisture moistureSensor4;                 //Moisture sensor4 created from Moistu
 Moisture moistureSensor;                  //Fictional moisture sensor that holds moisture mean value. Created from the Moisture class.
 
 //Temperature and humidity sensor.
-const uint8_t DHTTYPE = DHT11;            //Set Arduino model that is being used. DHT11 equals the Arduino UNO.
+const uint8_t DHTTYPE = DHT11;            //DHT11 = Arduino UNO model is being used.
 DHT humiditySensor(DHTPIN, DHTTYPE);      //Humidity sensor object created from DHT class.
 
 //Light sensor.
 SI114X lightSensor;                       //Light sensor object created from SI114X class.
 
-//Alarm messages to display.
-unsigned long alarmTimePrev = 0;          //Used to read relative time 
-unsigned long alarmTimePeriod = 2100;     //Variable value specifies in milliseconds, for how long time each warning message will be shown on display before cleared and/or replaced by next warning message.
+//4-Channel Relay
+Multi_Channel_Relay relay;                //Relay object created from Multi_Channel_Relay class.
 
-//Global variables.
-unsigned short tempThresholdValue = 60;     //Initial value / 2 for temperature threshold adjusted by rotary encoder. Value 60 / 2 is 30°C.
-unsigned short divider10 = 0;               //Variable to divide frequency of the timer interrupt function that is triggered with a frequency of 10 Hz. Divides it by 10.
-unsigned short divider5 = 0;                //Variable to divide frequency of the timer interrupt function that is triggered with a frequency of 10 Hz. Divides it by 5.
-bool flashClockCursor = false;              //Toggle variable for flashing clock digit cursor.
+//Alarm messages to display.
+unsigned long alarmTimePrev = 0;        //Used to read relative time 
+unsigned long alarmTimePeriod = 2100;   //Variable value specifies in milliseconds, for how long time each warning message will be shown on display before cleared and/or replaced by next warning message.
+
 
 /*
 ---------------------
@@ -181,8 +180,8 @@ ISR(TIMER2_COMPA_vect) {  //Timer interrupt with a frequency of 100Hz to read te
       if(digitalRead(rotaryEncoderOutpB) != aState && tempThresholdValue <= TEMP_VALUE_MAX) { //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
         tempThresholdValue++;                                         //Clockwise rotation means increasing position value. Position value is only increased if less than max value.
       }
-      else if(TEMP_THRESHOLD_VALUE > TEMP_VALUE_MIN) {
-        TEMP_THRESHOLD_VALUE--;                                         //Counter clockwise rotation means decreasing position value.
+      else if(tempThresholdValue > TEMP_VALUE_MIN) {
+        tempThresholdValue--;                                         //Counter clockwise rotation means decreasing position value.
       }
     }
   aLastState = aState;                                                //Updates the previous state of outputA with current state.
@@ -595,18 +594,15 @@ bool resolveFlowFault() {
 */
 
 /*
-=======================================================================================================================================================================
-|| Timer interrupt triggered with frequency of 10 Hz used for the following applications: -Second ticker for internal clock.                                         ||
-||                                                                                          -Reading interval for temperature threshold value set by rotary encoder. ||
-||                                                                                          -Flash clock digit cursor when in "set time" mode.                             ||
-======================================================================================================================================================================= */
+===========================================================================================================================================================
+|| Timer interrupt triggered with frequency of 10 Hz used as second ticker for internal clock and to flash clock pointer values when in "set time" mode. ||
+=========================================================================================================================================================== */
 ISR(RTC_CNT_vect) {
   //Timer interrupt triggered with a frequency of 10 Hz.
   /***************************************************
   |Internal clock used to keep track of current time.|
   ****************************************************/
   if(clockStartEnabled == true) {           //Check if internal clock is enabled to run.
-    Serial.println("Clock started");
     divider10++;                            //Increase divider variable.                   
       
     if(divider10 >= 10) {                   //This part of the function will run once every second and therefore will provide a 1 Hz pulse to feed the second pointer.
@@ -654,45 +650,8 @@ ISR(RTC_CNT_vect) {
       //Serial.println(currentClockTime);
     }
   }
-
-  /*********************************************************************
-  |Read temperature threshold value adjustments done by rotary encoder.|
-  **********************************************************************/
-  //Rotary encoder adjustments are checked with a frequency of 10 Hz.
-  int aState;
-  aState = digitalRead(rotaryEncoderOutpA);                                                     //Reads the current state of the rotary knob, outputA.
-  
-    if(aState != aLastState) {                                                                  //A turn on rotary knob is detected by comparing previous and current state of outputA.
-      if(digitalRead(rotaryEncoderOutpB) != aState && tempThresholdValue <= TEMP_VALUE_MAX) {   //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
-        tempThresholdValue++;                                                                   //Clockwise rotation means increasing position value. Position value is only increased if less than max value.
-      }
-      else if(tempThresholdValue > TEMP_VALUE_MIN) {
-        tempThresholdValue--;                                                                   //Counter clockwise rotation means decreasing position value.
-      }
-    }
-  aLastState = aState;                                                                          //Update the previous state of outputA with current state.
-
-  /**************************
-  |Flash clock digit cursor.|
-  ***************************/
-  static bool toggle = false;               //Initiate variable only once (instead of declaring it as a global variable).            
-  divider5++;                               //Increase divider variable.                   
-    
-    if(divider5 >= 5) {                     //This part of the function will run twice every second and therefore will provide a 2 Hz pulse to feed the toggling of flash variable below.
-      divider5 = 0;                         //Clear divider variable.
-
-      switch(toggle) {
-        case true: 
-          flashClockCursor = true;
-          toggle = false;
-          break;
-        case false:
-          flashClockCursor = false;
-          toggle = true;
-          break;  
-      }
-    } 
   RTC.INTFLAGS = 0x3;                       //Clearing OVF and CMP interrupt flags to enable new interrupt to take place according the preset time period.
+  
 }
 
 /*
@@ -717,9 +676,9 @@ void setup() {
   pinMode(SENSOR_PORT4, INPUT);
   
   pinMode(flowSensor, INPUT);
-  attachInterrupt(3, Watering::flowCount, RISING);          //Initialize interrupt to enable water flow sensor to calculate water flow pumped by water pump.
+  attachInterrupt(1, Watering::flowCount, RISING);          //Initialize interrupt to enable water flow sensor to calculate water flow pumped by water pump.
 
-  attachInterrupt(2, Display::toggleDisplayMode, RISING);   //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
+  attachInterrupt(0, Display::toggleDisplayMode, RISING);   //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
   
   pinMode(waterLevelSwitch, INPUT);
   
@@ -738,19 +697,22 @@ void setup() {
 
   //RTC setup:
   while(RTC.STATUS != 0) {
-    //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register.                         
+    //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register.
+    Serial.println("waiting for 1");                          
   } 
   RTC.CLKSEL = 0x00;                                  //32.768 kHz signal from OSCULP32K selected.
   RTC.PERL = 0x0A;                                    //Lower part of 16,384 value in PER-register (PERL) to be used as overflow value to reset the RTC counter.
   RTC.PERH = 0x10;                                    //Upper part of 16,384 value in PER-register (PERH) to be used as overflow value to reset the RTC counter.
   RTC.INTCTRL = (RTC.INTCTRL & 0b11111100) | 0b01;    //Enable interrupt-on-counter overflow by setting OVF-bit in INCTRL register.
   while(RTC.STATUS != 0) {
-    //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register.              
+    //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register.   
+    Serial.println("waiting for 2");               
   }                                                      
   RTC.CTRLA = 0x05;                                   //No using prescaler set, CORREN enabled (0b100),  RTCEN bit set to 1 (0b1).
                                          
   while(RTC.STATUS != 0) {
-    //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register.                        
+    //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register. 
+    Serial.println("waiting for 3");                        
   }  
   Serial.println("RTC config complete");
 
@@ -773,45 +735,40 @@ void loop() {
   moistureValue3 = moistureSensor3.readValue(SENSOR_PORT3);         //Read moistureSensor3 value to check soil humidity.
   moistureValue4 = moistureSensor4.readValue(SENSOR_PORT4);         //Read moistureSensor4 value to check soil humidity.
 
-  unsigned short moistureMeanValue = 0;                             //Calculated mean value from readouts for all four moisture sensors.
+  unsigned short moistureMeanValue;                                 //Mean value based on readouts for all 4 moisture sensors.
   moistureMeanValue = moistureSensor.calculateMean(moistureValue1, moistureValue2, moistureValue3, moistureValue4);   //Calculate moisture mean value from all 4 moisture sensors.
   moistureSensor.evaluateValue(moistureMeanValue, &moistureDry, &moistureWet);                                        //Set and/or clear the internal fault code variables: moistureDry and moistureWet. Fault code is active when set to 'true'.
 
-  unsigned short tempValue = 0;                                                 //Readout temperature value.
-  unsigned short humidityValue = 0;                                             //Readot air humidity value.
-  tempValue = humiditySensor.readTemperature(false);                            //Read temperature.
-  humidityValue = humiditySensor.readHumidity();                                //Read air humidity.
-  tempValueFault = Temperature::getInstance()->thresholdCompare(tempValue, &tempThresholdValue);     //Compare readout temperature with set themperature threshold value. Fault code is active 'true' if readout temperature value is higher than temperature treshold set by rotary encoder.
-
-  uint16_t lightValue = 0;                                                      //Light value, unit in lumen.                                          
-  uint16_t uvValue = 0;                                                         //UV-light value, unit in UN-index.
+  unsigned short tempValue;                                                   //Temperature value.
+  unsigned short humidityValue;                                               //Humidity (air) value.
+  tempValue = humiditySensor.readTemperature(false);                          //Read temperature.
+  //humidValue = humiditySensor.readHumidity();                               //Read humidity (air).
+  tempValueFault = Temperature::getInstance().thresholdCompare(tempValue);    //Compare readout temperature with set themperature threshold value. Fault code is active 'true' if readout temperature value is higher than temperature treshold set by rotary encoder.
+  
+  uint16_t lightValue;                                                        //Light value, unit in lumen.                                           
+  uint16_t uvValue;                                             
   //uint16_t irValue;                                             
-  lightValue = lightSensor.ReadVisible();                                       //Light readout.
-  uvValue = lightSensor.ReadUV();                                               //UV readout.
-  //irValue = lightSensor.ReadIR();                                               //IR readout.
+  lightValue = lightSensor.ReadVisible();                                     //Light value, unit in lumen.
+  uvValue = lightSensor.ReadUV();                                             //UV-light value, unit in UN-index.
+  //irValue = lightSensor.ReadIR();                                             //IR-light value, unit in lumen.
 
-/*
-  ledLightEnabled = Lighting::getInstance()->checkLightNeed(uvValue);              //Check if LED lighting is needed and if it is allowed to be turned ON.
-  ledLightState = Lighting::getInstance()->startLed();                             //Start LED lighting if it is enabled and update its current state.
-  ledLightFault = Lighting::getInstance()->ledLightCheck(uvValue);                 //Check if LED lights functionality. Fault code is active 'true' if readout light value is not increased while LED lighting is turned ON.
-  ledLightState = Lighting::getInstance()->stopLed();                              //Stop LED lighting if it is not enabled and update its current state.
-                               
-  waterPumpEnabled = Watering::getInstance()->checkWaterNeed();                    //Check if water is needed and if water pump is allowed to be turned ON.
-  waterLevelFault = Watering::getInstance()->readWaterLevel();                     //Check water level in water tank.
-  waterPumpState = Watering::getInstance()->startPump(&waterFlowValue);            //Start water pump if it is enabled, calculate the flow in which water is being pumped and update the water pump's current state.
-  waterFlowFault = Watering::getInstance()->flowCheck(waterFlowValue);             //Check if water flow is above threshold value when water pump is running.                       
-  waterPumpState = Watering::getInstance()->stopPump();                            //Stop water pump (OFF).
-*/
+  ledLightEnabled = Lighting::getInstance().checkLightNeed(uvValue);              //Check if LED lighting is needed and if it is allowed to be turned ON.
+  ledLightState = Lighting::getInstance().startLed();                             //Start LED lighting if it is enabled and update its current state.
+  ledLightFault = Lighting::getInstance().ledLightCheck(uvValue);                 //Check if LED lights functionality. Fault code is active 'true' if readout light value is not increased while LED lighting is turned ON.
+  ledLightState = Lighting::getInstance().stopLed();                              //Stop LED lighting if it is not enabled and update its current state.
+
+  unsigned short waterFlowValue;                                
+  waterPumpEnabled = Watering::getInstance().checkWaterNeed();                    //Check if water is needed and if water pump is allowed to be turned ON.
+  waterLevelFault = Watering::getInstance().readWaterLevel();                     //Check water level in water tank.
+  waterPumpState = Watering::getInstance().startPump(&waterFlowValue);            //Start water pump if it is enabled, calculate the flow in which water is being pumped and update the water pump's current state.
+  waterFlowFault = Watering::getInstance().flowCheck(waterFlowValue);             //Check if water flow is above threshold value when water pump is running.                       
+  waterPumpState = Watering::getInstance().stopPump();                            //Stop water pump (OFF).
+
   //Set current time and clear/set water flow fault code.
-  Serial.print("clockStartEnabled_main: ");
-  Serial.println(clockStartEnabled);
+  Config::State().setButton = digitalRead(SET_BUTTON);                            //Check if SET-button is being pressed. Put value on global variable.
 
-  setButton = digitalRead(SET_BUTTON);                                //Check if SET-button is being pressed.
-
-  //Print current display state to display and pass variables to display class. Display state variable change in the interrupt function activated by pressing MODE-button.
-  Display::getInstance()->printToScreen(moistureValue1, moistureValue2, moistureValue3, moistureValue4,  moistureMeanValue,
-                                        tempValue, humidityValue, tempThresholdValue, lightValue, uvValue,
-                                        setButton, flashClockCursor);               
+  //Print current display state to display and pass readout values to Display class. Display state variable change in the interrupt function activated by pressing MODE-button. 
+  Display::getInstance().printToScreen(moistureValue1, moistureValue2, moistureValue3, moistureValue4, moistureMeanValue, tempValue, humidityValue, lightValue, uvValue);
 
 /*
   //Different functions to be run depending of which screen display mode that is currently active.

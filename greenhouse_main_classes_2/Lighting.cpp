@@ -1,14 +1,6 @@
 #include "Miscellaneous.h"
 #include "Lighting.h"
 
-Lighting* Lighting::ledLights = 0;          //Initialize pointer to zero so that it can be initialized in first call to getInstance.
-Lighting* Lighting::getInstance(){          //Getting the singelton instance of class. Making sure to not create multiple objects of the class by checking if an object previously has been created and in this case use that one instead of creating a new one.
-  if (ledLights == 0)
-  {
-    ledLights = new Lighting();
-  }
-  return ledLights;
-}
 
 /*
 ==================================================================================================

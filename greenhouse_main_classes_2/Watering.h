@@ -3,8 +3,11 @@
 #include "Arduino.h"
 
 class Watering {
-public:                          
-  static Watering *getInstance();                 //Return the pointer object of the class.
+public:
+  static Watering &getInstance() {
+    static Watering waterPump;                    //Object created on first use. Using getInstance will make sure only one object is created and the same one is used throughout entire program no matter from which part of the program it is called.          
+    return waterPump;
+  }                            
   bool readWaterLevel();
   static void flowCount();
   bool startPump(unsigned short *waterFlowValue);
@@ -12,9 +15,8 @@ public:
   bool checkWaterNeed();
   bool stopPump();
 
-private: 
+private:
   Watering(){}                                    //Empty constructor.
-  static Watering *waterPump;                     //Declaring pointer object of the class.
 };
 
 #endif  /* Watering_H_ */

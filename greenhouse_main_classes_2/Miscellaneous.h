@@ -1,14 +1,21 @@
 #ifndef Miscellaneous_H_
 #define Miscellaneous_H_
 #include "Arduino.h"
-#include "MultiChannelRelay.h"
-#include "Moisture.h"
-#include "Lighting.h"
-#include "Temperature.h"
-#include "Watering.h"
-#include "Clock.h"
-#include "SeeedGrayOled.h"
-#include "Wire.h"
+
+class Config {
+public:
+  static Config &State() {
+    static Config configState;                   //Object created on first use. Using getInstance will make sure only one object is created and the same one is used throughout entire program no matter from which part of the program it is called.
+    return configState;
+  }   
+  bool setButton;
+
+ 
+private:
+  Config();
+ 
+};
+
 
 /*
 ****************************************************************
@@ -82,9 +89,11 @@ GND:  Ground wire to temperature rotary encoder.
 static const unsigned short MOISTURE_THRESHOLD_LOW = 300;
 static const unsigned short MOISTURE_THRESHOLD_HIGH = 700;
 static bool moistureDry = false;                              //Fault code is active 'true' if soil moisture is too dry. Internal fault code handled by the greenhouse program.
-static bool moistureWet = false;                              //Fault code is active 'true' if soil moisture is too wet. Internal fault code handled by the greenhouse program.                             
+static bool moistureWet = false;                              //Fault code is active 'true' if soil moisture is too wet. Internal fault code handled by the greenhouse program.
 
 //Temperature readout, humidity readout and temperature threshold adjustment.
+//static const uint8_t DHTTYPE = DHT11;                         //Set Arduino model that is being used. DHT11 equals the Arduino UNO.
+static unsigned short tempThresholdValue = 60;                //Initial value / 2 for temperature threshold adjusted by rotary encoder. Value 60 / 2 is 30°C.
 static unsigned short aLastState;                             //Variable to keep track of rotary direction when adjusting temperature threshold by rotary encoder.
 static bool tempValueFault = false;                           //Fault code is active 'true' if read out temperature value is higher than temperature treshold set by rotary encoder. 
 static unsigned short TEMP_VALUE_MIN = 28;                    //Temperature value can be set within the boundaries of 14 - 40°C. Temp value is doubled to reduce rotary knob sensitivity.
@@ -103,10 +112,8 @@ static bool waterPumpState = false;                           //Indicate current
 static bool waterLevelFault = false;                          //Fault code is active 'true' if water surface in water tank is too low to let the float sensor float.
 static bool waterFlowFault = false;                           //Fault code is active 'true' if water flow is below threshold value when water pump is running (ON). 
 static const unsigned short FLOW_THRESHOLD_VALUE = 99;        //Specifies water flow threshold in Liter/hour which must be exceeded to avoid water flow fault code from being activated.
-static unsigned short waterFlowValue;                         //Calculated water flow value based on the water that flows through water flow sensor. 
 
 //Internal clock to keep track of current time.
-static bool setButton = false;
 static int currentClockTime = 0;
 static bool clockStartEnabled = false;                        //Start/Stop clock internal clock.
 static volatile bool characterFlashEnabled = false;           //Toggle variable to flash clock pointer when in "set time" mode.       
@@ -117,6 +124,9 @@ static unsigned short minutePointer1 = 0;                     //1-digit of minut
 static unsigned short minutePointer2 = 0;                     //10-digit of minute pointer.
 static unsigned short secondPointer1 = 0;                     //1-digit of second pointer.
 static unsigned short secondPointer2 = 0;                     //10-digit of second pointer.
+
+//Timer interrupts for Timer1 and Timer2.
+static unsigned short divider10 = 0;                          //Variable to devide the frequency of that timer interrupt function is triggered. Divide by 10.
 
 //Display modes.
 typedef enum {STARTUP_IMAGE, SET_CLOCK, READOUT_VALUES, SERVICE_MODE, FLOW_FAULT} displayMode;   //Enum with 'typedef' for the different display modes that can be printed to the OLED display. 'typedef' enables passing a certain variable name to represent a certain variable value instead of using the value itself.
