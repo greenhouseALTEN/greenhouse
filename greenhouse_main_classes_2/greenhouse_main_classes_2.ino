@@ -663,11 +663,11 @@ ISR(RTC_CNT_vect) {
   aState = digitalRead(rotaryEncoderOutpA);                                                     //Reads the current state of the rotary knob, outputA.
   
     if(aState != aLastState) {                                                                  //A turn on rotary knob is detected by comparing previous and current state of outputA.
-      if(digitalRead(rotaryEncoderOutpB) != aState && tempThresholdValue <= TEMP_VALUE_MAX) {   //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
-        tempThresholdValue++;                                                                   //Clockwise rotation means increasing position value. Position value is only increased if less than max value.
+      if(digitalRead(rotaryEncoderOutpB) != aState && Config::State().tempThresholdValue <= TEMP_VALUE_MAX) {   //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
+        Config::State().tempThresholdValue++;                                                                   //Clockwise rotation means increasing position value. Position value is only increased if less than max value.
       }
-      else if(tempThresholdValue > TEMP_VALUE_MIN) {
-        tempThresholdValue--;                                                                   //Counter clockwise rotation means decreasing position value.
+      else if(Config::State().tempThresholdValue > TEMP_VALUE_MIN) {
+        Config::State().tempThresholdValue--;                                                                   //Counter clockwise rotation means decreasing position value.
       }
     }
   aLastState = aState;                                                                          //Update the previous state of outputA with current state.
@@ -779,7 +779,7 @@ void loop() {
 
   unsigned short moistureMeanValue;                                 //Mean value based on readouts for all 4 moisture sensors.
   moistureMeanValue = moistureSensor.calculateMean(moistureValue1, moistureValue2, moistureValue3, moistureValue4);   //Calculate moisture mean value from all 4 moisture sensors.
-  moistureSensor.evaluateValue(moistureMeanValue, &moistureDry, &moistureWet);                                        //Set and/or clear the internal fault code variables: moistureDry and moistureWet. Fault code is active when set to 'true'.
+  moistureSensor.evaluateValue(moistureMeanValue);                                        //Set and/or clear the internal fault code variables: moistureDry and moistureWet. Fault code is active when set to 'true'.
 
   unsigned short tempValue;                                                   //Temperature value.
   unsigned short humidityValue;                                               //Humidity (air) value.

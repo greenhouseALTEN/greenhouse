@@ -14,7 +14,13 @@ Config::Config()
     this->secondCursor2 = 0; 
     this->secondCursor1 = 0; 
     this->currentClockTime = 0;                     //Internal clock time stored as one intiger instead of as separate intigers for each digit.
+
+    //Moisture.
+    this->moistureWet = false;
+    this->moistureDry = false;
+
+    //Temperature threshold.
+    this->tempThresholdValue = 60;                  //Initial value / 2 for temperature threshold adjusted by rotary encoder. Value 60 / 2 is 30°C.
+    
     this->clockInputState_x = 0;                    //Temp value because typedef enum did not work in Config class.
-    //this->
-    //this->
 }

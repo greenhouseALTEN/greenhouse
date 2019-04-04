@@ -54,19 +54,19 @@ int Moisture::calculateMean(unsigned short moistureValue1, unsigned short moistu
 ===================================
 || Evaluate soil moisture value. ||
 =================================== */
-void Moisture::evaluateValue(unsigned short moistureMean, bool *moistureDry, bool *moistureWet) {    //CALL THE FUNCTIONS BY PASSING THE ADDRESS OF ITS VALUE &moistureDry and &moistureWet.
+void Moisture::evaluateValue(unsigned short moistureMean) {
   //Evaluate soil humidity based on moisture mean value.
   if(moistureMean <= MOISTURE_THRESHOLD_LOW) {                //Soil humidity is too low.
-    *moistureDry = true;                                     //Variables used by checkWaterNeed-function to determine if water pump should be enabled.
-    *moistureWet = false;
+    Config::State().moistureDry = true;                                     //Variables used by checkWaterNeed-function to determine if water pump should be enabled.
+    Config::State().moistureWet = false;
   }
   else if(moistureMean > MOISTURE_THRESHOLD_LOW && moistureMean <= MOISTURE_THRESHOLD_HIGH) { //Soil humidity is good.
-    *moistureWet = false;                                    //Variables used by checkWaterNeed-function to determine if water pump should be enabled.
-    *moistureDry = false;
+    Config::State().moistureWet = false;                                    //Variables used by checkWaterNeed-function to determine if water pump should be enabled.
+    Config::State().moistureDry = false;
   }
   else if(moistureMean > MOISTURE_THRESHOLD_HIGH) {           //Soil humidity is to high.
-    *moistureWet = true;                                     //Variables used by checkWaterNeed-function to determine if water pump should be enabled.
-    *moistureDry = false;
+    Config::State().moistureWet = true;                                     //Variables used by checkWaterNeed-function to determine if water pump should be enabled.
+    Config::State().moistureDry = false;
   }
 }
  

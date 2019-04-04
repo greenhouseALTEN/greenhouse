@@ -21,7 +21,7 @@ void Display::printToScreen(unsigned short moistureValue1, unsigned short moistu
       break;
     case READOUT_VALUES:
       stringToDisplay(0, 2, "READOUT VALUES");//Print current display state to upper right corner of display.
-      //viewReadoutValues();                  //Print read out values from the greenhouse to display.
+      viewReadoutValues(moistureMeanValue, tempValue, humidityValue, lightValue, uvValue);                  //Print read out values from the greenhouse to display.
       break;
     case SERVICE_MODE:
       stringToDisplay(0, 4, "SERVICE MODE");  //Print current display state to upper right corner of display.
@@ -239,6 +239,69 @@ void Display::viewSetClock() {
       flashNumberDisplay(10, 8, Config::State().hourCursor1);    //Toggle show/clear clock cursor with a frequency of 2 Hz.
       break;
   }
+}
+
+/*
+===================================================
+|| Print readout values from sensors to display. ||
+=================================================== */
+void Display::viewReadoutValues(unsigned short moistureMeanValue, unsigned short tempValue, unsigned short humidityValue, uint16_t lightValue, uint16_t uvValue) {
+  //Clear redundant value digits from previous readouts for all sensor values. Function takes the following parameters: (Row number, column number, number of blank spaces to be printed).
+  blankToDisplay(2, 11, 3);                     //Moisture value.
+  blankToDisplay(3, 11, 3);                     //Soil status.
+  blankToDisplay(4, 11, 5);                     //Light Value.
+  blankToDisplay(5, 11, 2);                     //UV-light value.
+  blankToDisplay(6, 11, 2);                     //Temperature value.
+  blankToDisplay(7, 11, 2);                     //Temperature threshold value.
+  blankToDisplay(8, 11, 3);                     //Humidity value.
+  blankToDisplay(9, 11, 3);                     //Water flow value.
+  
+  /*********************
+  |Moisture mean value and soil status.|
+  *********************/
+  stringToDisplay(2, 0, "Moisture:");
+  numberToDisplay(2, 11, moistureMeanValue);    //Moisture mean value calculated from all four moisture sensor readouts.
+  
+  stringToDisplay(3, 0, "Soil:");               //Prints "Dry", "OK" or "Wet" to display based on soil humidity.
+  if(Config::State().moistureDry == true) {
+    stringToDisplay(3, 11, "Dry");
+  }
+  else if(Config::State().moistureDry == false && Config::State().moistureWet == false) {
+    stringToDisplay(3, 11, "OK");
+  }
+  else if(Config::State().moistureWet == true) {
+    stringToDisplay(3, 11, "Wet");
+  }
+
+  /***************************
+  |Light and UV-light values.|
+  ****************************/
+  stringToDisplay(4, 0, "Light:");              
+  numberToDisplay(4, 11, lightValue);           //Light value, unit in lumen.
+
+  stringToDisplay(5, 0, "UV-light:");
+  numberToDisplay(5, 11, uvValue);              //UV-light value, unit in UN-index.
+
+  /*************************************************************************
+  |Temperature value and temperature threshold value set by rotary encoder.|
+  **************************************************************************/
+  stringToDisplay(6, 0, "Temp.:");              
+  numberToDisplay(6, 11, tempValue);            //Temperature value.
+
+  stringToDisplay(7, 0, "Temp.lim.:");              
+  numberToDisplay(7, 11, Config::State().tempThresholdValue/2); //Set temperature threshold value divided by two. Adjusted by rotary encoder. Value 60 / 2 is 30°C.
+
+  /********************
+  |Air humidity value.|
+  *********************/
+  stringToDisplay(8, 0, "Humidity:");              
+  numberToDisplay(8, 11, humidityValue);        //Air humidity value, unit in %.
+
+  /*************************
+  |Water flow sensor value.|
+  **************************/
+  //stringToDisplay(9, 0, "Water flw:");              
+  //numberToDisplay(9, 11, waterFlowValue);       //Calculated water flow value based on the water that flows through water flow sensor. 
 }
 
   /*

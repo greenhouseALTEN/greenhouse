@@ -20,6 +20,13 @@ public:
   unsigned short secondCursor1;
   unsigned short currentClockTime;
 
+  //Moisture.
+  bool moistureDry;
+  bool moistureWet;
+
+  //Temperature threshold.
+  unsigned short tempThresholdValue;
+  
   //Temp value because typedef enum did not work in Config class.
   unsigned short clockInputState_x;
 private:
@@ -103,8 +110,7 @@ static bool moistureDry = false;                              //Fault code is ac
 static bool moistureWet = false;                              //Fault code is active 'true' if soil moisture is too wet. Internal fault code handled by the greenhouse program.
 
 //Temperature readout, humidity readout and temperature threshold adjustment.
-//static const uint8_t DHTTYPE = DHT11;                         //Set Arduino model that is being used. DHT11 equals the Arduino UNO.
-static unsigned short tempThresholdValue = 60;                //Initial value / 2 for temperature threshold adjusted by rotary encoder. Value 60 / 2 is 30°C.
+//static const uint8_t DHTTYPE = DHT11;                         //Set Arduino model that is being used. DHT11 equals the Arduino UNO. 
 static unsigned short aLastState;                             //Variable to keep track of rotary direction when adjusting temperature threshold by rotary encoder.
 static bool tempValueFault = false;                           //Fault code is active 'true' if read out temperature value is higher than temperature treshold set by rotary encoder. 
 static unsigned short TEMP_VALUE_MIN = 28;                    //Temperature value can be set within the boundaries of 14 - 40°C. Temp value is doubled to reduce rotary knob sensitivity.

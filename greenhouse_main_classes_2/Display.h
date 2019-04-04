@@ -14,6 +14,7 @@ private:
   Display() {}                                    //Empty constructor.
   void viewStartupImage();
   void viewSetClock();
+  void Display::viewReadoutValues(unsigned short moistureMeanValue, unsigned short tempValue, unsigned short humidityValue, uint16_t lightValue, uint16_t uvValue);
   void stringToDisplay(unsigned char x, unsigned char y, char* text);
   void numberToDisplay(unsigned char x, unsigned char y, unsigned short variable);
   void blankToDisplay(unsigned char x, unsigned char y, int numOfBlanks);
