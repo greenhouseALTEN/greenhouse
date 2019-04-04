@@ -25,9 +25,8 @@
 #include "MultiChannelRelay.h"
 
 //Modification made by me.
-MultiChannelRelay* MultiChannelRelay::relay = 0;
-
-MultiChannelRelay* MultiChannelRelay::getInstance(){
+MultiChannelRelay* MultiChannelRelay::relay = 0;      //Initialize pointer to zero so that it can be initialized in first call to getInstance.
+MultiChannelRelay* MultiChannelRelay::getInstance(){  //Getting the singelton instance of class. Making sure to not create multiple objects of the class by checking if an object previously has been created and in this case use that one instead of creating a new one.
   if (relay == 0)
   {
     relay = new MultiChannelRelay();

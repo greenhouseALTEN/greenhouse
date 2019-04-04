@@ -60,7 +60,10 @@
 #define CMD_READ_FIRMWARE_VER			0x13
 
 class MultiChannelRelay{
-	public: 		
+	public: 
+    //Modification made by me.
+    static MultiChannelRelay *getInstance();        //Return the pointer object of the class.
+      
 		MultiChannelRelay();
 		
 		/**
@@ -118,17 +121,15 @@ class MultiChannelRelay{
 		 * @return device address
 		*/
 		uint8_t scanI2CDevice(void);
-
-    //Modification made by me.
-    static MultiChannelRelay *getInstance();
 	
 	private:
-//		MultiChannelRelay() {}                        //Empty constructor.
+    //Modification made by me.
+    static MultiChannelRelay *relay; 
+    
 		int _i2cAddr;  //  This is the I2C address you want to use 
 		int channel_state;  // Value to save channel state
     
-    //Modification made by me.
-    static MultiChannelRelay *relay; 
+
 };
 
 

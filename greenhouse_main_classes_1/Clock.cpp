@@ -1,6 +1,15 @@
 #include "Clock.h"
 #include "Miscellaneous.h"
 
+Clock* Clock::internalClock = 0;        //Initialize pointer to zero so that it can be initialized in first call to getInstance.
+Clock* Clock::getInstance(){            //Getting the singelton instance of class. Making sure to not create multiple objects of the class by checking if an object previously has been created and in this case use that one instead of creating a new one.
+  if (internalClock == 0)
+  {
+    internalClock = new Clock();
+  }
+  return internalClock;
+}
+
 /*
 ===============================================================
 || Set current time by using SET- and MODE-button as inputs. ||

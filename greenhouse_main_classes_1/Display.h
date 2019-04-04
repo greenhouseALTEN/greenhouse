@@ -5,21 +5,21 @@
 
 class Display {
 public:
-  static Display &getInstance() {
-    static Display oledDisplay;                   //Object created on first use. Using getInstance will make sure only one object is created and the same one is used throughout entire program no matter from which part of the program it is called.     
-    return oledDisplay;                           
-  }   
+  static Display *getInstance();                  //Return the pointer object of the class. 
   void printToScreen();
   static void toggleDisplayMode();
  
 private:
   Display() {}                                    //Empty constructor.
+  static Display *oledDisplay;                    //Declaring pointer object of the class.
   void viewStartupImage();
   void viewSetClock();
+  void viewReadoutValues();
   void stringToDisplay(unsigned char x, unsigned char y, char* text);
   void numberToDisplay(unsigned char x, unsigned char y, int variable);
   void blankToDisplay(unsigned char x, unsigned char y, int numOfBlanks);
   void flashNumberDisplay(unsigned short x, unsigned short y, unsigned short numOfDigits);
+  String soilStatDisplay(bool moistureDry, bool moistureWet); 
 };
 
 #endif  /* Display_H_ */

@@ -4,13 +4,11 @@
 
 class Temperature {
 public:
-  static Temperature &getInstance() {
-    static Temperature rotaryEncoder;               //Object created on first use. Using getInstance will make sure only one object is created and the same one is used throughout entire program no matter from which part of the program it is called.     
-    return rotaryEncoder;                           
-  }   
+  static Temperature *getInstance();                //Return the pointer object of the class.    
   bool thresholdCompare(unsigned short tempValue);
 private:
   Temperature(){}                                   //Empty constructor.
+  static Temperature *rotaryEncoder;                //Declaring pointer object of the class.
 };
 
 #endif  /* Temperature_H_ */

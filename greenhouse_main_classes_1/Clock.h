@@ -4,15 +4,13 @@
 
 class Clock {
 public:
-  static Clock &getInstance() {
-    static Clock internalClock;                   //Object created on first use. Using getInstance will make sure only one object is created and the same one is used throughout entire program no matter from which part of the program it is called.     
-    return internalClock;
-  }   
+  static Clock *getInstance();                    //Return the pointer object of the class. 
   void setTime();
   void resetTime();
 
 private:
   Clock(){}                                       //Empty constructor.
+  static Clock *internalClock;                    //Declaring pointer object of the class.
 };
 
 #endif  /* Clock_H_ */

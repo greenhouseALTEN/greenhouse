@@ -4,13 +4,13 @@
 
 class Watering {
 public:                          
+  static Watering *getInstance();                 //Return the pointer object of the class.
   bool readWaterLevel();
   static void flowCount();
   bool startPump(unsigned short *waterFlowValue);
   bool flowCheck(unsigned short waterFlowValue);
   bool checkWaterNeed();
   bool stopPump();
-  static Watering *getInstance();                 //Function that returns the pointer object of the class.
 
 private: 
   Watering(){}                                    //Empty constructor.

@@ -79,20 +79,24 @@ GND:  Ground wire to temperature rotary encoder.
 */
 
 //Moisture.
+static unsigned short moistureMeanValue = 134;                //Calculated mean value from readouts for all four moisture sensors.
 static const unsigned short MOISTURE_THRESHOLD_LOW = 300;
 static const unsigned short MOISTURE_THRESHOLD_HIGH = 700;
 static bool moistureDry = false;                              //Fault code is active 'true' if soil moisture is too dry. Internal fault code handled by the greenhouse program.
-static bool moistureWet = false;                              //Fault code is active 'true' if soil moisture is too wet. Internal fault code handled by the greenhouse program.
+static bool moistureWet = false;                              //Fault code is active 'true' if soil moisture is too wet. Internal fault code handled by the greenhouse program.                             
 
 //Temperature readout, humidity readout and temperature threshold adjustment.
-//static const uint8_t DHTTYPE = DHT11;                         //Set Arduino model that is being used. DHT11 equals the Arduino UNO.
 static unsigned short tempThresholdValue = 60;                //Initial value / 2 for temperature threshold adjusted by rotary encoder. Value 60 / 2 is 30°C.
 static unsigned short aLastState;                             //Variable to keep track of rotary direction when adjusting temperature threshold by rotary encoder.
 static bool tempValueFault = false;                           //Fault code is active 'true' if read out temperature value is higher than temperature treshold set by rotary encoder. 
 static unsigned short TEMP_VALUE_MIN = 28;                    //Temperature value can be set within the boundaries of 14 - 40°C. Temp value is doubled to reduce rotary knob sensitivity.
 static unsigned short TEMP_VALUE_MAX = 80;
+static unsigned short tempValue;                              //Readout temperature value.
+static unsigned short humidValue;                             //Readot air humidity value.
 
 //Light readout and turn ON/OFF the LED lighting.
+static uint16_t lightValue = 0;                               //Light value, unit in lumen.                                          
+static uint16_t uvValue = 0;                                  //UV-light value, unit in UN-index.
 static bool ledLightEnabled = false;                          //Enable/Disable LED to start.
 static bool ledLightState = false;                            //Show current status of LED lighting. Variable is 'true' when LED lighting is turned ON.
 static bool ledLightFault = false;                            //Fault code is active 'true' if LED lights is not emitting light even though they have been turned ON.
