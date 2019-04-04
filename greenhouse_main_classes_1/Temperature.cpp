@@ -14,9 +14,9 @@ Temperature* Temperature::getInstance(){        //Getting the singelton instance
 ============================================================================================
 || Compare read out temperature with threshold value set by adjustment of rotary encoder. ||
 ============================================================================================ */
-bool Temperature::thresholdCompare(unsigned short tempValue) {
+bool Temperature::thresholdCompare(unsigned short tempValue, unsigned short *tempThresholdValue) {
   bool fault = false;
-  if(tempValue > (tempThresholdValue / 2)) {      //Compare readout temperature value with temperature threshold value set by rotary encoder. Temp threshold value is divided by 2 to give correct temperature value.
+  if(tempValue > (*tempThresholdValue / 2)) {     //Compare readout temperature value with temperature threshold value set by rotary encoder. Temp threshold value is divided by 2 to give correct temperature value.
     fault = true;                                 //Readout temperature higher than temperature threshold value, fault variable set to 'true'.
   }
   else {

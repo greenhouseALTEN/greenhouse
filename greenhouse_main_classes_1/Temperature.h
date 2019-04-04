@@ -5,7 +5,7 @@
 class Temperature {
 public:
   static Temperature *getInstance();                //Return the pointer object of the class.    
-  bool thresholdCompare(unsigned short tempValue);
+  bool thresholdCompare(unsigned short tempValue, unsigned short *tempThresholdValue);
 private:
   Temperature(){}                                   //Empty constructor.
   static Temperature *rotaryEncoder;                //Declaring pointer object of the class.
