@@ -5,12 +5,23 @@
 class Config {
 public:
   static Config &State() {
-    static Config configState;                   //Object created on first use. Using getInstance will make sure only one object is created and the same one is used throughout entire program no matter from which part of the program it is called.
+    static Config configState;                  //Object created on first use. Using getInstance will make sure only one object is created and the same one is used throughout entire program no matter from which part of the program it is called.
     return configState;
   }   
+  //Internal clock.
   bool setButton;
+  bool flash;                    
+  bool clockStartEnabled;
+  unsigned short hourCursor2;
+  unsigned short hourCursor1;
+  unsigned short minuteCursor2;
+  unsigned short minuteCursor1;
+  unsigned short secondCursor2;          
+  unsigned short secondCursor1;
+  unsigned short currentClockTime;
 
- 
+  //Temp value because typedef enum did not work in Config class.
+  unsigned short clockInputState_x;
 private:
   Config();
  
@@ -114,16 +125,6 @@ static bool waterFlowFault = false;                           //Fault code is ac
 static const unsigned short FLOW_THRESHOLD_VALUE = 99;        //Specifies water flow threshold in Liter/hour which must be exceeded to avoid water flow fault code from being activated.
 
 //Internal clock to keep track of current time.
-static int currentClockTime = 0;
-static bool clockStartEnabled = false;                        //Start/Stop clock internal clock.
-static volatile bool characterFlashEnabled = false;           //Toggle variable to flash clock pointer when in "set time" mode.       
-static unsigned short x = 0;                                  //Toggle variable.
-static unsigned short hourPointer1 = 0;
-static unsigned short hourPointer2 = 0;
-static unsigned short minutePointer1 = 0;                     //1-digit of minute pointer.
-static unsigned short minutePointer2 = 0;                     //10-digit of minute pointer.
-static unsigned short secondPointer1 = 0;                     //1-digit of second pointer.
-static unsigned short secondPointer2 = 0;                     //10-digit of second pointer.
 
 //Timer interrupts for Timer1 and Timer2.
 static unsigned short divider10 = 0;                          //Variable to devide the frequency of that timer interrupt function is triggered. Divide by 10.

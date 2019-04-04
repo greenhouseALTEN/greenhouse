@@ -9,7 +9,7 @@
 || Run the function that corresponds to selected display mode. ||
 ================================================================= */
 void Display::printToScreen(unsigned short moistureValue1, unsigned short moistureValue2, unsigned short moistureValue3, unsigned short moistureValue4, unsigned short moistureMeanValue, unsigned short tempValue, unsigned short humidityValue, uint16_t lightValue, uint16_t uvValue) {
-  SeeedGrayOled.setVerticalMode();            //In Vertical addressing mode the data flows from top part of display to bottom part of display, from left to right side.
+  SeeedGrayOled.setVerticalMode();            //Display must be set vertical addressing mode to make any text printed to display, readable.
   switch(displayState) {
     case STARTUP_IMAGE:
       viewStartupImage();                     //Initialize the OLED Display and print startup images to display.
@@ -45,25 +45,27 @@ void Display::printToScreen(unsigned short moistureValue1, unsigned short moistu
     if(waterFlowFault == true) {
       displayState = FLOW_FAULT;                //Set next display mode to be printed to display. 
     }
-
     switch(displayState) {
       case SET_CLOCK:
         switch(clockInputState) {
           case HOUR2:
             clockInputState = HOUR1;              //Hour pointer2 has been set. Continue by setting hour pointer1.
+            Config::State().clockInputState_x = 1;                //Temp variable because of typedef could not be global variable.
             Serial.println("hour1InputMode");
             break;
           case HOUR1:
             clockInputState = MINUTE2;            //Hour pointer1 has been set. Continue by setting minute pointer2.
+            Config::State().clockInputState_x = 2;                 //Temp variable because of typedef could not be global variable.
             Serial.println("minute2InputMode");
             break;
           case MINUTE2:
             clockInputState = MINUTE1;            //Minute pointer2 has been set. Continue by setting minute pointer1.
+            Config::State().clockInputState_x = 3;                 //Temp variable because of typedef could not be global variable.
             Serial.println("minute1InputMode");
             break;
           case MINUTE1:
             clockInputState = COMPLETED;          //Clock setting completed.
-            clockStartEnabled = true;             //Start clock. Clock starts ticking.
+            Config::State().clockStartEnabled = true;             //Start clock. Clock starts ticking.
             Serial.println("clockSettingCompleted");
             break;
           case COMPLETED:
@@ -73,6 +75,7 @@ void Display::printToScreen(unsigned short moistureValue1, unsigned short moistu
             Serial.println("READOUT_VALUES");
             break;           
         }
+        break;
       case READOUT_VALUES:
         displayState = SERVICE_MODE;              //Set next display mode to be printed to display.
         alarmMessageEnabled = false;              //Disable any alarm message from being printed to display.
@@ -122,7 +125,7 @@ void Display::stringToDisplay(unsigned char x, unsigned char y, char* text) {
 =======================================
 || Print number variable to display. ||
 ======================================= */
-void Display::numberToDisplay(unsigned char x, unsigned char y, int variable) {
+void Display::numberToDisplay(unsigned char x, unsigned char y, unsigned short variable) {
   y *= 8;                                         //To align symbol with rest printed text. Each symbol requires 8px in width.
   SeeedGrayOled.setTextXY(x, y);                  //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putNumber(variable);              //Print value to display.
@@ -142,11 +145,11 @@ void Display::blankToDisplay(unsigned char x, unsigned char y, int numOfBlanks) 
 }
 
 /*
-==========================================================================================
-|| Alternate print and clear variable value (flash) to display with a frequency of 2Hz. ||
-========================================================================================== */
+=========================================================================================
+|| Alternate print and clear intiger value (flash) to display with a frequency of 2Hz. ||
+========================================================================================= */
 void Display::flashNumberDisplay(unsigned short x, unsigned short y, unsigned short variable) {
-  unsigned short numDigits = 0;               //Store number of digits in variable value;
+  unsigned short numDigits;               //Store number of digits in variable value;
   y *= 8;                                     //To align symbol with rest printed text. Each symbol requires 8px in width.
   if(variable == 0) {                         //If variable equal to 0 it contains 1 digit.
     numDigits = 1;
@@ -155,22 +158,41 @@ void Display::flashNumberDisplay(unsigned short x, unsigned short y, unsigned sh
     numDigits++;
     variable /= 10;                           //Result of division between values with type 'int' only gives an integer. If variable less than 10 result of division is 0.
   }
- static bool blinkCursor = false;             //Initiate variable only once (without having it as a global variable).
 
-  if(blinkCursor) {
-    for(int i=0; i<numDigits; i++) {          //Print blank space to display. Each loop one blank space is printed.
+  //Toggle between printing variable value and printing blank space to make number appear to flash on display.
+  switch(Config::State().flash) {
+    case true:
+      for(int i=0; i<numDigits; i++) {          //Print blank space to display. Each loop one blank space is printed.
+        SeeedGrayOled.setTextXY(x, y);          //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
+        SeeedGrayOled.putString(" ");           //Blank symbol.
+        y += 8;                                 //Increase column cordinate to print next blank space in the same row.
+      }
+      break;
+    case false:
+      SeeedGrayOled.setTextXY(x, y);            //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
+      SeeedGrayOled.putNumber(variable);        //Print variable value.
+      break;
+  }
+}
+
+/*
+=========================================================================================
+|| Alternate print and clear intiger value (flash) to display with a frequency of 2Hz. ||
+========================================================================================= */
+void Display::flashCharacterDisplay(unsigned short x, unsigned short y, char symbol) {
+  y *= 8;                                     //To align symbol with rest printed text. Each symbol requires 8px in width.
+
+  //Toggle between printing symbol and printing blank space to make symbol appear to flash on display.
+  switch(Config::State().flash) {
+    case true:
       SeeedGrayOled.setTextXY(x, y);          //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
       SeeedGrayOled.putString(" ");           //Blank symbol.
-      y += 8;                                 //Increase column cordinate to print next blank space in the same row.
-    }
-    blinkCursor = false;
+      break;
+    case false:
+      SeeedGrayOled.setTextXY(x, y);            //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
+      SeeedGrayOled.putChar(symbol);            //Print variable value.
+      break;
   }
-  else {
-    SeeedGrayOled.setTextXY(x, y);            //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
-    SeeedGrayOled.putNumber(variable);        //Print variable value.
-    blinkCursor = true;
-  }
-  
 }
 
 /*
@@ -185,35 +207,39 @@ void Display::viewSetClock() {
   stringToDisplay(6, 0, "MODE = h or min");
  
   stringToDisplay(9, 4, "HH MM SS");
-  stringToDisplay(10, 6, ":");
-  stringToDisplay(10, 9, ":");
+  //Flash separator between hour-minute and minute-second cursors when clock is ticking.
+  if(Config::State().clockStartEnabled == true) {
+    flashCharacterDisplay(10, 6, ':');
+    flashCharacterDisplay(10, 9, ':');
+  }
+  else {
+    stringToDisplay(10, 6, ":");
+    stringToDisplay(10, 9, ":");
+  }
 
-  numberToDisplay(10, 4, hourPointer2);
-  numberToDisplay(10, 5, hourPointer1);
-  numberToDisplay(10, 7, minutePointer2);
-  numberToDisplay(10, 8, minutePointer1);
-  numberToDisplay(10, 10, secondPointer2);
-  numberToDisplay(10, 11, secondPointer2);
+  numberToDisplay(10, 4, Config::State().hourCursor2);
+  numberToDisplay(10, 5, Config::State().hourCursor1);
+  numberToDisplay(10, 7, Config::State().minuteCursor2);
+  numberToDisplay(10, 8, Config::State().minuteCursor1);
+  numberToDisplay(10, 10, Config::State().secondCursor2);
+  numberToDisplay(10, 11, Config::State().secondCursor1);
   
- 
-  //Flash (show/clear) individual clock pointers to display which clock parameter that is currently being set.
+  //Flash (show/clear) individual clock cursors to display which clock parameter that is currently being set.
   switch(clockInputState) {
     case HOUR2:
-      flashNumberDisplay(10, 4, hourPointer2);    //Toggle show/clear clock pointer with a frequency of 2 Hz.
+      flashNumberDisplay(10, 4, Config::State().hourCursor2);    //Toggle show/clear clock cursor with a frequency of 2 Hz.
       break;
     case HOUR1:
-      flashNumberDisplay(10, 5, hourPointer1);    //Toggle show/clear clock pointer with a frequency of 2 Hz.
+      flashNumberDisplay(10, 5, Config::State().hourCursor1);    //Toggle show/clear clock cursor with a frequency of 2 Hz.
       break;
     case MINUTE2:
-      flashNumberDisplay(10, 7, minutePointer2);  //Toggle show/clear clock pointer with a frequency of 2 Hz.
+      flashNumberDisplay(10, 7, Config::State().minuteCursor2);  //Toggle show/clear clock cursor with a frequency of 2 Hz.
       break;
     case MINUTE1:
-      flashNumberDisplay(10, 8, hourPointer1);    //Toggle show/clear clock pointer with a frequency of 2 Hz.
+      flashNumberDisplay(10, 8, Config::State().hourCursor1);    //Toggle show/clear clock cursor with a frequency of 2 Hz.
       break;
   }
 }
-
-//Add the function alarms to display!! Write alarms to display. alarmMessageDisplay()
 
   /*
   -----------------------------------------------------------------------------

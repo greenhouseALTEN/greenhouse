@@ -594,64 +594,106 @@ bool resolveFlowFault() {
 */
 
 /*
-===========================================================================================================================================================
-|| Timer interrupt triggered with frequency of 10 Hz used as second ticker for internal clock and to flash clock pointer values when in "set time" mode. ||
-=========================================================================================================================================================== */
+======================================================================================================================================================================
+|| Timer interrupt triggered with frequency of 10 Hz used for the following applications: -Second ticker for internal clock.                                        ||
+||                                                                                        -Reading interval for temperature threshold value set by rotary encoder.  ||
+||                                                                                        -Flash clock digit cursor when in "set time" mode.                        ||
+====================================================================================================================================================================== */
 ISR(RTC_CNT_vect) {
   //Timer interrupt triggered with a frequency of 10 Hz.
   /***************************************************
   |Internal clock used to keep track of current time.|
   ****************************************************/
-  if(clockStartEnabled == true) {           //Check if internal clock is enabled to run.
+  if(Config::State().clockStartEnabled == true) {           //Check if internal clock is enabled to run.
+    static unsigned short divider10 = 0;    //Variable to divide the number of times that this timer interrupt function is triggered by 10 to create a 1 Hz pulse. Variable initiated only once (static) without having to make it as a global.
     divider10++;                            //Increase divider variable.                   
       
-    if(divider10 >= 10) {                   //This part of the function will run once every second and therefore will provide a 1 Hz pulse to feed the second pointer.
+    if(divider10 >= 10) {                   //This part of the function will run once every second and therefore will provide a 1 Hz pulse to feed the second cursor.
+      Serial.println("clock ticking");
       divider10 = 0;                        //Clear divider variable.
-      secondPointer1++;                     //Increase second pointer every time this function runs.
+      Config::State().secondCursor1++;      //Increase second cursor every time this function runs.
       
-      //Second pointer.
-      if(secondPointer1 == 10) {            //If 1-digit second pointer reaches a value of 10 (elapsed time is 10 seconds).
-        secondPointer2++;                   //Increase 10-digit second pointer.
-        secondPointer1 = 0;                 //Clear 1-digit pointer.
+      //Second cursor.
+      if(Config::State().secondCursor1 == 10) {             //If 1-digit second cursor reaches a value of 10 (elapsed time is 10 seconds).
+        Config::State().secondCursor2++;                    //Increase 10-digit second cursor.
+        Config::State().secondCursor1 = 0;                  //Clear 1-digit cursor.
       }
-      if(secondPointer2 == 6) {             //If 10-digit pointer reaches a value of 6 (elapsed time is 60 seconds).
-        minutePointer1++;                   //Increase minute pointer.
-        secondPointer2 = 0;                 //Clear 10-digit second pointer.
+      if(Config::State().secondCursor2 == 6) {              //If 10-digit cursor reaches a value of 6 (elapsed time is 60 seconds).
+        Config::State().minuteCursor1++;                    //Increase minute cursor.
+        Config::State().secondCursor2 = 0;                  //Clear 10-digit second cursor.
       }
-      //Minute pointer.
-      if(minutePointer1 == 10) {            //If 1-digit minute pointer reaches a value of 10 (elapsed time is 10 minutes).
-        minutePointer2++;                   //Increase 10-digit minute pointer.
-        minutePointer1 = 0;                 //Clear 1-digit minute pointer.
+      //Minute cursor.
+      if(Config::State().minuteCursor1 == 10) {             //If 1-digit minute cursor reaches a value of 10 (elapsed time is 10 minutes).
+        Config::State().minuteCursor2++;                    //Increase 10-digit minute cursor.
+        Config::State().minuteCursor1 = 0;                  //Clear 1-digit minute cursor.
       }
-      if(minutePointer2 == 6) {             //If 10-digit minute pointer reaches a value of 6 (elapsed time is 60 minutes).
-        hourPointer1++;                     //Increase 1-digit hour pointer.
-        minutePointer2 = 0;                 //Clear 10-digit minute pointer.
+      if(Config::State().minuteCursor2 == 6) {              //If 10-digit minute cursor reaches a value of 6 (elapsed time is 60 minutes).
+        Config::State().hourCursor1++;                      //Increase 1-digit hour cursor.
+        Config::State().minuteCursor2 = 0;                  //Clear 10-digit minute cursor.
       }
-      //Hour pointer.
-      if(hourPointer1 == 10) {              //If 1-digit hour pointer reaches a value of 10 (elapsed time is 10 hours).
-        hourPointer2++;                     //Increase 10-digit hour pointer.
-        hourPointer1 = 0;                   //Clear 1-digit hour pointer.
+      //Hour cursor.
+      if(Config::State().hourCursor1 == 10) {               //If 1-digit hour cursor reaches a value of 10 (elapsed time is 10 hours).
+        Config::State().hourCursor2++;                      //Increase 10-digit hour cursor.
+        Config::State().hourCursor1 = 0;                    //Clear 1-digit hour cursor.
       }
-      if(hourPointer2 == 2 && hourPointer1 == 4) {  //If 1-digit and 10-digit hourPointer combined reaches 24 (elapsed time is 24 hours).
-        hourPointer1 = 0;                           //Clear both hour digits.
-        hourPointer2 = 0;
+      if(Config::State().hourCursor2 == 2 && Config::State().hourCursor1 == 4) {  //If 1-digit and 10-digit hourCursor combined reaches 24 (elapsed time is 24 hours).
+        Config::State().hourCursor1 = 0;                    //Clear both hour digits.
+        Config::State().hourCursor2 = 0;
       }
 
-      //Convert clock pointer into single int variable. Value of this variable represent clock time.                
-      currentClockTime = 0;
-      currentClockTime += (hourPointer2 * 1000);
-      currentClockTime += (hourPointer1 * 100);
-      currentClockTime += (minutePointer2 * 10);
-      currentClockTime += minutePointer1;
+      //Convert clock cursor into single int variable. Value of this variable represent clock time.                
+      Config::State().currentClockTime = 0;
+      Config::State().currentClockTime += (Config::State().hourCursor2 * 1000);
+      Config::State().currentClockTime += (Config::State().hourCursor1 * 100);
+      Config::State().currentClockTime += (Config::State().minuteCursor2 * 10);
+      Config::State().currentClockTime += Config::State().minuteCursor1;
 
-      if(currentClockTime < 60) {           //Prevent clock time from seeing 00:00 as less than 23:00.       
-        currentClockTime += 2400;
+      if(Config::State().currentClockTime < 60) {           //Prevent clock time from seeing 00:00 as less than 23:00.       
+        Config::State().currentClockTime += 2400;
       }
-      //Serial.println(currentClockTime);
+      //Serial.println(Config::State().currentClockTime);
     }
   }
-  RTC.INTFLAGS = 0x3;                       //Clearing OVF and CMP interrupt flags to enable new interrupt to take place according the preset time period.
+
+  /*********************************************************************
+  |Read temperature threshold value adjustments done by rotary encoder.|
+  **********************************************************************/
+  //Rotary encoder adjustments are checked with a frequency of 10 Hz.
+  int aState;
+  aState = digitalRead(rotaryEncoderOutpA);                                                     //Reads the current state of the rotary knob, outputA.
   
+    if(aState != aLastState) {                                                                  //A turn on rotary knob is detected by comparing previous and current state of outputA.
+      if(digitalRead(rotaryEncoderOutpB) != aState && tempThresholdValue <= TEMP_VALUE_MAX) {   //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
+        tempThresholdValue++;                                                                   //Clockwise rotation means increasing position value. Position value is only increased if less than max value.
+      }
+      else if(tempThresholdValue > TEMP_VALUE_MIN) {
+        tempThresholdValue--;                                                                   //Counter clockwise rotation means decreasing position value.
+      }
+    }
+  aLastState = aState;                                                                          //Update the previous state of outputA with current state.
+
+  /**************************
+  |Flash clock digit cursor.|
+  ***************************/
+  static bool toggle = false;               //Toggle variable. Variable initiated only once (static) without having to make it as a global.            
+  static unsigned short divider5 = 0;       //Variable to divide the number of times that this timer interrupt function is triggered by 5 to create a 2 Hz pulse. Variable initiated only once (static) without having to make it as a global.
+  divider5++;                               //Increase divider variable.                   
+    
+    if(divider5 >= 5) {                     //This part of the function will run twice every second and therefore will provide a 2 Hz pulse to feed the toggling of flash variable below.
+      divider5 = 0;                         //Clear divider variable.
+
+      switch(toggle) {
+        case true: 
+          Config::State().flash = true;     //Variable toggles and is used to flash clock cursor when in "SET_TIME" display mode.
+          toggle = false;
+          break;
+        case false:
+          Config::State().flash = false;
+          toggle = true;
+          break;  
+      }
+    } 
+  RTC.INTFLAGS = 0x3;                       //Clearing OVF and CMP interrupt flags to enable new interrupt to take place according the preset time period.
 }
 
 /*
@@ -676,9 +718,9 @@ void setup() {
   pinMode(SENSOR_PORT4, INPUT);
   
   pinMode(flowSensor, INPUT);
-  attachInterrupt(1, Watering::flowCount, RISING);          //Initialize interrupt to enable water flow sensor to calculate water flow pumped by water pump.
+  attachInterrupt(3, Watering::flowCount, RISING);          //Initialize interrupt to enable water flow sensor to calculate water flow pumped by water pump.
 
-  attachInterrupt(0, Display::toggleDisplayMode, RISING);   //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
+  attachInterrupt(2, Display::toggleDisplayMode, RISING);   //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
   
   pinMode(waterLevelSwitch, INPUT);
   
@@ -752,24 +794,27 @@ void loop() {
   uvValue = lightSensor.ReadUV();                                             //UV-light value, unit in UN-index.
   //irValue = lightSensor.ReadIR();                                             //IR-light value, unit in lumen.
 
-  ledLightEnabled = Lighting::getInstance().checkLightNeed(uvValue);              //Check if LED lighting is needed and if it is allowed to be turned ON.
-  ledLightState = Lighting::getInstance().startLed();                             //Start LED lighting if it is enabled and update its current state.
-  ledLightFault = Lighting::getInstance().ledLightCheck(uvValue);                 //Check if LED lights functionality. Fault code is active 'true' if readout light value is not increased while LED lighting is turned ON.
-  ledLightState = Lighting::getInstance().stopLed();                              //Stop LED lighting if it is not enabled and update its current state.
+  //ledLightEnabled = Lighting::getInstance().checkLightNeed(uvValue);              //Check if LED lighting is needed and if it is allowed to be turned ON.
+  //ledLightState = Lighting::getInstance().startLed();                             //Start LED lighting if it is enabled and update its current state.
+  //ledLightFault = Lighting::getInstance().ledLightCheck(uvValue);                 //Check if LED lights functionality. Fault code is active 'true' if readout light value is not increased while LED lighting is turned ON.
+  //ledLightState = Lighting::getInstance().stopLed();                              //Stop LED lighting if it is not enabled and update its current state.
 
   unsigned short waterFlowValue;                                
-  waterPumpEnabled = Watering::getInstance().checkWaterNeed();                    //Check if water is needed and if water pump is allowed to be turned ON.
-  waterLevelFault = Watering::getInstance().readWaterLevel();                     //Check water level in water tank.
-  waterPumpState = Watering::getInstance().startPump(&waterFlowValue);            //Start water pump if it is enabled, calculate the flow in which water is being pumped and update the water pump's current state.
-  waterFlowFault = Watering::getInstance().flowCheck(waterFlowValue);             //Check if water flow is above threshold value when water pump is running.                       
-  waterPumpState = Watering::getInstance().stopPump();                            //Stop water pump (OFF).
+  //waterPumpEnabled = Watering::getInstance().checkWaterNeed();                    //Check if water is needed and if water pump is allowed to be turned ON.
+  //waterLevelFault = Watering::getInstance().readWaterLevel();                     //Check water level in water tank.
+  //waterPumpState = Watering::getInstance().startPump(&waterFlowValue);            //Start water pump if it is enabled, calculate the flow in which water is being pumped and update the water pump's current state.
+  //waterFlowFault = Watering::getInstance().flowCheck(waterFlowValue);             //Check if water flow is above threshold value when water pump is running.                       
+  //waterPumpState = Watering::getInstance().stopPump();                            //Stop water pump (OFF).
 
   //Set current time and clear/set water flow fault code.
   Config::State().setButton = digitalRead(SET_BUTTON);                            //Check if SET-button is being pressed. Put value on global variable.
-
+    
   //Print current display state to display and pass readout values to Display class. Display state variable change in the interrupt function activated by pressing MODE-button. 
   Display::getInstance().printToScreen(moistureValue1, moistureValue2, moistureValue3, moistureValue4, moistureMeanValue, tempValue, humidityValue, lightValue, uvValue);
 
+  
+  Serial.print("Clock: ");
+  Serial.println(Config::State().currentClockTime);
 /*
   //Different functions to be run depending of which screen display mode that is currently active.
   if(startupImageDisplay == true) {

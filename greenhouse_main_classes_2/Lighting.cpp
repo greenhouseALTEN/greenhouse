@@ -11,7 +11,7 @@ bool Lighting::checkLightNeed(unsigned short uvValue) {
   bool enabled = false;
   bool insideTimeInterval = false;
   
-  if(currentClockTime >= 631 && currentClockTime < 2332) {
+  if(Config::State().currentClockTime >= 631 && Config::State().currentClockTime < 2332) {
     insideTimeInterval = true;   
   } else {
     insideTimeInterval = false;   

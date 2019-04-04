@@ -15,9 +15,10 @@ private:
   void viewStartupImage();
   void viewSetClock();
   void stringToDisplay(unsigned char x, unsigned char y, char* text);
-  void numberToDisplay(unsigned char x, unsigned char y, int variable);
+  void numberToDisplay(unsigned char x, unsigned char y, unsigned short variable);
   void blankToDisplay(unsigned char x, unsigned char y, int numOfBlanks);
   void flashNumberDisplay(unsigned short x, unsigned short y, unsigned short numOfDigits);
+  void Display::flashCharacterDisplay(unsigned short x, unsigned short y, char symbol);
 };
 
 #endif  /* Display_H_ */
