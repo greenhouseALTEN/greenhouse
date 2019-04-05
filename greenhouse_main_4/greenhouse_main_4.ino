@@ -352,6 +352,15 @@ void viewStartupImage() {
     startupImageDisplay = false;                      //Clear current screen display state.
     setTimeDisplay = true;                            //Set next display mode to be printed to display.  
     hour2InputMode = true;                             //Set state in next display mode.
+   
+    //REMOVE ALL THIS!!
+    /*
+    clockSetFinished = false;               //Clear current state in display mode.
+    setTimeDisplay = false;                 //Clear current display mode.
+    readoutValuesDisplay = true;            //Set next display mode to be printed to display.
+    alarmMessageEnabled = true;             //Enable any alarm message to be printed to display.
+    greenhouseProgramStart = true;          //Start greenhouse program.
+    */
   }
 }
 
@@ -384,7 +393,7 @@ void blankToDisplay(unsigned char x, unsigned char y, int numOfBlanks) {
   for(int i=0; i<numOfBlanks; i++) {              //Print blank space to display. Each loop one blank space is printed.
     SeeedGrayOled.setTextXY(x, y);                //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
     SeeedGrayOled.putString(" ");                 //Blank symbol.
-    y++;                                          //Increase column cordinate to print next blank space in the same row.
+    y += 8;                                       //Increase column cordinate to print next blank space in the same row.
   }
 }
 
@@ -393,91 +402,86 @@ void blankToDisplay(unsigned char x, unsigned char y, int numOfBlanks) {
 || VALUE READ OUT DISPLAY MODE. Print read out values to OLED display. ||
 ========================================================================= */
 void viewReadoutValues() {
-  //Clear redundant value digits from previous read out for all sensor values.
-  SeeedGrayOled.setTextXY(0, 42);
-  SeeedGrayOled.putString("      ");
-  SeeedGrayOled.setTextXY(1, 42);
-  SeeedGrayOled.putString("      ");
-  SeeedGrayOled.setTextXY(1, 37);
-  SeeedGrayOled.putString("     ");  
-  SeeedGrayOled.setTextXY(2, 42);
-  SeeedGrayOled.putString("      ");    
-  SeeedGrayOled.setTextXY(3, 39);
-  SeeedGrayOled.putString("         ");
-  SeeedGrayOled.setTextXY(4, 42);
-  SeeedGrayOled.putString("    ");
-  SeeedGrayOled.setTextXY(4, 44);               //Clear symbols from previous display mode.
-  SeeedGrayOled.putString("    ");
-  SeeedGrayOled.setTextXY(5, 42);
-  SeeedGrayOled.putString("      ");
+  //Clear symbols from previous display mode.   
+  blankToDisplay(0, 0, 2);
+  blankToDisplay(2, 9, 7);
+  blankToDisplay(3, 5, 11);
+  blankToDisplay(4, 6, 10);
+  blankToDisplay(5, 9, 7);
+  blankToDisplay(6, 9, 7);
+  blankToDisplay(7, 5, 11);
+  blankToDisplay(8, 9, 7);
+  blankToDisplay(9, 9, 7);
+  blankToDisplay(10, 0, 16);
+  blankToDisplay(11, 7, 9);
+
+  blankToDisplay(13, 0, 16);
+  blankToDisplay(14, 0, 16);
+  blankToDisplay(15, 0, 16);
+ 
+  stringToDisplay(0, 2, "READOUT VALUES");          //Print current display state to upper right corner of display.
 
   //Printing read out values from the greenhouse to display.
-  /*
-  ************************
-  |Moisture sensor value.|
-  ************************/
-  SeeedGrayOled.setTextXY(0, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putString("Moisture: ");        //Print string to display.
-  SeeedGrayOled.setTextXY(0, 42);
-  SeeedGrayOled.putNumber(moistureMeanValue);   //Print mean moisture value to display.
-
-  //Select which text string to be printed to display depending of soil moisture.
-  SeeedGrayOled.setTextXY(0, 45);
-  if(moistureDry == true && moistureWet == false) {
-    SeeedGrayOled.putString("Dry");             //Print string to display.
+  /*************************************
+  |Moisture mean value and soil status.|
+  **************************************/
+  stringToDisplay(2, 0, "Moisture:");
+  numberToDisplay(2, 10, moistureMeanValue);    //Moisture mean value calculated from all four moisture sensor readouts.
+  
+  stringToDisplay(3, 0, "Soil:");               //Prints "Dry", "OK" or "Wet" to display based on soil humidity.
+  if(moistureDry == true) {
+    stringToDisplay(3, 10, "Dry");
   }
   else if(moistureDry == false && moistureWet == false) {
-    SeeedGrayOled.putString(" OK");             //Print string to display.
+    stringToDisplay(3, 10, "OK");
   }
-  else if(moistureDry == false && moistureWet == true) {
-    SeeedGrayOled.putString("Wet");             //Print string to display.
-  }  
+  else if(moistureWet == true) {
+    stringToDisplay(3, 10, "Wet");
+  }
 
-  /*******************
-  |Temp sensor value.|
-  ********************/
-  SeeedGrayOled.setTextXY(1, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putString("Temp: ");            //Print string to display.
-  SeeedGrayOled.setTextXY(1, 42);
-  SeeedGrayOled.putNumber(tempValue);           //Print temperature value to display.
+  /***************************
+  |Light and UV-light values.|
+  ****************************/
+  SeeedGrayOled.setTextXY(4, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString("Light:");            //Print string to display.
+  SeeedGrayOled.setTextXY(4, 10*8);
+  SeeedGrayOled.putNumber(lightValue);          //Print light value in the unit, lux, to display.
 
-  /***********************
-  |UV-light sensor value.|
-  ************************/
-  SeeedGrayOled.setTextXY(2, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putString("UV-light: ");        //Print string to display.
-  SeeedGrayOled.setTextXY(2, 42);
-  SeeedGrayOled.putNumber(uvValue);             //Print UV-light value to display.
+  SeeedGrayOled.setTextXY(5, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString("UV-light:");         //Print string to display.
+  SeeedGrayOled.setTextXY(5, 10*8);
+  SeeedGrayOled.putNumber(uvValue);             //Print light value in the unit, lux, to display.
 
   /********************
-  |Light sensor value.|
+  |Air humidity value.|
   *********************/
-  SeeedGrayOled.setTextXY(3, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putString("Light: ");           //Print string to display.
-  SeeedGrayOled.setTextXY(3, 42);
-  SeeedGrayOled.putNumber(lightValue);          //Print light value in the unit, lux, to display.
-  SeeedGrayOled.putString("lm");                 //Print unit of the value.
-
-  /**********************
-  |Temp threshold value.|
-  ***********************/
-  SeeedGrayOled.setTextXY(4, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putString("Temp lim: ");        //Print string to display.
-  SeeedGrayOled.setTextXY(4, 42);
-  SeeedGrayOled.putNumber(tempThresholdValue / 2);    //Print temperature threshold value to display. Value 24 corresponds to 12°C, temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
+  stringToDisplay(6, 0, "Humidity:");              
+  numberToDisplay(6, 10, humidityValue);      //Air humidity value, unit in %.
   
+  /*************************************************************************
+  |Temperature value and temperature threshold value set by rotary encoder.|
+  **************************************************************************/
+  stringToDisplay(7, 0, "Temp:");              
+  numberToDisplay(7, 10, tempValue);            //Temperature value.
+
+  stringToDisplay(8, 0, "Temp lim:");              
+  SeeedGrayOled.setTextXY(8, 10*8);
+  SeeedGrayOled.putNumber(tempThresholdValue / 2);  //Print temperature threshold value to display. Value 24 corresponds to 12°C, temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
+
+
   /*************************
   |Water flow sensor value.|
   **************************/
-  SeeedGrayOled.setTextXY(5, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putString("Flow Sens: ");       //Print string to display.
-  SeeedGrayOled.setTextXY(5, 42);
-  SeeedGrayOled.putNumber(waterFlowValue);      //Print water flow value to display.
-  SeeedGrayOled.putString("L/h");               //Print unit of the value.
+  SeeedGrayOled.setTextXY(9, 0);                    //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString("Wtr flow:");           //Print string to display.
+  SeeedGrayOled.setTextXY(9, 10*8);
+  SeeedGrayOled.putNumber(waterFlowValue);          //Print water flow value to display.
 
-  //Printing separator line to separate read out values from error/warning messages.
-  SeeedGrayOled.setTextXY(6, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putString("----------------");  //Print string to display.
+  /*****************************
+  |Space for any active alarms.|
+  ******************************/
+  stringToDisplay(11, 0, "Alarms:");              
+
 }
 
 /*
@@ -691,22 +695,29 @@ ISR(RTC_CNT_vect) {
       //Serial.println(currentClockTime);
     }
   }
-  /*********************************************************************
-  |Read temperature threshold value adjustments done by rotary encoder.|
-  **********************************************************************/
-  //Rotary encoder adjustments are checked with a frequency of 10 Hz.
+
+  //NOT WORKING DUE TO TOO LOW FREQUENCY OF INTERRUPT.
+  /*************************************
+  |Temperature rotary encoder read out.|
+  **************************************/
+  //Reading preset temperature threshold thas is being adjusted by rotary encoder knob.
+  /*
+  int minTemp = 28;   //Temperature value can be set within the boundaries of 14 - 40°C (minTemp - maxTemp). Temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
+  int maxTemp = 80;
   int aState;
-  aState = digitalRead(rotaryEncoderOutpA);                                                     //Reads the current state of the rotary knob, outputA.
+
+  aState = digitalRead(rotaryEncoderOutpA);                         //Reads the current state of the rotary knob, outputA.
   
-    if(aState != aLastState) {                                                                  //A turn on rotary knob is detected by comparing previous and current state of outputA.
-      if(digitalRead(rotaryEncoderOutpB) != aState && tempThresholdValue <= TEMP_VALUE_MAX) {   //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
-        tempThresholdValue++;                                                                   //Clockwise rotation means increasing position value. Position value is only increased if less than max value.
-      }
-      else if(tempThresholdValue > TEMP_VALUE_MIN) {
-        tempThresholdValue--;                                                                   //Counter clockwise rotation means decreasing position value.
-      }
+  if(aState != aLastState) {                                        //A turn on rotary knob is detected by comparing previous and current state of outputA.
+    if(digitalRead(rotaryEncoderOutpB) != aState && tempThresholdValue <= maxTemp) { //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
+      tempThresholdValue++;                                         //Clockwise rotation means increasing position value. Position value is only increased if less than max value.
     }
-  aLastState = aState;                                                                          //Update the previous state of outputA with current state.
+    else if(tempThresholdValue > minTemp) {
+      tempThresholdValue--;                                         //Counter clockwise rotation means decreasing position value.
+    }
+  }
+  aLastState = aState;                                              //Updates the previous state of outputA with current state.
+  */
 
   /**************************
   |Flash clock digit cursor.|
@@ -885,6 +896,8 @@ void toggleDisplayMode() {
 || SET CLOCK TIME DISPLAY MODE. Print clock values to OLED display to let user set current time. ||
 =================================================================================================== */
 void setClockDisplay() { 
+  stringToDisplay(0, 7, "SET CLOCK");     //Print current display state to upper right corner of display.
+  
   stringToDisplay(2, 0, "Set current time");
   stringToDisplay(3, 0, "Use the buttons:");
   stringToDisplay(5, 0, "SET = inc. p.val");
@@ -948,7 +961,7 @@ void setClockDisplay() {
   SeeedGrayOled.putNumber(secondPointer2);                   //Print second digit of second pointer value to display.
   SeeedGrayOled.setTextXY(10, 27*8);                           
   SeeedGrayOled.putNumber(secondPointer1);                   //Print first digit of second pointer value to display.
-  //test
+  
 }
 
 /*
@@ -983,15 +996,15 @@ void alarmMessageDisplay() {
     |Water flow fault.|
     *******************/
     if(alarmTimeDiff <= alarmTimePeriod) {
-      SeeedGrayOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
+      SeeedGrayOled.setTextXY(12, 0);                          //Set cordinates to which row that will be cleared.
       SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
       if(waterFlowFault == true) {                        //If fault variable is set to 'true', fault message is printed to display.
-        SeeedGrayOled.setTextXY(7, 0);                        
+        SeeedGrayOled.setTextXY(12, 0);                        
         SeeedGrayOled.putString("No water flow");             //Print fault message to display.
       }
 
       else {  //If this alarm not active, clear the warning message row.
-        SeeedGrayOled.setTextXY(7, 0);                        //Set cordinates to the warning message will be printed.
+        SeeedGrayOled.setTextXY(12, 0);                        //Set cordinates to the warning message will be printed.
         SeeedGrayOled.putString("                ");          //Clear row to enable other warnings to be printed to display.
       }
     }
@@ -1001,13 +1014,13 @@ void alarmMessageDisplay() {
     ***********************/
     if(alarmTimePeriod < alarmTimeDiff && alarmTimeDiff <= alarmTimePeriod * 2) {
       if(waterLevelValue == true) {                         //If fault variable is set to 'true', fault message is printed to display.
-        SeeedGrayOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
+        SeeedGrayOled.setTextXY(12, 0);                          //Set cordinates to which row that will be cleared.
         SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
-        SeeedGrayOled.setTextXY(7, 0);                          
+        SeeedGrayOled.setTextXY(12, 0);                          
         SeeedGrayOled.putString("Low water level");             //Print fault message to display.
       }
       else {  //If this alarm not active, clear the warning message row.
-        SeeedGrayOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+        SeeedGrayOled.setTextXY(12, 0);                          //Set cordinates to the warning message will be printed.
         SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.      
       }
     }
@@ -1017,13 +1030,13 @@ void alarmMessageDisplay() {
     ********************/
     if(alarmTimePeriod * 2 < alarmTimeDiff && alarmTimeDiff <= alarmTimePeriod * 3) { 
       if(tempValueFault == true) {                          //If fault variable is set to 'true', fault message is printed to display.
-        SeeedGrayOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
+        SeeedGrayOled.setTextXY(12, 0);                          //Set cordinates to which row that will be cleared.
         SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
-        SeeedGrayOled.setTextXY(7, 0);                          
+        SeeedGrayOled.setTextXY(12, 0);                          
         SeeedGrayOled.putString("High temperature");            //Print fault message to display.
       }
       else {  //If this alarm not active, clear the warning message row.
-        SeeedGrayOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+        SeeedGrayOled.setTextXY(12, 0);                          //Set cordinates to the warning message will be printed.
         SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.      
       }
     }
@@ -1033,19 +1046,19 @@ void alarmMessageDisplay() {
     *********************/
     if(alarmTimePeriod * 3 < alarmTimeDiff && alarmTimeDiff <= alarmTimePeriod * 4) { 
       if(ledLightFault == true) {                           //If fault variable is set to 'true', fault message is printed to display.
-        SeeedGrayOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
+        SeeedGrayOled.setTextXY(12, 0);                          //Set cordinates to which row that will be cleared.
         SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
-        SeeedGrayOled.setTextXY(7, 0);                          
+        SeeedGrayOled.setTextXY(12, 0);                          
         SeeedGrayOled.putString("LED not working");             //If measured water flow is below a certain value without the water level sensor indicating the water tank is empty, there is a problem with the water tank hose. "Check water hose!" is printed to display.
       }
       else {  //If this alarm not active, clear the warning message row.
-        SeeedGrayOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+        SeeedGrayOled.setTextXY(12, 0);                          //Set cordinates to the warning message will be printed.
         SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.      
       }
     }
   
     if(alarmTimeDiff > alarmTimePeriod * 4) {
-      SeeedGrayOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedGrayOled.setTextXY(12, 0);                          //Set cordinates to the warning message will be printed.
       SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
       alarmTimePrev = millis();                           //Read millis() value to reset time delay calculation.
     }  
@@ -1057,94 +1070,115 @@ void alarmMessageDisplay() {
 || SERVICE MODE DISPLAY MODE. Print service mode screen to OLED display. ||
 =========================================================================== */
 void viewServiceMode() {
-  //Clear redundant value digits from previous read out for all sensor values.
-  SeeedGrayOled.setTextXY(0, 39);
-  SeeedGrayOled.putString(" ");
-  SeeedGrayOled.setTextXY(1, 25);  
-  SeeedGrayOled.putString("     ");  
-  SeeedGrayOled.setTextXY(2, 19);
-  SeeedGrayOled.putString("   ");
-  SeeedGrayOled.setTextXY(2, 24);                            
-  SeeedGrayOled.putString(" ");  
-  SeeedGrayOled.setTextXY(2, 28);
-  SeeedGrayOled.putString("   ");     
-  SeeedGrayOled.setTextXY(3, 19);
-  SeeedGrayOled.putString("   ");
-  SeeedGrayOled.setTextXY(3, 28);
-  SeeedGrayOled.putString("   ");
-  SeeedGrayOled.setTextXY(4, 27);
-  SeeedGrayOled.putString(" ");
-  SeeedGrayOled.setTextXY(5, 26);
-  SeeedGrayOled.putString("  ");
-  SeeedGrayOled.setTextXY(5, 45);
-  SeeedGrayOled.putString("   ");
-  SeeedGrayOled.setTextXY(6, 42);
-  SeeedGrayOled.putString("  ");
-  SeeedGrayOled.setTextXY(6, 45);
-  SeeedGrayOled.putString("   ");
-  SeeedGrayOled.setTextXY(7, 45);
-  SeeedGrayOled.putString("  ");
+  //Clear symbols from previous display mode.   
+  blankToDisplay(0, 0, 4);
+  
+  blankToDisplay(2, 6, 2);
+  blankToDisplay(3, 0, 16);
+  blankToDisplay(4, 9, 7);
+  blankToDisplay(5, 3, 3);
+  blankToDisplay(5, 8, 1);
+  blankToDisplay(5, 12, 3);
+  blankToDisplay(6, 3, 3);
+  blankToDisplay(6, 8, 1);
+  blankToDisplay(6, 12, 3);
+  
+  blankToDisplay(7, 0, 16);
+  
+  blankToDisplay(9, 10, 4);
+  
+  blankToDisplay(10, 9, 7);
+  blankToDisplay(11, 10, 6);
+  blankToDisplay(12, 11, 5);
+
+  blankToDisplay(13, 0, 16);
+  blankToDisplay(14, 0, 16);
+  blankToDisplay(15, 0, 16);
+  blankToDisplay(16, 0, 16);
+  
+  stringToDisplay(0, 4, "SERVICE MODE");  //Print current display state to upper right corner of display.
   
   //Display clock.
-  SeeedGrayOled.setTextXY(0, 0);                            //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putString("Clock: ");                       //Print string to display.
-  //Hour pointer.
-  SeeedGrayOled.setTextXY(0, 40);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putNumber(hourPointer2);                    //Print 10-digit hour pointer value to display.
-  SeeedGrayOled.setTextXY(0, 41);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putNumber(hourPointer1);                    //Print 1-digit hour pointer value to display.
+  stringToDisplay(2, 0, "Clock:");
   
-  SeeedGrayOled.setTextXY(0, 42);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putString(":");                             //Print separator symbol, between hour and minute digits, todisplay.
+  //Hour pointerS.          
+  SeeedGrayOled.setTextXY(2, 8*8);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(hourPointer2);                    //Print 10-digit hour pointer value to display.
+  SeeedGrayOled.setTextXY(2, 9*8);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(hourPointer1);                    //Print 1-digit hour pointer value to display.
 
-  //Minute pointer.
-  SeeedGrayOled.setTextXY(0, 43);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  stringToDisplay(2, 10, ":");
+
+  //Minute pointers.
+  SeeedGrayOled.setTextXY(2, 11*8);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putNumber(minutePointer2);                  //Print 10-digit hour pointer value to display.
-  SeeedGrayOled.setTextXY(0, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.setTextXY(2, 12*8);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putNumber(minutePointer1);                  //Print 1-digit hour pointer value to display.
 
-  SeeedGrayOled.setTextXY(0, 45);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putString(":");                             //Print separator symbol, between hour and minute digits, todisplay.
-
-  //Second pointer.
-  SeeedGrayOled.setTextXY(0, 46);                           
+  stringToDisplay(2, 13, ":");
+  
+  //Second pointers.
+  SeeedGrayOled.setTextXY(2, 14*8);                           
   SeeedGrayOled.putNumber(secondPointer2);                  //Print second digit of second pointer value to display.
-  SeeedGrayOled.setTextXY(0, 47);                           
+  SeeedGrayOled.setTextXY(2, 15*8);                           
   SeeedGrayOled.putNumber(secondPointer1);                  //Print first digit of second pointer value to display.
 
+
   //Display moisture sensor values.
-  SeeedGrayOled.setTextXY(1, 0);                            //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.setTextXY(4, 0);                            //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putString("Moisture:");                     //Print text to display.
-  SeeedGrayOled.setTextXY(2, 0);                            
-  SeeedGrayOled.putString("S1[");                           //Print text to display.
-  SeeedGrayOled.setTextXY(2, 19);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putNumber(moistureValue1);                  //Print moisture sensor1 value.
-  SeeedGrayOled.setTextXY(2, 22);                            
-  SeeedGrayOled.putString("],");                     
-
-  SeeedGrayOled.setTextXY(2, 25);                            
-  SeeedGrayOled.putString("S2[");                           //Print text to display.
-  SeeedGrayOled.setTextXY(2, 28);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putNumber(moistureValue2);                  //Print moisture sensor1 value.
-  SeeedGrayOled.setTextXY(2, 31);                            
-  SeeedGrayOled.putString("]");
   
-  SeeedGrayOled.setTextXY(3, 0);                            
-  SeeedGrayOled.putString("S3[");                           //Print text to display.
-  SeeedGrayOled.setTextXY(3, 19);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putNumber(moistureValue3);                  //Print moisture sensor1 value.
-  SeeedGrayOled.setTextXY(3, 22);                            
+  SeeedGrayOled.setTextXY(5, 0);                            
+  SeeedGrayOled.putString("S1[");                           //Print text to display.
+  SeeedGrayOled.setTextXY(5, 3*8);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(moistureValue1);                  //Print moisture sensor1 value.
+  SeeedGrayOled.setTextXY(5, 6*8);                            
   SeeedGrayOled.putString("],");                     
 
-  SeeedGrayOled.setTextXY(3, 25);                            
+  SeeedGrayOled.setTextXY(5, 9*8);                            
+  SeeedGrayOled.putString("S2[");                           //Print text to display.
+  SeeedGrayOled.setTextXY(5, 12*8);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(moistureValue2);                  //Print moisture sensor1 value.
+  SeeedGrayOled.setTextXY(5, 15*8);                            
+  SeeedGrayOled.putString("]"); 
+  
+  SeeedGrayOled.setTextXY(6, 0);                            
+  SeeedGrayOled.putString("S3[");                           //Print text to display.
+  SeeedGrayOled.setTextXY(6, 3*8);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(moistureValue3);                  //Print moisture sensor1 value.
+  SeeedGrayOled.setTextXY(6, 6*8);                            
+  SeeedGrayOled.putString("],");                     
+
+  SeeedGrayOled.setTextXY(6, 9*8);                            
   SeeedGrayOled.putString("S4[");                           //Print text to display.
-  SeeedGrayOled.setTextXY(3, 28);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.setTextXY(6, 12*8);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putNumber(moistureValue4);                  //Print moisture sensor1 value.
-  SeeedGrayOled.setTextXY(3, 31);                            
-  SeeedGrayOled.putString("]");
+  SeeedGrayOled.setTextXY(6, 15*8);                            
+  SeeedGrayOled.putString("]"); 
+
+  stringToDisplay(8, 0, "Fault codes:");
+  SeeedGrayOled.setTextXY(9, 0);                            
+  SeeedGrayOled.putString("tempValue:");                   //Print text to display.
+  SeeedGrayOled.setTextXY(9, 12*8);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(tempValueFault);                  //Print moisture sensor1 value.
+
+  SeeedGrayOled.setTextXY(10, 0);                            
+  SeeedGrayOled.putString("ledLight:");                    //Print text to display.
+  SeeedGrayOled.setTextXY(10, 12*8);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(ledLightFault);                   //Print moisture sensor1 value.
+
+  SeeedGrayOled.setTextXY(11, 0);                            
+  SeeedGrayOled.putString("waterFlow:");                   //Print text to display.
+  SeeedGrayOled.setTextXY(11, 12*8);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(waterFlowFault);                  //Print moisture sensor1 value.
+
+  SeeedGrayOled.setTextXY(12, 0);                            
+  SeeedGrayOled.putString("waterLevel:");                  //Print text to display.
+  SeeedGrayOled.setTextXY(12, 12*8);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(waterLevelValue);                 //Print moisture sensor1 value.
 
   //Alarm messsage status.
-  SeeedGrayOled.setTextXY(4, 0);                            
+/*  SeeedGrayOled.setTextXY(4, 0);                            
   SeeedGrayOled.putString("tempValue: ");                   //Print text to display.
   SeeedGrayOled.setTextXY(4, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putNumber(tempValueFault);                  //Print moisture sensor1 value.
@@ -1163,6 +1197,7 @@ void viewServiceMode() {
   SeeedGrayOled.putString("waterLevel: ");                  //Print text to display.
   SeeedGrayOled.setTextXY(7, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putNumber(waterLevelValue);                 //Print moisture sensor1 value.
+*/
 }
 
 /*
