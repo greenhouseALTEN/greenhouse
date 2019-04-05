@@ -48,13 +48,11 @@ A2:   Moisture sensor3
 A1:   Moisture sensor2
 A0:   Moisture sensor1
 D4:   Humidity and temperature sensor
-D8:   Water pump relay
 I2C:  OLED display
 D3:   Water flow sensor
 D7:   SET-button
 I2C:  'EMPTY'
 D2:   MODE-button
-D6:   LED lighting relay
 I2C:  Light sensor
 UART: 'EMPTY'
 D5:   'EMPTY'
@@ -1329,7 +1327,8 @@ void setup() {
   
   lightSensor.Begin();                    //Initializing light sensor.
 
-
+  relay.begin(0x11);
+  
   //Enable time interrupt.
   cli();                                              //Stop any external interrups.
 
@@ -1388,7 +1387,8 @@ void loop() {
   moistureValue3 = moistureSensor3.moistureRead(moistureSensorPort3);                                   //Read moistureSensor3 value to check soil humidity.
   moistureValue4 = moistureSensor4.moistureRead(moistureSensorPort4);                                   //Read moistureSensor4 value to check soil humidity.
   moistureMeanValue = calculateMoistureMean(moistureValue1, moistureValue2, moistureValue3, moistureValue4);    //Mean value from all sensor readouts.
-  
+
+  Serial.println("hello");
   tempValue = humiditySensor.readTemperature(false);                                                    //Read temperature value from DHT-sensor. "false" gives the value in °C.
   humidityValue = humiditySensor.readHumidity();                                                           //Read humidity value from DHT-sensor.
   tempThresholdCompare();
@@ -1441,9 +1441,9 @@ void loop() {
       checkMoistureStart = millis();                  //Get current time stamp from millis() to make it loop.                                                                                       
     }
 
-    Serial.print("waterPumpState");
+    Serial.print("waterPumpState: ");
     Serial.println(waterPumpState);
-    Serial.print("waterPumpEnabled");
+    Serial.print("waterPumpEnabled: ");
     Serial.println(waterPumpEnabled);
     
     //Stop water pump after it has run for a certain amount of time.
