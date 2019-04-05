@@ -538,3 +538,4 @@ void SeeedGrayOLED::setInverseDisplay()
 }
 
 SeeedGrayOLED SeeedGrayOled;  // Preinstantiate Objects
+
