@@ -3,7 +3,8 @@
 * Included header files *
 *************************/
 #include "Wire.h"
-#include "SeeedOLED.h"
+#include "SeeedGrayOLED.h"
+#include "multi_channel_relay.h"
 #include "DHT.h"
 #include "SI114X.h"
 #include "MoistureSensor.h"
@@ -20,10 +21,8 @@
 #define DHTPIN 4
 #define rotaryEncoderOutpA 11
 #define rotaryEncoderOutpB 10
-#define pumpRelay 8
 #define flowSensor 3
 #define waterLevelSwitch 12
-#define lightRelay 6
 #define clockSetButton 7
 #define clockModeButton 2
 
@@ -96,8 +95,15 @@ int moistureThresholdHigh = 700;
 const uint8_t DHTTYPE = DHT11;            //DHT11 = Arduino UNO model is being used.
 DHT humiditySensor(DHTPIN, DHTTYPE);      //Create humidity sensor from DHT class.
 float tempValue;
-//float humidValue;
+float humidityValue;
 bool tempValueFault = false;              //Indicate if read out temperature is higher than temperature treshold that has been set by adjusting temperature rotary encoder. Variable is 'false' when read out temperature is below set temperature threshold.
+static unsigned short TEMP_VALUE_MIN = 28;                    //Temperature value can be set within the boundaries of 14 - 40°C. Temp value is doubled to reduce rotary knob sensitivity.
+static unsigned short TEMP_VALUE_MAX = 80;
+
+//4-Channel Relay
+Multi_Channel_Relay relay;                //Relay object created from Multi_Channel_Relay class.
+uint8_t WATER_PUMP = 4;                   //Relay channel number where water pump is connected.
+uint8_t LED_LIGHTING = 3;                 //Relay channel number where led lighting is connected.
 
 //Rotary encoder to adjust temperature threshold.
 int tempThresholdValue = 60;              //Starting value for temperature threshold adjustment is 30°C.
@@ -141,13 +147,11 @@ bool minute2InputMode = false;
 bool minute1InputMode = false;
 bool pushButton1 = false;
 
-
 bool clockStartMode = false;
 bool clockSetFinished = false;
-int divider100 = 0;
-int divider50 = 0;                          
+unsigned short divider10 = 0; 
+unsigned short divider5 = 0;                         
 bool flashClockPointer = false;         //Variable to create lash clock pointer when in "set clock" mode.       
-int x = 0;                              //Toggle variable to flash current clock pointer.
 
 //Alarm messages to display.
 bool alarmMessageEnabled = false;       //Enable any alarm to be printed to display. If variable is 'true' alarm is enable to be printed to display.
@@ -191,145 +195,137 @@ bool insideTimeInterval = false;
 
 /*
 ==============================================================
-|| Bitmap image 1 to be printed on OLED display at startup. ||
-============================================================== */
-const unsigned char greenhouse[] PROGMEM= {
-//Startup image 1.
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x80, 0xE0, 0x78, 0x18, 0x0C, 0x04, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x04, 0x00,
-0x00, 0x00, 0x00, 0xC0, 0xC0, 0x00, 0x80, 0xC0, 0xC0, 0x00, 0x00, 0x00, 0x80, 0xC0, 0xC0, 0x40,
-0xC0, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x80, 0xC0, 0x40, 0xC0, 0xC0, 0x80, 0x00,
-0x00, 0x00, 0x00, 0x00, 0xC0, 0xC0, 0x80, 0x80, 0xC0, 0xC0, 0xC0, 0xC0, 0x80, 0x00, 0x00, 0x00,
-0x00, 0xFF, 0xFF, 0x80, 0x80, 0xC0, 0xC0, 0xC0, 0xC0, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x80, 0x80, 0xC0, 0xC0, 0xE0, 0xE0, 0xE0, 0x00, 0x00, 0x00, 0x00, 0xC0, 0xC0, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0xC0, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x80, 0xC0, 0xC0, 0xC0, 0xC0,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x80, 0xC0, 0x40, 0xC0, 0xC0, 0x80, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x0F, 0x7F, 0xF0, 0xC0, 0x80, 0x00, 0x00, 0x00, 0x04, 0x06, 0x06, 0x06, 0xFE, 0xFE,
-0x00, 0x00, 0x00, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x00, 0x7C, 0xFF, 0x89, 0x08, 0x08, 0x08,
-0x08, 0x09, 0x0F, 0x0E, 0x00, 0x00, 0x7C, 0xFF, 0x89, 0x08, 0x08, 0x08, 0x08, 0x08, 0x09, 0x0F,
-0x0E, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0xFF, 0xFE, 0x00, 0x00,
-0x00, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFC, 0xFE,
-0x7F, 0x7F, 0xBF, 0xDF, 0xF7, 0xFF, 0xFF, 0xFF, 0x7F, 0x0F, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x80,
-0x00, 0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x07, 0x0F, 0x0C, 0x18, 0x18, 0xF0,
-0xE0, 0x00, 0x00, 0x7C, 0xFF, 0x89, 0x08, 0x08, 0x08, 0x08, 0x08, 0x09, 0x0F, 0x0E, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x01, 0x01,
-0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x03, 0x03, 0x03,
-0x83, 0x43, 0x43, 0xF0, 0x80, 0x40, 0x40, 0x80, 0xC1, 0x43, 0x43, 0xE3, 0x83, 0x43, 0x43, 0xC1,
-0x00, 0xC0, 0x40, 0x80, 0x83, 0x43, 0x40, 0x80, 0x80, 0x40, 0x40, 0xF0, 0x03, 0x03, 0xF0, 0x40,
-0x40, 0x83, 0xC3, 0x00, 0xC0, 0x00, 0x00, 0x00, 0x00, 0xE3, 0x63, 0x80, 0x00, 0x00, 0x01, 0xE4,
-0x02, 0x03, 0x23, 0x23, 0x23, 0xE1, 0x21, 0x20, 0x20, 0x00, 0xE0, 0x20, 0x20, 0x20, 0x21, 0x03,
-0xE3, 0xE3, 0x83, 0x01, 0x00, 0x03, 0xE3, 0x00, 0x00, 0x00, 0x01, 0x03, 0x03, 0x03, 0x03, 0x01,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x01, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x01, 0x02, 0x02, 0x03, 0x01, 0x03, 0x03, 0x01, 0x02, 0x03, 0x01, 0x03, 0x01, 0x0A, 0x0A, 0x07,
-0x00, 0x03, 0x00, 0x03, 0x01, 0x03, 0x03, 0x01, 0x01, 0x02, 0x02, 0x03, 0x00, 0x00, 0x03, 0x02,
-0x02, 0x01, 0x04, 0x03, 0x00, 0x00, 0x00, 0x38, 0x0F, 0x05, 0x04, 0x07, 0x1C, 0x20, 0x00, 0x3F,
-0x20, 0x20, 0x20, 0x20, 0x00, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x3F, 0x22, 0x22, 0x22, 0x22, 0x00,
-0x3F, 0x00, 0x01, 0x07, 0x0C, 0x38, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-};
-
-/*
-==============================================================
 || Bitmap image 2 to be printed on OLED display at startup. ||
 ============================================================== */
-const unsigned char features[] PROGMEM= {
-//Startup image 2.
+const unsigned char greenhouse[] PROGMEM= {
+  //Startup image.
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1E, 0x70, 0x1C, 0x0E, 0x70, 0x3C, 0x06, 0x64,
-0x54, 0x78, 0x00, 0x7E, 0x44, 0x00, 0x38, 0x54, 0x54, 0x18, 0x7C, 0x04, 0x00, 0x00, 0x00, 0x7E,
-0x40, 0x40, 0x78, 0x54, 0x54, 0x58, 0x00, 0x1C, 0x70, 0x38, 0x04, 0x38, 0x54, 0x54, 0x18, 0x7E,
-0x00, 0x00, 0x00, 0x4C, 0x4A, 0x52, 0x32, 0x1C, 0x70, 0x1C, 0x38, 0x70, 0x0C, 0x7E, 0x00, 0x04,
-0x7E, 0x44, 0x38, 0x44, 0x44, 0x00, 0x7E, 0x04, 0x04, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xF0, 0x5E, 0x46, 0x78, 0xC0, 0x00, 0x00, 0xF8,
-0x10, 0x08, 0x00, 0xF0, 0x18, 0x08, 0x08, 0xFE, 0x00, 0x00, 0xF8, 0x00, 0x00, 0x00, 0x00, 0xF8,
-0x00, 0xFA, 0x00, 0x00, 0xF8, 0x10, 0x08, 0x08, 0x18, 0xF0, 0x00, 0xE0, 0x10, 0x08, 0x08, 0x10,
-0xE0, 0x00, 0x00, 0x00, 0x00, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE, 0x00, 0xFE, 0x0E, 0x18,
-0x70, 0xC0, 0x80, 0xFE, 0x00, 0x00, 0xF8, 0x04, 0x02, 0x02, 0x02, 0x04, 0xF8, 0x00, 0x00, 0x00,
-0x7E, 0x40, 0x40, 0x00, 0x7E, 0x38, 0x44, 0x44, 0xFC, 0x00, 0x7E, 0x04, 0x04, 0x78, 0x00, 0x7E,
-0x44, 0x00, 0x00, 0x00, 0x4C, 0x4A, 0x32, 0x00, 0x38, 0x54, 0x54, 0x18, 0x7C, 0x04, 0x04, 0x78,
-0x00, 0x48, 0x54, 0x20, 0x38, 0x44, 0x44, 0x38, 0x00, 0x7C, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x00, 0x03,
-0x00, 0x00, 0x00, 0x01, 0x03, 0x02, 0x02, 0x03, 0x00, 0x00, 0x01, 0x03, 0x02, 0x02, 0x09, 0x0B,
-0xF8, 0x0B, 0xC8, 0xA0, 0xA3, 0xA0, 0xC0, 0xE0, 0x20, 0x23, 0xE0, 0x20, 0x21, 0xC2, 0x02, 0xE1,
-0x20, 0x20, 0x20, 0xC0, 0x00, 0xC0, 0xA1, 0xA2, 0xC2, 0x02, 0xE1, 0x20, 0x20, 0xA3, 0xA0, 0xC0,
-0x00, 0x20, 0xF3, 0x23, 0xE0, 0x00, 0x00, 0xE1, 0x02, 0x02, 0xE2, 0x21, 0x00, 0xC0, 0xA0, 0xA0,
-0xC0, 0x00, 0x00, 0x40, 0xA0, 0xA0, 0x21, 0xC1, 0xA0, 0xA0, 0xC0, 0x00, 0xE0, 0x20, 0x20, 0xC0,
-0x00, 0x40, 0xA0, 0xA0, 0x20, 0xC0, 0x20, 0x20, 0x20, 0xC0, 0x00, 0xE0, 0x20, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xE0, 0xC0, 0x00, 0x80, 0xE0, 0xE0, 0x80, 0x40, 0x40,
-0x40, 0x80, 0xE0, 0x00, 0x80, 0x40, 0x40, 0x40, 0xE0, 0x40, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0,
-0x43, 0x00, 0x81, 0x42, 0x42, 0x82, 0x02, 0x03, 0xC0, 0xA0, 0x23, 0x20, 0x80, 0x43, 0x40, 0x8F,
-0x02, 0xC2, 0x42, 0x41, 0x80, 0x81, 0x42, 0x42, 0x82, 0x40, 0x43, 0x40, 0x83, 0xC2, 0x42, 0x03,
-0x00, 0x00, 0xF3, 0x1A, 0x09, 0x0A, 0x1A, 0xF3, 0x00, 0x00, 0xFB, 0x00, 0x00, 0x01, 0x02, 0xFA,
-0x8A, 0x88, 0x88, 0x02, 0xFA, 0x0A, 0x09, 0x09, 0x12, 0xE2, 0x02, 0x00, 0x03, 0xF8, 0x08, 0x0B,
-0x08, 0x12, 0xF2, 0x02, 0xE9, 0x01, 0x02, 0xE2, 0xA2, 0x21, 0x00, 0xE3, 0x20, 0x20, 0x60, 0xC0,
-0x00, 0xF8, 0x00, 0x00, 0x20, 0x20, 0xC0, 0x00, 0x20, 0xC0, 0x00, 0xC0, 0x60, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x07, 0x03, 0x00, 0x07, 0x03, 0x04, 0x04,
-0x04, 0x03, 0x07, 0x00, 0x04, 0x05, 0x03, 0x00, 0x07, 0x34, 0xE0, 0x07, 0xC4, 0x77, 0xC0, 0x07,
-0xE0, 0x30, 0x43, 0x45, 0xC5, 0x81, 0x40, 0xE0, 0x44, 0x44, 0x05, 0xC3, 0x43, 0xC5, 0x85, 0x05,
-0xC0, 0x47, 0x40, 0x00, 0x07, 0x04, 0xF5, 0x13, 0x13, 0xE4, 0x04, 0xC4, 0x03, 0x07, 0xC0, 0x00,
-0x00, 0xC0, 0x43, 0x46, 0xC4, 0x44, 0x46, 0xC3, 0x00, 0x00, 0xC7, 0x44, 0x44, 0xC4, 0x80, 0x07,
-0x04, 0x04, 0x04, 0x00, 0x07, 0x04, 0x04, 0x04, 0x03, 0x01, 0x00, 0x00, 0x00, 0x07, 0x04, 0x04,
-0x04, 0x02, 0x01, 0x00, 0x07, 0x00, 0x00, 0x04, 0x05, 0x07, 0x00, 0x1F, 0x04, 0x04, 0x06, 0x03,
-0x00, 0x07, 0x00, 0x06, 0x05, 0x05, 0x07, 0x00, 0x00, 0x09, 0x07, 0x01, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0xC0, 0x00, 0x00, 0xC0, 0x80, 0x00, 0xC0, 0x00, 0x80, 0x80, 0x00, 0x80, 0xC0,
-0x80, 0x00, 0x80, 0x80, 0x00, 0x80, 0x80, 0x00, 0x00, 0x00, 0xC3, 0x4E, 0x43, 0x00, 0xC7, 0x0E,
-0x03, 0x80, 0x8C, 0x0A, 0x8A, 0x0F, 0x00, 0x8F, 0x08, 0x80, 0x07, 0x0A, 0x0A, 0x8A, 0x43, 0x40,
-0x0F, 0x00, 0x80, 0x80, 0x00, 0x80, 0x8F, 0x81, 0x01, 0x00, 0x00, 0x8F, 0x08, 0x08, 0x8F, 0x80,
-0x00, 0x0F, 0x80, 0x80, 0x0F, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x3F, 0x08, 0x08, 0x0C, 0x07, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x07, 0x0E, 0x01, 0x07, 0x0E, 0x01, 0x04, 0x0A, 0x0A, 0x0F, 0x00, 0x0F,
-0x08, 0x07, 0x0A, 0x0A, 0x03, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x02, 0x02, 0x00, 0x0F, 0x00,
-0x07, 0x08, 0x08, 0x07, 0x01, 0x0E, 0x07, 0x03, 0x0E, 0x03, 0x00, 0x00, 0x00, 0xE9, 0x09, 0x06,
-0x00, 0x07, 0xEA, 0x2A, 0x23, 0x2F, 0x00, 0xE0, 0x2F, 0x20, 0x29, 0x4A, 0x84, 0x07, 0x08, 0x08,
-0xE7, 0x00, 0x0F, 0x00, 0x00, 0xA0, 0x00, 0x00, 0x80, 0x80, 0x80, 0x80, 0x00, 0x00, 0xE0, 0x80,
-0x80, 0x00, 0x00, 0x80, 0xC0, 0x80, 0x00, 0xA0, 0x00, 0x00, 0x80, 0x80, 0x80, 0x00, 0x00, 0x00,
-0x80, 0x80, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F, 0x10, 0x10,
-0x10, 0x00, 0x1F, 0x12, 0x12, 0x12, 0x00, 0x1F, 0x10, 0x10, 0x10, 0x0C, 0x07, 0x00, 0x00, 0x00,
-0x1F, 0x10, 0x10, 0x10, 0x00, 0x1F, 0x00, 0x0F, 0x59, 0x50, 0x50, 0x3F, 0x00, 0x00, 0x1F, 0x00,
-0x00, 0x1F, 0x00, 0x00, 0x1F, 0x10, 0x00, 0x1F, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x1F, 0x00, 0x0F,
-0x59, 0x50, 0x79, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+0x00, 0x01, 0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x00, 0x00, 0x07, 0xC0,
+0x00, 0x03, 0xE1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x10, 0x00, 0x00, 0x04, 0xA0,
+0x00, 0x06, 0x21, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x10, 0x00, 0x00, 0x04, 0xA0,
+0x00, 0x0C, 0x21, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x10, 0x40, 0x00, 0x03, 0x00,
+0x00, 0x08, 0x21, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x01, 0xFC, 0x7C, 0x00, 0x04, 0x00,
+0x00, 0x08, 0x21, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x07, 0x80,
+0x00, 0x04, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0xC0, 0xF0, 0x38, 0x00, 0x07, 0x80,
+0x00, 0x06, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x21, 0x00, 0x44, 0x00, 0x00, 0x80,
+0x00, 0x03, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x01, 0x00, 0x44, 0x00, 0x00, 0x80,
+0x00, 0x00, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x38, 0x00, 0x07, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x07, 0x81, 0x00, 0x00, 0x00, 0x03, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1E, 0x00, 0x0A, 0x81, 0x00, 0x08, 0x00, 0x04, 0x80,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x81, 0x00, 0x54, 0x00, 0x04, 0x80,
+0x00, 0x00, 0x1E, 0x00, 0x00, 0x00, 0x00, 0x0C, 0x00, 0x01, 0x01, 0xF0, 0x24, 0x00, 0x1F, 0x80,
+0x00, 0x0C, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x80,
+0x00, 0x0C, 0x31, 0x80, 0x00, 0x00, 0x00, 0x12, 0x00, 0x7F, 0x81, 0xF0, 0x3C, 0x00, 0x04, 0x00,
+0x00, 0x0C, 0x61, 0x80, 0x00, 0x00, 0x00, 0x0C, 0x08, 0x00, 0x00, 0x10, 0x40, 0x00, 0x04, 0x00,
+0x00, 0x0C, 0x61, 0x80, 0x00, 0x00, 0x00, 0x04, 0x0F, 0x07, 0x00, 0x10, 0x40, 0x00, 0x07, 0x80,
+0x00, 0x07, 0xC1, 0x80, 0x00, 0x00, 0x00, 0x1A, 0x06, 0x08, 0x81, 0xE0, 0x7C, 0x00, 0x03, 0x00,
+0x00, 0x03, 0x81, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x09, 0x08, 0x80, 0x00, 0x00, 0x00, 0x05, 0x80,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09, 0x08, 0x83, 0x00, 0x34, 0x00, 0x05, 0x80,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0E, 0x09, 0x0F, 0xE4, 0x80, 0x54, 0x00, 0x03, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x06, 0x00, 0x04, 0x80, 0x54, 0x00, 0x07, 0x80,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1E, 0x0A, 0x09, 0x07, 0xF0, 0x38, 0x00, 0x04, 0x00,
+0x00, 0x0F, 0xFF, 0x8F, 0xF8, 0x00, 0x00, 0x00, 0x0D, 0x0A, 0x80, 0x00, 0x00, 0x00, 0x1F, 0x80,
+0x00, 0x0F, 0xFF, 0x80, 0x30, 0x00, 0x00, 0x0A, 0x05, 0x04, 0x80, 0x00, 0x18, 0x00, 0x00, 0x00,
+0x00, 0x00, 0x02, 0x00, 0xC0, 0x00, 0x00, 0x1A, 0x07, 0x00, 0x00, 0x01, 0x24, 0x00, 0x04, 0x80,
+0x00, 0x00, 0x01, 0x03, 0x00, 0x00, 0x00, 0x1A, 0x08, 0x2F, 0x81, 0x00, 0xC4, 0x00, 0x0F, 0x00,
+0x00, 0x00, 0x01, 0x86, 0x00, 0x00, 0x00, 0x0C, 0x08, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03, 0x00,
+0x00, 0x00, 0x01, 0x8F, 0xF8, 0x00, 0x00, 0x0C, 0x0F, 0x0E, 0x01, 0xF0, 0x00, 0x00, 0x04, 0x80,
+0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x00, 0x4A, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x04, 0x80,
+0x00, 0x00, 0x03, 0x00, 0x08, 0x00, 0x00, 0x52, 0x05, 0x20, 0x80, 0xD0, 0x70, 0x00, 0x03, 0x00,
+0x00, 0x0F, 0xFF, 0x08, 0x88, 0x00, 0x00, 0x22, 0x0D, 0x20, 0x81, 0x50, 0x0C, 0x00, 0x03, 0x80,
+0x00, 0x0F, 0xFC, 0x08, 0x88, 0x00, 0x00, 0x00, 0x06, 0x20, 0x81, 0x50, 0x32, 0x00, 0x0A, 0x80,
+0x00, 0x00, 0x00, 0x08, 0x88, 0x00, 0x00, 0x00, 0x00, 0x3F, 0x80, 0xE0, 0x40, 0x00, 0x08, 0x80,
+0x00, 0x00, 0x00, 0x0F, 0xF8, 0x00, 0x00, 0x12, 0x26, 0x00, 0x00, 0x00, 0x44, 0x00, 0x07, 0x00,
+0x00, 0x01, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x3C, 0x29, 0x00, 0x01, 0x10, 0xFC, 0x00, 0x00, 0x00,
+0x00, 0x1F, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0x00, 0x03, 0xF0, 0x40, 0x00, 0x00, 0x00,
+0x00, 0x1F, 0xFE, 0x08, 0x00, 0x00, 0x00, 0x0E, 0x00, 0x0E, 0x01, 0x00, 0x00, 0x00, 0x00, 0xC0,
+0x00, 0x1F, 0xFF, 0x08, 0x00, 0x00, 0x00, 0x10, 0x00, 0x11, 0x00, 0xF1, 0x7C, 0x00, 0x00, 0x00,
+0x00, 0x0F, 0xFF, 0x0F, 0xF8, 0x00, 0x00, 0x7E, 0x00, 0x20, 0x81, 0x50, 0x00, 0x00, 0x0F, 0x00,
+0x00, 0x0F, 0xDF, 0x88, 0x00, 0x00, 0x00, 0x00, 0x3F, 0x20, 0x81, 0x51, 0xFC, 0x00, 0x09, 0x80,
+0x00, 0x07, 0xEF, 0x88, 0x00, 0x00, 0x00, 0x1F, 0x04, 0x20, 0x80, 0x30, 0x44, 0x00, 0x0E, 0x80,
+0x00, 0x07, 0xF7, 0x88, 0x08, 0x00, 0x00, 0x12, 0x8D, 0x3F, 0x80, 0x00, 0x44, 0x10, 0x00, 0x00,
+0x00, 0x03, 0xFB, 0x80, 0x08, 0x00, 0x00, 0x12, 0x8D, 0x00, 0x07, 0x80, 0x38, 0x1E, 0x0F, 0x80,
+0x00, 0x03, 0xFD, 0x80, 0x08, 0x00, 0x00, 0x0C, 0x06, 0x24, 0x80, 0x70, 0x00, 0x00, 0x08, 0x00,
+0x00, 0x01, 0xFE, 0xC0, 0x08, 0x00, 0x00, 0x00, 0x08, 0x24, 0x80, 0xF1, 0x7C, 0x0C, 0x00, 0x00,
+0x00, 0x00, 0xFF, 0x1F, 0xF8, 0x00, 0x00, 0x5E, 0x06, 0x24, 0x87, 0x00, 0x00, 0x12, 0x0F, 0x00,
+0x00, 0x00, 0x3E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x3F, 0x83, 0xC0, 0x3C, 0x12, 0x08, 0x80,
+0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x02, 0x0C, 0x00, 0x00, 0x70, 0x40, 0x0C, 0x07, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x70, 0x00, 0x00, 0x02, 0x04, 0x00, 0x81, 0xE0, 0x40, 0x04, 0x00, 0x00,
+0x00, 0x01, 0xFF, 0x83, 0xC0, 0x02, 0xC0, 0x7E, 0x0D, 0x00, 0x86, 0x00, 0x3C, 0x1A, 0x0E, 0x80,
+0x00, 0x07, 0xFF, 0x8C, 0x40, 0x03, 0x40, 0x00, 0x0D, 0x00, 0x80, 0x00, 0x40, 0x0A, 0x09, 0x80,
+0x00, 0x06, 0x00, 0x0E, 0x40, 0x01, 0x80, 0x00, 0x06, 0x3F, 0x80, 0x00, 0x40, 0x00, 0x08, 0x80,
+0x00, 0x0C, 0x00, 0x01, 0xE0, 0x02, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7C, 0x0E, 0x00, 0x00,
+0x00, 0x0C, 0x00, 0x00, 0x38, 0x02, 0xC0, 0x00, 0x01, 0x1F, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00,
+0x00, 0x0C, 0x00, 0x00, 0x00, 0x01, 0x80, 0x00, 0x01, 0x31, 0x01, 0x00, 0x7C, 0x1E, 0x1F, 0x80,
+0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x00, 0xF8, 0x3F, 0x20, 0x81, 0xF0, 0x04, 0x00, 0x00, 0x00,
+0x00, 0x04, 0x00, 0x03, 0x00, 0x03, 0xC1, 0x04, 0x00, 0x20, 0x80, 0x00, 0x04, 0x0A, 0x0F, 0x80,
+0x00, 0x03, 0x00, 0x00, 0xC0, 0x00, 0x02, 0x02, 0x00, 0x11, 0x00, 0xE0, 0x78, 0x1A, 0x04, 0x00,
+0x01, 0xFF, 0xFF, 0x83, 0xA0, 0x03, 0xC2, 0x02, 0x08, 0x0E, 0x01, 0x10, 0x00, 0x1A, 0x07, 0x80,
+0x01, 0xFF, 0xFF, 0x81, 0x80, 0x00, 0x42, 0x02, 0x0F, 0x00, 0x01, 0x11, 0xFC, 0x0C, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x02, 0x40, 0x03, 0xC1, 0x8C, 0x00, 0x00, 0x00, 0xE0, 0x20, 0x14, 0x07, 0x80,
+0x00, 0x00, 0x00, 0x02, 0x40, 0x00, 0x00, 0x78, 0x05, 0x00, 0x00, 0x00, 0x20, 0x1A, 0x04, 0x80,
+0x00, 0x00, 0x00, 0x0F, 0xC0, 0x02, 0x40, 0x00, 0x0D, 0x00, 0x01, 0x60, 0x20, 0x0A, 0x07, 0xE0,
+0x00, 0x01, 0xFF, 0x80, 0x00, 0x07, 0x83, 0xFE, 0x06, 0x00, 0x01, 0x51, 0xFC, 0x00, 0x00, 0x00,
+0x00, 0x07, 0xFF, 0x80, 0x00, 0x01, 0xC0, 0x0C, 0x00, 0x04, 0x00, 0x90, 0x00, 0x00, 0x01, 0x80,
+0x00, 0x06, 0x00, 0x0F, 0xC0, 0x03, 0x40, 0x18, 0x09, 0x07, 0x80, 0x00, 0x00, 0x08, 0x0F, 0x00,
+0x00, 0x0C, 0x00, 0x02, 0x40, 0x02, 0xC0, 0x60, 0x1E, 0x03, 0x00, 0xF0, 0x00, 0x1A, 0x0F, 0x00,
+0x00, 0x0C, 0x00, 0x02, 0x40, 0x01, 0x80, 0xC0, 0x07, 0x04, 0x81, 0x00, 0x00, 0x1A, 0x01, 0x80,
+0x00, 0x0C, 0x00, 0x01, 0xC0, 0x02, 0xC3, 0x80, 0x0D, 0x04, 0x81, 0x00, 0x00, 0x0C, 0x00, 0x00,
+0x00, 0x04, 0x00, 0x01, 0x80, 0x02, 0xC3, 0xFE, 0x0D, 0x03, 0x01, 0xF0, 0x7E, 0x10, 0x00, 0x00,
+0x00, 0x04, 0x00, 0x02, 0xC0, 0x01, 0x80, 0x00, 0x02, 0x01, 0x00, 0xC0, 0x45, 0x1E, 0x00, 0x00,
+0x00, 0x03, 0x00, 0x02, 0xC0, 0x0A, 0x00, 0x00, 0x30, 0x04, 0x81, 0x50, 0x45, 0x00, 0x00, 0x00,
+0x00, 0x0F, 0xFF, 0x81, 0x80, 0x07, 0xC3, 0xFC, 0x07, 0x06, 0x81, 0x50, 0x38, 0x1E, 0x00, 0x00,
+0x00, 0x0F, 0xFF, 0x81, 0xC0, 0x00, 0x00, 0x06, 0x0E, 0x00, 0x00, 0x50, 0x00, 0x02, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x38, 0x03, 0x80, 0xE0, 0x3C, 0x02, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x07, 0x04, 0x00, 0x60, 0x40, 0x1C, 0x00, 0x00,
+0x00, 0x00, 0xE0, 0x03, 0xC0, 0x00, 0x00, 0x04, 0x0E, 0x04, 0x04, 0x90, 0x40, 0x12, 0x00, 0x00,
+0x00, 0x03, 0xE1, 0x03, 0xE0, 0x00, 0x03, 0xF8, 0x30, 0x07, 0x84, 0x90, 0x40, 0x3E, 0x00, 0x00,
+0x00, 0x06, 0x21, 0x82, 0x50, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0x10, 0x7C, 0x00, 0x00, 0x00,
+0x00, 0x04, 0x21, 0x82, 0x50, 0x00, 0x00, 0x00, 0x00, 0x06, 0x80, 0x00, 0x00, 0x1E, 0x00, 0x00,
+0x00, 0x0C, 0x21, 0x81, 0x80, 0x00, 0x00, 0x00, 0x00, 0x06, 0x80, 0x01, 0x7C, 0x1A, 0x00, 0x00,
+0x00, 0x08, 0x21, 0x87, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x03, 0x01, 0x00, 0x00, 0x16, 0x00, 0x00,
+0x00, 0x0C, 0x21, 0x80, 0x00, 0x00, 0x00, 0x3C, 0x00, 0x03, 0x00, 0x60, 0x44, 0x00, 0x00, 0x00,
+0x00, 0x04, 0x21, 0x02, 0xC0, 0x00, 0x00, 0x42, 0x0F, 0x12, 0x80, 0x70, 0xFC, 0x10, 0x00, 0x00,
+0x00, 0x06, 0x27, 0x03, 0x40, 0x00, 0x00, 0x42, 0x10, 0x14, 0x81, 0xC0, 0x40, 0x1E, 0x00, 0x00,
+0x00, 0x03, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x42, 0x10, 0x08, 0x80, 0x60, 0x00, 0x08, 0x00, 0x00,
+0x00, 0x00, 0xF8, 0x03, 0xC0, 0x00, 0x00, 0x3C, 0x1F, 0x00, 0x00, 0x70, 0x3C, 0x1A, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x02, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x40, 0x1A, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x01, 0xC0, 0x00, 0x00, 0x00, 0x0F, 0x02, 0x00, 0xE0, 0x40, 0x0C, 0x00, 0x00,
+0x00, 0x01, 0xE0, 0x00, 0x00, 0x00, 0x00, 0x3E, 0x15, 0x06, 0x81, 0x13, 0xFC, 0x00, 0x00, 0x00,
+0x00, 0x03, 0xE1, 0x0F, 0xC0, 0x00, 0x00, 0x40, 0x13, 0x06, 0x81, 0x10, 0x00, 0x0C, 0x00, 0x00,
+0x00, 0x06, 0x21, 0x82, 0x40, 0x00, 0x00, 0x40, 0x00, 0x03, 0x01, 0x10, 0x7E, 0x12, 0x00, 0x00,
+0x00, 0x0C, 0x21, 0x83, 0xC0, 0x00, 0x00, 0x20, 0x48, 0x04, 0x00, 0xE0, 0x45, 0x12, 0x00, 0x00,
+0x00, 0x08, 0x21, 0x80, 0x00, 0x00, 0x00, 0x7E, 0x48, 0x07, 0x80, 0x00, 0x45, 0x1F, 0x80, 0x00,
+0x00, 0x08, 0x21, 0x80, 0x00, 0x00, 0x00, 0x00, 0x7F, 0x00, 0x07, 0xF0, 0x45, 0x0E, 0x00, 0x00,
+0x00, 0x04, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x80, 0x00, 0x38, 0x10, 0x00, 0x00,
+0x00, 0x06, 0x23, 0x00, 0x00, 0x00, 0x02, 0x7E, 0x00, 0x00, 0x84, 0x80, 0x00, 0x10, 0x00, 0x00,
+0x00, 0x03, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x84, 0x81, 0x7C, 0x0E, 0x00, 0x00,
+0x00, 0x00, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x7E, 0x10, 0x07, 0x07, 0xF0, 0x00, 0x10, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x1F, 0x04, 0x80, 0x00, 0x04, 0x1E, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x0F, 0x80, 0x00, 0x04, 0x00, 0x00, 0x00,
+0x00, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x5F, 0x00, 0x00, 0x00, 0x04, 0x0A, 0x00, 0x00,
+0x00, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7C, 0x01, 0x01, 0x01, 0x01, 0xFC, 0x1A, 0x00, 0x00,
+0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x06, 0x81, 0xF0, 0x00, 0x1A, 0x00, 0x00,
+0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7C, 0x02, 0x80, 0x00, 0x00, 0x4C, 0x00, 0x00,
+0x00, 0x0F, 0xFF, 0x80, 0x00, 0x00, 0x03, 0xFE, 0x74, 0x00, 0x00, 0xD0, 0x00, 0x40, 0x00, 0x00,
+0x00, 0x0F, 0xFF, 0x80, 0x00, 0x00, 0x00, 0x64, 0x0E, 0x17, 0x81, 0x50, 0x70, 0x7E, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x42, 0x01, 0x03, 0x01, 0x50, 0x88, 0x40, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x04, 0x80, 0xE1, 0x04, 0x00, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3C, 0x00, 0x04, 0x81, 0x11, 0x04, 0x00, 0x00, 0x00,
+0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x03, 0xF1, 0x04, 0x00, 0x00, 0x00,
+0x00, 0xC0, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x01, 0x01, 0xFC, 0x00, 0x00, 0x00,
+0x00, 0xC0, 0xC1, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+0x00, 0xC0, 0xC1, 0x80, 0x00, 0x00, 0x00, 0x7E, 0x00, 0x1C, 0x00, 0xF1, 0x24, 0x00, 0x00, 0x00,
+0x00, 0xC0, 0xC1, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x01, 0x51, 0x24, 0x00, 0x00, 0x00,
+0x00, 0xC0, 0x81, 0x80, 0x00, 0x00, 0x00, 0x02, 0x00, 0x03, 0x01, 0x31, 0x24, 0x00, 0x00, 0x00,
+0x00, 0xC0, 0x01, 0x80, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x1C, 0x04, 0x01, 0xFC, 0x00, 0x00, 0x00,
+0x00, 0xC0, 0x01, 0x80, 0x00, 0x00, 0x01, 0xF0, 0x00, 0x0F, 0x81, 0xC0, 0x00, 0x00, 0x00, 0x00,
+0x00, 0x40, 0x01, 0x00, 0x00, 0x00, 0x03, 0x10, 0x00, 0x00, 0x00, 0x70, 0x04, 0x00, 0x00, 0x00,
+0x00, 0x60, 0x03, 0x00, 0x00, 0x00, 0x01, 0xD0, 0x00, 0x00, 0x07, 0x80, 0x04, 0x00, 0x00, 0x00,
+0x00, 0x30, 0x07, 0x00, 0x00, 0x00, 0x00, 0x38, 0x00, 0x00, 0x07, 0x80, 0x04, 0x00, 0x00, 0x00,
+0x00, 0x1C, 0x1E, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x71, 0xFC, 0x00, 0x00, 0x00,
+0x00, 0x0F, 0xFC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0xE0, 0x00, 0x00, 0x00, 0x00,
+0x00, 0x03, 0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00,
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
@@ -341,22 +337,16 @@ void viewStartupImage() {
   if(startupImageDisplay) {
     Serial.println("startupImageDisplay");
     Wire.begin();
-    SeeedOled.init();
-    SeeedOled.clearDisplay();                         //Clear display.
-    SeeedOled.setHorizontalMode();
-    SeeedOled.setNormalDisplay();                     //Set display to normal mode (non-inverse mode).
-    SeeedOled.setPageMode();                          //Set addressing mode to Page Mode.
+    SeeedGrayOled.init(SH1107G);
+    SeeedGrayOled.clearDisplay();                         //Clear display.
+    SeeedGrayOled.setVerticalMode();
+    SeeedGrayOled.setNormalDisplay();                     //Set display to normal mode (non-inverse mode).
 
     /*
-    //Startup image 1.
-    SeeedOled.drawBitmap(greenhouse, (128*64)/8);   //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
+    //Startup image.
+    SeeedGrayOled.drawBitmap(greenhouse, (128*128)/8);   //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
     delay(4000);                                    //Image shown for 4 seconds.
-    SeeedOled.clearDisplay();                       //Clear the display.
-
-    //Startup image 2.
-    SeeedOled.drawBitmap(features, (128*64)/8);       //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
-    delay(3000);                                      //Image shown for 3 seconds.
-    SeeedOled.clearDisplay();                         //Clear the display.
+    SeeedGrayOled.clearDisplay();                       //Clear the display.
     */
   
     startupImageDisplay = false;                      //Clear current screen display state.
@@ -366,95 +356,128 @@ void viewStartupImage() {
 }
 
 /*
+=======================================
+|| Print number variable to display. ||
+======================================= */
+void numberToDisplay(unsigned char x, unsigned char y, unsigned short variable) {
+  y *= 8;                                         //To align symbol with rest printed text. Each symbol requires 8px in width.
+  SeeedGrayOled.setTextXY(x, y);                  //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(variable);              //Print value to display.
+}
+
+/*
+===================================
+|| Print custom text to display. ||
+=================================== */
+void stringToDisplay(unsigned char x, unsigned char y, char* text) {
+  y *= 8;                                         //To align symbol with rest printed text. Each symbol requires 8px in width.
+  SeeedGrayOled.setTextXY(x, y);                  //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString(text);                  //Print text to display.
+}
+
+/*
+======================================================
+|| Clear any character/s (print blanks) at display. ||
+====================================================== */
+void blankToDisplay(unsigned char x, unsigned char y, int numOfBlanks) {
+  y *= 8;                                         //To align symbol with rest printed text. Each symbol requires 8px in width.
+  for(int i=0; i<numOfBlanks; i++) {              //Print blank space to display. Each loop one blank space is printed.
+    SeeedGrayOled.setTextXY(x, y);                //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
+    SeeedGrayOled.putString(" ");                 //Blank symbol.
+    y++;                                          //Increase column cordinate to print next blank space in the same row.
+  }
+}
+
+/*
 =========================================================================
 || VALUE READ OUT DISPLAY MODE. Print read out values to OLED display. ||
 ========================================================================= */
 void viewReadoutValues() {
   //Clear redundant value digits from previous read out for all sensor values.
-  SeeedOled.setTextXY(0, 42);
-  SeeedOled.putString("      ");
-  SeeedOled.setTextXY(1, 42);
-  SeeedOled.putString("      ");
-  SeeedOled.setTextXY(1, 37);
-  SeeedOled.putString("     ");  
-  SeeedOled.setTextXY(2, 42);
-  SeeedOled.putString("      ");    
-  SeeedOled.setTextXY(3, 39);
-  SeeedOled.putString("         ");
-  SeeedOled.setTextXY(4, 42);
-  SeeedOled.putString("    ");
-  SeeedOled.setTextXY(4, 44);               //Clear symbols from previous display mode.
-  SeeedOled.putString("    ");
-  SeeedOled.setTextXY(5, 42);
-  SeeedOled.putString("      ");
+  SeeedGrayOled.setTextXY(0, 42);
+  SeeedGrayOled.putString("      ");
+  SeeedGrayOled.setTextXY(1, 42);
+  SeeedGrayOled.putString("      ");
+  SeeedGrayOled.setTextXY(1, 37);
+  SeeedGrayOled.putString("     ");  
+  SeeedGrayOled.setTextXY(2, 42);
+  SeeedGrayOled.putString("      ");    
+  SeeedGrayOled.setTextXY(3, 39);
+  SeeedGrayOled.putString("         ");
+  SeeedGrayOled.setTextXY(4, 42);
+  SeeedGrayOled.putString("    ");
+  SeeedGrayOled.setTextXY(4, 44);               //Clear symbols from previous display mode.
+  SeeedGrayOled.putString("    ");
+  SeeedGrayOled.setTextXY(5, 42);
+  SeeedGrayOled.putString("      ");
 
   //Printing read out values from the greenhouse to display.
   /*
   ************************
   |Moisture sensor value.|
   ************************/
-  SeeedOled.setTextXY(0, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedOled.putString("Moisture: ");        //Print string to display.
-  SeeedOled.setTextXY(0, 42);
-  SeeedOled.putNumber(moistureMeanValue);   //Print mean moisture value to display.
+  SeeedGrayOled.setTextXY(0, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString("Moisture: ");        //Print string to display.
+  SeeedGrayOled.setTextXY(0, 42);
+  SeeedGrayOled.putNumber(moistureMeanValue);   //Print mean moisture value to display.
 
   //Select which text string to be printed to display depending of soil moisture.
-  SeeedOled.setTextXY(0, 45);
+  SeeedGrayOled.setTextXY(0, 45);
   if(moistureDry == true && moistureWet == false) {
-    SeeedOled.putString("Dry");             //Print string to display.
+    SeeedGrayOled.putString("Dry");             //Print string to display.
   }
   else if(moistureDry == false && moistureWet == false) {
-    SeeedOled.putString(" OK");             //Print string to display.
+    SeeedGrayOled.putString(" OK");             //Print string to display.
   }
   else if(moistureDry == false && moistureWet == true) {
-    SeeedOled.putString("Wet");             //Print string to display.
+    SeeedGrayOled.putString("Wet");             //Print string to display.
   }  
 
   /*******************
   |Temp sensor value.|
   ********************/
-  SeeedOled.setTextXY(1, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedOled.putString("Temp: ");            //Print string to display.
-  SeeedOled.setTextXY(1, 42);
-  SeeedOled.putNumber(tempValue);           //Print temperature value to display.
+  SeeedGrayOled.setTextXY(1, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString("Temp: ");            //Print string to display.
+  SeeedGrayOled.setTextXY(1, 42);
+  SeeedGrayOled.putNumber(tempValue);           //Print temperature value to display.
 
   /***********************
   |UV-light sensor value.|
   ************************/
-  SeeedOled.setTextXY(2, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedOled.putString("UV-light: ");        //Print string to display.
-  SeeedOled.setTextXY(2, 42);
-  SeeedOled.putNumber(uvValue);             //Print UV-light value to display.
+  SeeedGrayOled.setTextXY(2, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString("UV-light: ");        //Print string to display.
+  SeeedGrayOled.setTextXY(2, 42);
+  SeeedGrayOled.putNumber(uvValue);             //Print UV-light value to display.
 
   /********************
   |Light sensor value.|
   *********************/
-  SeeedOled.setTextXY(3, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedOled.putString("Light: ");           //Print string to display.
-  SeeedOled.setTextXY(3, 42);
-  SeeedOled.putNumber(lightValue);          //Print light value in the unit, lux, to display.
-  SeeedOled.putString("lm");                 //Print unit of the value.
+  SeeedGrayOled.setTextXY(3, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString("Light: ");           //Print string to display.
+  SeeedGrayOled.setTextXY(3, 42);
+  SeeedGrayOled.putNumber(lightValue);          //Print light value in the unit, lux, to display.
+  SeeedGrayOled.putString("lm");                 //Print unit of the value.
 
   /**********************
   |Temp threshold value.|
   ***********************/
-  SeeedOled.setTextXY(4, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedOled.putString("Temp lim: ");        //Print string to display.
-  SeeedOled.setTextXY(4, 42);
-  SeeedOled.putNumber(tempThresholdValue / 2);    //Print temperature threshold value to display. Value 24 corresponds to 12°C, temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
+  SeeedGrayOled.setTextXY(4, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString("Temp lim: ");        //Print string to display.
+  SeeedGrayOled.setTextXY(4, 42);
+  SeeedGrayOled.putNumber(tempThresholdValue / 2);    //Print temperature threshold value to display. Value 24 corresponds to 12°C, temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
   
   /*************************
   |Water flow sensor value.|
   **************************/
-  SeeedOled.setTextXY(5, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedOled.putString("Flow Sens: ");       //Print string to display.
-  SeeedOled.setTextXY(5, 42);
-  SeeedOled.putNumber(waterFlowValue);      //Print water flow value to display.
-  SeeedOled.putString("L/h");               //Print unit of the value.
+  SeeedGrayOled.setTextXY(5, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString("Flow Sens: ");       //Print string to display.
+  SeeedGrayOled.setTextXY(5, 42);
+  SeeedGrayOled.putNumber(waterFlowValue);      //Print water flow value to display.
+  SeeedGrayOled.putString("L/h");               //Print unit of the value.
 
   //Printing separator line to separate read out values from error/warning messages.
-  SeeedOled.setTextXY(6, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedOled.putString("----------------");  //Print string to display.
+  SeeedGrayOled.setTextXY(6, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString("----------------");  //Print string to display.
 }
 
 /*
@@ -472,7 +495,7 @@ void lightRead() {
 || Turn ON LED lighting. ||
 =========================== */
 void ledLightStart() {
-  digitalWrite(lightRelay, HIGH);                                 //Turn on LED lighting.
+  relay.turn_on_channel(LED_LIGHTING);                                 //Turn on LED lighting.
   ledLightState = true;                                           //Update current LED lighting state, 'true' means lighting is on.
   Serial.println("LED lighting ON");
 }
@@ -497,7 +520,7 @@ void ledLightCheck() {
 || Turn OFF LED lighting. ||
 ============================ */
 void ledLightStop() {  
-  digitalWrite(lightRelay, LOW);                                //Turn off LED lighting.
+  relay.turn_off_channel(LED_LIGHTING);                                //Turn off LED lighting.
   ledLightState = false;                                        //Update current LED lighting state, 'false' means lighting is off.
   Serial.println("LED lighting OFF");
 }
@@ -548,7 +571,7 @@ void flowCount() {
 || Start water pump, read water flow sensor. ||
 =============================================== */
 void waterPumpStart() {                
-  digitalWrite(pumpRelay, HIGH);          //Start water pump.
+  relay.turn_on_channel(WATER_PUMP);          //Start water pump.
   waterPumpState = true;                  //Update current water pump state, 'true' means water pump is running.
   Serial.println("Water pump ON");
 
@@ -568,7 +591,7 @@ void waterPumpStart() {
 || Stop water pump. ||
 ====================== */
 void waterPumpStop() {
-  digitalWrite(pumpRelay, LOW);         //Stop water pump.
+  relay.turn_off_channel(WATER_PUMP);         //Stop water pump.
   waterPumpState = false;               //Update current water pump state, 'false' means water pump not running.
   Serial.println("Water pump OFF");
 }
@@ -611,75 +634,44 @@ void checkWaterNeed() {
 || Timer interrupt to read temperature threshold value, that is being adjusted by rotary encoder.          ||
 || Timer interrupt is also used to work as a second ticker for the built clock, included in this function. ||
 ============================================================================================================= */
-ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold value set by rotary encoder.
-
-  /*************************************
-  |Temperature rotary encoder read out.|
-  **************************************/
-  //Reading preset temperature threshold thas is being adjusted by rotary encoder knob.
-  int minTemp = 28;   //Temperature value can be set within the boundaries of 14 - 40°C (minTemp - maxTemp). Temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
-  int maxTemp = 80;
-  int aState;
-
-  aState = digitalRead(rotaryEncoderOutpA);                         //Reads the current state of the rotary knob, outputA.
-  
-  if(aState != aLastState) {                                        //A turn on rotary knob is detected by comparing previous and current state of outputA.
-    if(digitalRead(rotaryEncoderOutpB) != aState && tempThresholdValue <= maxTemp) { //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
-      tempThresholdValue++;                                         //Clockwise rotation means increasing position value. Position value is only increased if less than max value.
-    }
-    else if(tempThresholdValue > minTemp) {
-      tempThresholdValue--;                                         //Counter clockwise rotation means decreasing position value.
-    }
-  }
-  aLastState = aState;                                              //Updates the previous state of outputA with current state.
-
+/*
+===========================================================================================================================================================
+|| Timer interrupt triggered with frequency of 10 Hz used as second ticker for internal clock and to flash clock pointer values when in "set time" mode. ||
+=========================================================================================================================================================== */
+ISR(RTC_CNT_vect) {
+  //Timer interrupt triggered with a frequency of 10 Hz.
   /***************************************************
   |Internal clock used to keep track of current time.|
   ****************************************************/
-  //Internal clock.
-  divider50++;                        
-    if(divider50 == 50) {               //Gives 2Hz pulse to feed the flashing of pointer digits when in clock set mode.
-    divider50 = 0;                      //Reset divider variable.
-    x++;
-    if(x == 1) {
-      flashClockPointer = true;
-    }
-    else {
-      flashClockPointer = false;
-      x = 0;
-    }
-  } 
-  
-  if(clockStartMode == true) {          //This function runs in a frequency of 100Hz. To the second pointer tick in 1Hz frequency this variable as a divider.
-    divider100++;                       
+  if(clockStartMode == true) {           //Check if internal clock is enabled to run.
+    divider10++;                            //Increase divider variable.                   
       
-    if(divider100 == 100) {             //Gives a 1Hz pulse to feed the second pointer."
-      //This function will be run every second, 1Hz and therefore it will work as second pointer that increases its value/ticks every second.
-      divider100 = 0;                   //Reset divider variable.
-      secondPointer1++;                 //Increase second pointer every time this function runs.
+    if(divider10 >= 10) {                   //This part of the function will run once every second and therefore will provide a 1 Hz pulse to feed the second pointer.
+      divider10 = 0;                        //Clear divider variable.
+      secondPointer1++;                     //Increase second pointer every time this function runs.
       
       //Second pointer.
-      if(secondPointer1 == 10) {        //If 1-digit second pointer reaches a value of 10 (elapsed time is 10 seconds).
-        secondPointer2++;               //Increase 10-digit second pointer.
-        secondPointer1 = 0;             //Clear 1-digit pointer.
+      if(secondPointer1 == 10) {            //If 1-digit second pointer reaches a value of 10 (elapsed time is 10 seconds).
+        secondPointer2++;                   //Increase 10-digit second pointer.
+        secondPointer1 = 0;                 //Clear 1-digit pointer.
       }
-      if(secondPointer2 == 6) {         //If 10-digit pointer reaches a value of 6 (elapsed time is 60 seconds).
-        minutePointer1++;               //Increase minute pointer.
-        secondPointer2 = 0;             //Clear 10-digit second pointer.
+      if(secondPointer2 == 6) {             //If 10-digit pointer reaches a value of 6 (elapsed time is 60 seconds).
+        minutePointer1++;                   //Increase minute pointer.
+        secondPointer2 = 0;                 //Clear 10-digit second pointer.
       }
       //Minute pointer.
-      if(minutePointer1 == 10) {        //If 1-digit minute pointer reaches a value of 10 (elapsed time is 10 minutes).
-        minutePointer2++;               //Increase 10-digit minute pointer.
-        minutePointer1 = 0;             //Clear 1-digit minute pointer.
+      if(minutePointer1 == 10) {            //If 1-digit minute pointer reaches a value of 10 (elapsed time is 10 minutes).
+        minutePointer2++;                   //Increase 10-digit minute pointer.
+        minutePointer1 = 0;                 //Clear 1-digit minute pointer.
       }
-      if(minutePointer2 == 6) {         //If 10-digit minute pointer reaches a value of 6 (elapsed time is 60 minutes).
-        hourPointer1++;                 //Increase 1-digit hour pointer.
-        minutePointer2 = 0;              //Clear 10-digit minute pointer.
+      if(minutePointer2 == 6) {             //If 10-digit minute pointer reaches a value of 6 (elapsed time is 60 minutes).
+        hourPointer1++;                     //Increase 1-digit hour pointer.
+        minutePointer2 = 0;                 //Clear 10-digit minute pointer.
       }
       //Hour pointer.
-      if(hourPointer1 == 10) {          //If 1-digit hour pointer reaches a value of 10 (elapsed time is 10 hours).
-        hourPointer2++;                 //Increase 10-digit hour pointer.
-        hourPointer1 = 0;               //Clear 1-digit hour pointer.
+      if(hourPointer1 == 10) {              //If 1-digit hour pointer reaches a value of 10 (elapsed time is 10 hours).
+        hourPointer2++;                     //Increase 10-digit hour pointer.
+        hourPointer1 = 0;                   //Clear 1-digit hour pointer.
       }
       if(hourPointer2 == 2 && hourPointer1 == 4) {  //If 1-digit and 10-digit hourPointer combined reaches 24 (elapsed time is 24 hours).
         hourPointer1 = 0;                           //Clear both hour digits.
@@ -699,6 +691,44 @@ ISR(TIMER1_COMPA_vect) {  //Timer interrupt 100Hz to read temperature threshold 
       //Serial.println(currentClockTime);
     }
   }
+  /*********************************************************************
+  |Read temperature threshold value adjustments done by rotary encoder.|
+  **********************************************************************/
+  //Rotary encoder adjustments are checked with a frequency of 10 Hz.
+  int aState;
+  aState = digitalRead(rotaryEncoderOutpA);                                                     //Reads the current state of the rotary knob, outputA.
+  
+    if(aState != aLastState) {                                                                  //A turn on rotary knob is detected by comparing previous and current state of outputA.
+      if(digitalRead(rotaryEncoderOutpB) != aState && tempThresholdValue <= TEMP_VALUE_MAX) {   //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
+        tempThresholdValue++;                                                                   //Clockwise rotation means increasing position value. Position value is only increased if less than max value.
+      }
+      else if(tempThresholdValue > TEMP_VALUE_MIN) {
+        tempThresholdValue--;                                                                   //Counter clockwise rotation means decreasing position value.
+      }
+    }
+  aLastState = aState;                                                                          //Update the previous state of outputA with current state.
+
+  /**************************
+  |Flash clock digit cursor.|
+  ***************************/
+  static bool toggle = false;               //Initiate variable only once (instead of declaring it as a global variable).            
+  divider5++;                               //Increase divider variable.                   
+    
+    if(divider5 >= 5) {                     //This part of the function will run twice every second and therefore will provide a 2 Hz pulse to feed the toggling of flash variable below.
+      divider5 = 0;                         //Clear divider variable.
+
+      switch(toggle) {
+        case true: 
+          flashClockPointer   = true;
+          toggle = false;
+          break;
+        case false:
+          flashClockPointer   = false;
+          toggle = true;
+          break;  
+      }
+    } 
+  RTC.INTFLAGS = 0x3;                       //Clearing OVF and CMP interrupt flags to enable new interrupt to take place according the preset time period.
 }
 
 /*
@@ -807,20 +837,20 @@ void toggleDisplayMode() {
     else if(readoutValuesDisplay == true) {
       readoutValuesDisplay = false;               //Clear current screen display mode to enable next display mode to shown next time MODE-button is pressed.
       alarmMessageEnabled = false;                //Disable any alarm message from being printed to display.
-      //SeeedOled.clearDisplay();                   //Clear display.
+      //SeeedGrayOled.clearDisplay();                   //Clear display.
       serviceModeDisplay = true;                  //Set next display mode to be printed to display.
       Serial.println("readoutValuesDisplay");
     }
     else if(serviceModeDisplay == true) {
       serviceModeDisplay = false;                 //Clear current screen display mode to enable next display mode to shown next time MODE-button is pressed.
-      //SeeedOled.clearDisplay();                   //Clear display.
+      //SeeedGrayOled.clearDisplay();                   //Clear display.
       readoutValuesDisplay = true;                //Set next display mode to be printed to display.
       alarmMessageEnabled = true;                 //Enable any alarm message from being printed to display.
       Serial.println("serviceModeDisplay");
     }
     else if(flowFaultDisplay == true) {
       flowFaultDisplay = false;                   //Clear current screen display mode to enable next display mode to shown next time MODE-button is pressed.
-      //SeeedOled.clearDisplay();                   //Clear display.
+      //SeeedGrayOled.clearDisplay();                   //Clear display.
       Serial.println("flowFaultDisplay");
       
       //Check if water flow fault code has been cleared by user or not.
@@ -854,77 +884,71 @@ void toggleDisplayMode() {
 ===================================================================================================
 || SET CLOCK TIME DISPLAY MODE. Print clock values to OLED display to let user set current time. ||
 =================================================================================================== */
-void setClockDisplay() {
-  SeeedOled.setTextXY(0, 0);                            //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putString("Set current time");              //Print text to display.
-  SeeedOled.setTextXY(1, 0);                            //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putString("Use buttons:");                  
-  SeeedOled.setTextXY(2, 0);                            
-  SeeedOled.putString("SET = inc. p.val");              
-  SeeedOled.setTextXY(3, 0);                            
-  SeeedOled.putString("MODE = h or min");               
-  SeeedOled.setTextXY(5, 20);                           
-  SeeedOled.putString("HH");                            
-  SeeedOled.setTextXY(5, 23);                           
-  SeeedOled.putString("MM");                            
-  SeeedOled.setTextXY(5, 26);                           
-  SeeedOled.putString("SS");                            
+void setClockDisplay() { 
+  stringToDisplay(2, 0, "Set current time");
+  stringToDisplay(3, 0, "Use the buttons:");
+  stringToDisplay(5, 0, "SET = inc. p.val");
+  stringToDisplay(6, 0, "MODE = h or min");
+ 
+  stringToDisplay(9, 4, "HH MM SS");
+  
 
   //Flashing individual clock time pointers to display which clock parameter that is currently set.
   //Hour pointer2
   if(flashClockPointer == true && hour2InputMode == true) {
-    SeeedOled.setTextXY(6, 20);                           
-    SeeedOled.putString(" ");                             //Clear display where 10-digit hour pointer value is located.    
+    SeeedGrayOled.setTextXY(10, 20*8);                           
+    SeeedGrayOled.putString(" ");                             //Clear display where 10-digit hour pointer value is located.    
   }
   else {
-    SeeedOled.setTextXY(6, 20);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-    SeeedOled.putNumber(hourPointer2);                    //Print 10-digit hour pointer value to display.
+    SeeedGrayOled.setTextXY(10, 20*8);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+    SeeedGrayOled.putNumber(hourPointer2);                    //Print 10-digit hour pointer value to display.
   }
   
   //Hour pointer1.
   if(flashClockPointer == true && hour1InputMode == true) {
-    SeeedOled.setTextXY(6, 21);                           
-    SeeedOled.putString(" ");                             //Clear display where 1-digit hour pointer value is located.
+    SeeedGrayOled.setTextXY(10, 21*8);                           
+    SeeedGrayOled.putString(" ");                             //Clear display where 1-digit hour pointer value is located.
 
   }
   else {
-    SeeedOled.setTextXY(6, 21);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-    SeeedOled.putNumber(hourPointer1);                    //Print 1-digit hour pointer value to display.
+    SeeedGrayOled.setTextXY(10, 21*8);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+    SeeedGrayOled.putNumber(hourPointer1);                    //Print 1-digit hour pointer value to display.
   }
 
   //Pointer separator symbol.
-  SeeedOled.setTextXY(6, 22);                             //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putString(":");                               //Print symbol to display.
+  SeeedGrayOled.setTextXY(10, 22*8);                             //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString(":");                               //Print symbol to display.
 
   //Minute pointer2.
   if(flashClockPointer == true && minute2InputMode == true) {
-    SeeedOled.setTextXY(6, 23);                           
-    SeeedOled.putString(" ");    
+    SeeedGrayOled.setTextXY(10, 23*8);                           
+    SeeedGrayOled.putString(" ");    
   }                  
   else {
-    SeeedOled.setTextXY(6, 23);                           
-    SeeedOled.putNumber(minutePointer2);
+    SeeedGrayOled.setTextXY(10, 23*8);                           
+    SeeedGrayOled.putNumber(minutePointer2);
   }
 
   //Minute pointer1.
   if(flashClockPointer == true && minute1InputMode == true) {
-    SeeedOled.setTextXY(6, 24);                           
-    SeeedOled.putString(" ");                
+    SeeedGrayOled.setTextXY(10, 24*8);                           
+    SeeedGrayOled.putString(" ");                
   }
   else {
-    SeeedOled.setTextXY(6, 24);                           
-    SeeedOled.putNumber(minutePointer1);   
+    SeeedGrayOled.setTextXY(10, 24*8);                           
+    SeeedGrayOled.putNumber(minutePointer1);   
   }
 
   //Pointer separator symbol.
-  SeeedOled.setTextXY(6, 25);                           
-  SeeedOled.putString(":");
+  SeeedGrayOled.setTextXY(10, 25*8);                           
+  SeeedGrayOled.putString(":");
 
   //Second pointers.
-  SeeedOled.setTextXY(6, 26);                           
-  SeeedOled.putNumber(secondPointer2);                   //Print second digit of second pointer value to display.
-  SeeedOled.setTextXY(6, 27);                           
-  SeeedOled.putNumber(secondPointer1);                   //Print first digit of second pointer value to display.
+  SeeedGrayOled.setTextXY(10, 26*8);                           
+  SeeedGrayOled.putNumber(secondPointer2);                   //Print second digit of second pointer value to display.
+  SeeedGrayOled.setTextXY(10, 27*8);                           
+  SeeedGrayOled.putNumber(secondPointer1);                   //Print first digit of second pointer value to display.
+  //test
 }
 
 /*
@@ -959,16 +983,16 @@ void alarmMessageDisplay() {
     |Water flow fault.|
     *******************/
     if(alarmTimeDiff <= alarmTimePeriod) {
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
-      SeeedOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
+      SeeedGrayOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
+      SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
       if(waterFlowFault == true) {                        //If fault variable is set to 'true', fault message is printed to display.
-        SeeedOled.setTextXY(7, 0);                        
-        SeeedOled.putString("No water flow");             //Print fault message to display.
+        SeeedGrayOled.setTextXY(7, 0);                        
+        SeeedGrayOled.putString("No water flow");             //Print fault message to display.
       }
 
       else {  //If this alarm not active, clear the warning message row.
-        SeeedOled.setTextXY(7, 0);                        //Set cordinates to the warning message will be printed.
-        SeeedOled.putString("                ");          //Clear row to enable other warnings to be printed to display.
+        SeeedGrayOled.setTextXY(7, 0);                        //Set cordinates to the warning message will be printed.
+        SeeedGrayOled.putString("                ");          //Clear row to enable other warnings to be printed to display.
       }
     }
 
@@ -977,14 +1001,14 @@ void alarmMessageDisplay() {
     ***********************/
     if(alarmTimePeriod < alarmTimeDiff && alarmTimeDiff <= alarmTimePeriod * 2) {
       if(waterLevelValue == true) {                         //If fault variable is set to 'true', fault message is printed to display.
-        SeeedOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
-        SeeedOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
-        SeeedOled.setTextXY(7, 0);                          
-        SeeedOled.putString("Low water level");             //Print fault message to display.
+        SeeedGrayOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
+        SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
+        SeeedGrayOled.setTextXY(7, 0);                          
+        SeeedGrayOled.putString("Low water level");             //Print fault message to display.
       }
       else {  //If this alarm not active, clear the warning message row.
-        SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-        SeeedOled.putString("                ");            //Clear row to enable other warnings to be printed to display.      
+        SeeedGrayOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+        SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.      
       }
     }
 
@@ -993,14 +1017,14 @@ void alarmMessageDisplay() {
     ********************/
     if(alarmTimePeriod * 2 < alarmTimeDiff && alarmTimeDiff <= alarmTimePeriod * 3) { 
       if(tempValueFault == true) {                          //If fault variable is set to 'true', fault message is printed to display.
-        SeeedOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
-        SeeedOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
-        SeeedOled.setTextXY(7, 0);                          
-        SeeedOled.putString("High temperature");            //Print fault message to display.
+        SeeedGrayOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
+        SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
+        SeeedGrayOled.setTextXY(7, 0);                          
+        SeeedGrayOled.putString("High temperature");            //Print fault message to display.
       }
       else {  //If this alarm not active, clear the warning message row.
-        SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-        SeeedOled.putString("                ");            //Clear row to enable other warnings to be printed to display.      
+        SeeedGrayOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+        SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.      
       }
     }
 
@@ -1009,20 +1033,20 @@ void alarmMessageDisplay() {
     *********************/
     if(alarmTimePeriod * 3 < alarmTimeDiff && alarmTimeDiff <= alarmTimePeriod * 4) { 
       if(ledLightFault == true) {                           //If fault variable is set to 'true', fault message is printed to display.
-        SeeedOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
-        SeeedOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
-        SeeedOled.setTextXY(7, 0);                          
-        SeeedOled.putString("LED not working");             //If measured water flow is below a certain value without the water level sensor indicating the water tank is empty, there is a problem with the water tank hose. "Check water hose!" is printed to display.
+        SeeedGrayOled.setTextXY(7, 0);                          //Set cordinates to which row that will be cleared.
+        SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
+        SeeedGrayOled.setTextXY(7, 0);                          
+        SeeedGrayOled.putString("LED not working");             //If measured water flow is below a certain value without the water level sensor indicating the water tank is empty, there is a problem with the water tank hose. "Check water hose!" is printed to display.
       }
       else {  //If this alarm not active, clear the warning message row.
-        SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-        SeeedOled.putString("                ");            //Clear row to enable other warnings to be printed to display.      
+        SeeedGrayOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+        SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.      
       }
     }
   
     if(alarmTimeDiff > alarmTimePeriod * 4) {
-      SeeedOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
-      SeeedOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
+      SeeedGrayOled.setTextXY(7, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
       alarmTimePrev = millis();                           //Read millis() value to reset time delay calculation.
     }  
   }
@@ -1034,111 +1058,111 @@ void alarmMessageDisplay() {
 =========================================================================== */
 void viewServiceMode() {
   //Clear redundant value digits from previous read out for all sensor values.
-  SeeedOled.setTextXY(0, 39);
-  SeeedOled.putString(" ");
-  SeeedOled.setTextXY(1, 25);  
-  SeeedOled.putString("     ");  
-  SeeedOled.setTextXY(2, 19);
-  SeeedOled.putString("   ");
-  SeeedOled.setTextXY(2, 24);                            
-  SeeedOled.putString(" ");  
-  SeeedOled.setTextXY(2, 28);
-  SeeedOled.putString("   ");     
-  SeeedOled.setTextXY(3, 19);
-  SeeedOled.putString("   ");
-  SeeedOled.setTextXY(3, 28);
-  SeeedOled.putString("   ");
-  SeeedOled.setTextXY(4, 27);
-  SeeedOled.putString(" ");
-  SeeedOled.setTextXY(5, 26);
-  SeeedOled.putString("  ");
-  SeeedOled.setTextXY(5, 45);
-  SeeedOled.putString("   ");
-  SeeedOled.setTextXY(6, 42);
-  SeeedOled.putString("  ");
-  SeeedOled.setTextXY(6, 45);
-  SeeedOled.putString("   ");
-  SeeedOled.setTextXY(7, 45);
-  SeeedOled.putString("  ");
+  SeeedGrayOled.setTextXY(0, 39);
+  SeeedGrayOled.putString(" ");
+  SeeedGrayOled.setTextXY(1, 25);  
+  SeeedGrayOled.putString("     ");  
+  SeeedGrayOled.setTextXY(2, 19);
+  SeeedGrayOled.putString("   ");
+  SeeedGrayOled.setTextXY(2, 24);                            
+  SeeedGrayOled.putString(" ");  
+  SeeedGrayOled.setTextXY(2, 28);
+  SeeedGrayOled.putString("   ");     
+  SeeedGrayOled.setTextXY(3, 19);
+  SeeedGrayOled.putString("   ");
+  SeeedGrayOled.setTextXY(3, 28);
+  SeeedGrayOled.putString("   ");
+  SeeedGrayOled.setTextXY(4, 27);
+  SeeedGrayOled.putString(" ");
+  SeeedGrayOled.setTextXY(5, 26);
+  SeeedGrayOled.putString("  ");
+  SeeedGrayOled.setTextXY(5, 45);
+  SeeedGrayOled.putString("   ");
+  SeeedGrayOled.setTextXY(6, 42);
+  SeeedGrayOled.putString("  ");
+  SeeedGrayOled.setTextXY(6, 45);
+  SeeedGrayOled.putString("   ");
+  SeeedGrayOled.setTextXY(7, 45);
+  SeeedGrayOled.putString("  ");
   
   //Display clock.
-  SeeedOled.setTextXY(0, 0);                            //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedOled.putString("Clock: ");                       //Print string to display.
+  SeeedGrayOled.setTextXY(0, 0);                            //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString("Clock: ");                       //Print string to display.
   //Hour pointer.
-  SeeedOled.setTextXY(0, 40);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putNumber(hourPointer2);                    //Print 10-digit hour pointer value to display.
-  SeeedOled.setTextXY(0, 41);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putNumber(hourPointer1);                    //Print 1-digit hour pointer value to display.
+  SeeedGrayOled.setTextXY(0, 40);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(hourPointer2);                    //Print 10-digit hour pointer value to display.
+  SeeedGrayOled.setTextXY(0, 41);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(hourPointer1);                    //Print 1-digit hour pointer value to display.
   
-  SeeedOled.setTextXY(0, 42);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putString(":");                             //Print separator symbol, between hour and minute digits, todisplay.
+  SeeedGrayOled.setTextXY(0, 42);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString(":");                             //Print separator symbol, between hour and minute digits, todisplay.
 
   //Minute pointer.
-  SeeedOled.setTextXY(0, 43);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putNumber(minutePointer2);                  //Print 10-digit hour pointer value to display.
-  SeeedOled.setTextXY(0, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putNumber(minutePointer1);                  //Print 1-digit hour pointer value to display.
+  SeeedGrayOled.setTextXY(0, 43);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(minutePointer2);                  //Print 10-digit hour pointer value to display.
+  SeeedGrayOled.setTextXY(0, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(minutePointer1);                  //Print 1-digit hour pointer value to display.
 
-  SeeedOled.setTextXY(0, 45);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putString(":");                             //Print separator symbol, between hour and minute digits, todisplay.
+  SeeedGrayOled.setTextXY(0, 45);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString(":");                             //Print separator symbol, between hour and minute digits, todisplay.
 
   //Second pointer.
-  SeeedOled.setTextXY(0, 46);                           
-  SeeedOled.putNumber(secondPointer2);                  //Print second digit of second pointer value to display.
-  SeeedOled.setTextXY(0, 47);                           
-  SeeedOled.putNumber(secondPointer1);                  //Print first digit of second pointer value to display.
+  SeeedGrayOled.setTextXY(0, 46);                           
+  SeeedGrayOled.putNumber(secondPointer2);                  //Print second digit of second pointer value to display.
+  SeeedGrayOled.setTextXY(0, 47);                           
+  SeeedGrayOled.putNumber(secondPointer1);                  //Print first digit of second pointer value to display.
 
   //Display moisture sensor values.
-  SeeedOled.setTextXY(1, 0);                            //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedOled.putString("Moisture:");                     //Print text to display.
-  SeeedOled.setTextXY(2, 0);                            
-  SeeedOled.putString("S1[");                           //Print text to display.
-  SeeedOled.setTextXY(2, 19);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putNumber(moistureValue1);                  //Print moisture sensor1 value.
-  SeeedOled.setTextXY(2, 22);                            
-  SeeedOled.putString("],");                     
+  SeeedGrayOled.setTextXY(1, 0);                            //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString("Moisture:");                     //Print text to display.
+  SeeedGrayOled.setTextXY(2, 0);                            
+  SeeedGrayOled.putString("S1[");                           //Print text to display.
+  SeeedGrayOled.setTextXY(2, 19);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(moistureValue1);                  //Print moisture sensor1 value.
+  SeeedGrayOled.setTextXY(2, 22);                            
+  SeeedGrayOled.putString("],");                     
 
-  SeeedOled.setTextXY(2, 25);                            
-  SeeedOled.putString("S2[");                           //Print text to display.
-  SeeedOled.setTextXY(2, 28);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putNumber(moistureValue2);                  //Print moisture sensor1 value.
-  SeeedOled.setTextXY(2, 31);                            
-  SeeedOled.putString("]");
+  SeeedGrayOled.setTextXY(2, 25);                            
+  SeeedGrayOled.putString("S2[");                           //Print text to display.
+  SeeedGrayOled.setTextXY(2, 28);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(moistureValue2);                  //Print moisture sensor1 value.
+  SeeedGrayOled.setTextXY(2, 31);                            
+  SeeedGrayOled.putString("]");
   
-  SeeedOled.setTextXY(3, 0);                            
-  SeeedOled.putString("S3[");                           //Print text to display.
-  SeeedOled.setTextXY(3, 19);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putNumber(moistureValue3);                  //Print moisture sensor1 value.
-  SeeedOled.setTextXY(3, 22);                            
-  SeeedOled.putString("],");                     
+  SeeedGrayOled.setTextXY(3, 0);                            
+  SeeedGrayOled.putString("S3[");                           //Print text to display.
+  SeeedGrayOled.setTextXY(3, 19);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(moistureValue3);                  //Print moisture sensor1 value.
+  SeeedGrayOled.setTextXY(3, 22);                            
+  SeeedGrayOled.putString("],");                     
 
-  SeeedOled.setTextXY(3, 25);                            
-  SeeedOled.putString("S4[");                           //Print text to display.
-  SeeedOled.setTextXY(3, 28);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putNumber(moistureValue4);                  //Print moisture sensor1 value.
-  SeeedOled.setTextXY(3, 31);                            
-  SeeedOled.putString("]");
+  SeeedGrayOled.setTextXY(3, 25);                            
+  SeeedGrayOled.putString("S4[");                           //Print text to display.
+  SeeedGrayOled.setTextXY(3, 28);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(moistureValue4);                  //Print moisture sensor1 value.
+  SeeedGrayOled.setTextXY(3, 31);                            
+  SeeedGrayOled.putString("]");
 
   //Alarm messsage status.
-  SeeedOled.setTextXY(4, 0);                            
-  SeeedOled.putString("tempValue: ");                   //Print text to display.
-  SeeedOled.setTextXY(4, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putNumber(tempValueFault);                  //Print moisture sensor1 value.
+  SeeedGrayOled.setTextXY(4, 0);                            
+  SeeedGrayOled.putString("tempValue: ");                   //Print text to display.
+  SeeedGrayOled.setTextXY(4, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(tempValueFault);                  //Print moisture sensor1 value.
 
-  SeeedOled.setTextXY(5, 0);                            
-  SeeedOled.putString("ledLight: ");                    //Print text to display.
-  SeeedOled.setTextXY(5, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putNumber(ledLightFault);                   //Print moisture sensor1 value.
+  SeeedGrayOled.setTextXY(5, 0);                            
+  SeeedGrayOled.putString("ledLight: ");                    //Print text to display.
+  SeeedGrayOled.setTextXY(5, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(ledLightFault);                   //Print moisture sensor1 value.
 
-  SeeedOled.setTextXY(6, 0);                            
-  SeeedOled.putString("waterFlow: ");                   //Print text to display.
-  SeeedOled.setTextXY(6, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putNumber(waterFlowFault);                  //Print moisture sensor1 value.
+  SeeedGrayOled.setTextXY(6, 0);                            
+  SeeedGrayOled.putString("waterFlow: ");                   //Print text to display.
+  SeeedGrayOled.setTextXY(6, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(waterFlowFault);                  //Print moisture sensor1 value.
 
-  SeeedOled.setTextXY(7, 0);                            
-  SeeedOled.putString("waterLevel: ");                  //Print text to display.
-  SeeedOled.setTextXY(7, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedOled.putNumber(waterLevelValue);                 //Print moisture sensor1 value.
+  SeeedGrayOled.setTextXY(7, 0);                            
+  SeeedGrayOled.putString("waterLevel: ");                  //Print text to display.
+  SeeedGrayOled.setTextXY(7, 44);                           //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(waterLevelValue);                 //Print moisture sensor1 value.
 }
 
 /*
@@ -1197,33 +1221,33 @@ int calculateMoistureMean(int moistureValue1, int moistureValue2, int moistureVa
 ========================================================================= */
 void resolveFlowFault() {
   //Clear redundant symbols from previous screen mode.
-  SeeedOled.setTextXY(0, 28);
-  SeeedOled.putString("    ");
-  SeeedOled.setTextXY(2, 45);
-  SeeedOled.putString("   ");
-  SeeedOled.setTextXY(5, 45);
-  SeeedOled.putString("   ");
+  SeeedGrayOled.setTextXY(0, 28);
+  SeeedGrayOled.putString("    ");
+  SeeedGrayOled.setTextXY(2, 45);
+  SeeedGrayOled.putString("   ");
+  SeeedGrayOled.setTextXY(5, 45);
+  SeeedGrayOled.putString("   ");
   
   //Print fault code instruction to display. To let user resolve fault.
-  SeeedOled.setTextXY(0, 0);
-  SeeedOled.putString("waterFlow: ");
-  SeeedOled.setTextXY(0, 27);
-  SeeedOled.putNumber(waterFlowFault);
+  SeeedGrayOled.setTextXY(0, 0);
+  SeeedGrayOled.putString("waterFlow: ");
+  SeeedGrayOled.setTextXY(0, 27);
+  SeeedGrayOled.putNumber(waterFlowFault);
   
-  SeeedOled.setTextXY(1, 0);
-  SeeedOled.putString("----------------");
-  SeeedOled.setTextXY(2, 0);
-  SeeedOled.putString("Chk hardware: ");
-  SeeedOled.setTextXY(3, 0);
-  SeeedOled.putString("*is hose empty?");
-  SeeedOled.setTextXY(4, 0);
-  SeeedOled.putString("*vacuum in tank?");
-  SeeedOled.setTextXY(5, 0);
-  SeeedOled.putString("*Done? Press:");
-  SeeedOled.setTextXY(6, 0);
-  SeeedOled.putString("SET = clear/set");
-  SeeedOled.setTextXY(7, 0);
-  SeeedOled.putString("MODE = confirm");
+  SeeedGrayOled.setTextXY(1, 0);
+  SeeedGrayOled.putString("----------------");
+  SeeedGrayOled.setTextXY(2, 0);
+  SeeedGrayOled.putString("Chk hardware: ");
+  SeeedGrayOled.setTextXY(3, 0);
+  SeeedGrayOled.putString("*is hose empty?");
+  SeeedGrayOled.setTextXY(4, 0);
+  SeeedGrayOled.putString("*vacuum in tank?");
+  SeeedGrayOled.setTextXY(5, 0);
+  SeeedGrayOled.putString("*Done? Press:");
+  SeeedGrayOled.setTextXY(6, 0);
+  SeeedGrayOled.putString("SET = clear/set");
+  SeeedGrayOled.setTextXY(7, 0);
+  SeeedGrayOled.putString("MODE = confirm");
 
   //Clear fault code status.
   if(pushButton1 == true && y == 0) {
@@ -1252,16 +1276,12 @@ void setup() {
   pinMode(moistureSensorPort4, INPUT);
   
   pinMode(flowSensor, INPUT);
-  attachInterrupt(1, flowCount, RISING);  //Initialize interrupt to enable water flow sensor to calculate water flow pumped by water pump.
-
-  attachInterrupt(0, toggleDisplayMode, RISING); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
   
-  pinMode(pumpRelay, OUTPUT);
-  //pinMode(pumpButton, INPUT);
+  attachInterrupt(3, flowCount, RISING);  //Initialize interrupt to enable water flow sensor to calculate water flow pumped by water pump.
+
+  attachInterrupt(2, toggleDisplayMode, RISING); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
   
   pinMode(waterLevelSwitch, INPUT);
-  
-  pinMode(lightRelay, OUTPUT);
   
   pinMode(rotaryEncoderOutpA, INPUT);
   pinMode(rotaryEncoderOutpB, INPUT);
@@ -1274,17 +1294,29 @@ void setup() {
   
   lightSensor.Begin();                    //Initializing light sensor.
 
-  //Enable time interrupt to read temperature threshold value set by rotary encoder.
-  cli();  //Stop interrupts.
-  //Set timer1 interrupt at 100Hz
-  TCCR1A = 0;     //Set entire TCCR1A register to 0.
-  TCCR1B = 0;     //Set entire TCCR1B register to 0.
-  TCNT1 = 0;      //Initialize counter value to 0.
-  OCR1A = 156;    //match reg. = 16MHz / (prescaler * desired interrupt freq. - 1) = 16000000 / (1024 * 100 - 1) = 156 (must be < 65536).
-  TCCR1B |= (1 << WGM12);               //Turn on CTC mode.
-  TCCR1B |= (1 << CS12) | (1 << CS10);  //Set CS10 and CS12 bits for 1024 prescaler.
-  TIMSK1 |= (1 << OCIE1A);              //Enable timer compare interrupt.
-  sei();  //Allow interrupts again.
+
+  //Enable time interrupt.
+  cli();                                              //Stop any external interrups.
+
+  //RTC setup:
+  while(RTC.STATUS != 0) {
+    //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register.                         
+  } 
+  RTC.CLKSEL = 0x00;                                  //32.768 kHz signal from OSCULP32K selected.
+  RTC.PERL = 0x0A;                                    //Lower part of 16,384 value in PER-register (PERL) to be used as overflow value to reset the RTC counter.
+  RTC.PERH = 0x10;                                    //Upper part of 16,384 value in PER-register (PERH) to be used as overflow value to reset the RTC counter.
+  RTC.INTCTRL = (RTC.INTCTRL & 0b11111100) | 0b01;    //Enable interrupt-on-counter overflow by setting OVF-bit in INCTRL register.
+  while(RTC.STATUS != 0) {
+    //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register.              
+  }                                                      
+  RTC.CTRLA = 0x05;                                   //No using prescaler set, CORREN enabled (0b100),  RTCEN bit set to 1 (0b1).
+                                         
+  while(RTC.STATUS != 0) {
+    //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register.                        
+  }  
+  Serial.println("RTC config complete");
+
+  sei();                                              //Allow external interrupt again. 
 }
 
 /*
@@ -1323,7 +1355,7 @@ void loop() {
   moistureMeanValue = calculateMoistureMean(moistureValue1, moistureValue2, moistureValue3, moistureValue4);    //Mean value from all sensor readouts.
   
   tempValue = humiditySensor.readTemperature(false);                                                    //Read temperature value from DHT-sensor. "false" gives the value in °C.
-  //humidValue = humiditySensor.readHumidity();                                                           //Read humidity value from DHT-sensor.
+  humidityValue = humiditySensor.readHumidity();                                                           //Read humidity value from DHT-sensor.
   tempThresholdCompare();
   
   lightRead();                                                                                          //Read light sensor UV value.
