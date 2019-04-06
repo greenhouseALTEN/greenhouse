@@ -25,7 +25,7 @@
 #define waterLevelSwitch 12
 #define clockSetButton 7
 #define clockModeButton 2
-static bool testThisBitch = false;
+static bool allowRestart = false;
 
 //Arduino UNO base shield layout
 /*
@@ -130,7 +130,7 @@ bool waterFlowFault = false;              //Indicate if water is being pumped wh
 int flowThresholdValue = 99;              //Variable value specifies the minimum water flow threshold required to avoid setting water flow fault.
 
 //Water level switch.
-bool waterLevelValue;                     //If variable is 'false' water level is OK. If 'true' tank water level is too low.
+bool waterLevelValue = false;             //If variable is 'false' water level is OK. If 'true' tank water level is too low.
 
 //Internal clock to keep track of current time.
 int currentClockTime = 0;
@@ -173,7 +173,7 @@ int y = 0;                              //Toggle variable to clear/set water flo
 bool greenhouseProgramStart = false;        //If variable is set to 'true', automatic water and lighting control of greenhouse is turned on.
 
 //Water pump.
-bool waterPumpEnabled = false;              //Enable/Disable water pump to run.
+bool waterPumpEnabled = false;              //Enable/Disable water pump to be activated to pump water.
 unsigned int checkMoisturePeriod = 20000;        //Loop time, in milliseconds, for how often water pump is activated based upon measured soil moisture value.         
 unsigned long checkMoistureStart = 0;
 unsigned int checkWaterFlowPeriod = 1500;
@@ -182,15 +182,21 @@ unsigned int waterPumpTimePeriod = 6000;  //Sets the time for how long water pum
 unsigned long waterPumpTimeStart = 0; 
 
 //LED lighting.
-int uvThresholdValue = 9;                   //UV threshold value for turning LED lighting on/off.
-//int lightThresholdValue = 1500;           //Light threshold value (lux) for turning LED lighting on/off.
 bool ledLightEnabled = false;               //Enable/Disable start of LED lighting.
+int uvThresholdValue = 9;                   //UV threshold value for turning LED lighting on/off.
 unsigned int checkLightNeedPeriod = 5000;   //Loop time for how often measured light value is checked. This enables/disables start of LED lighting.
 unsigned long checkLightNeedStart = 0;
 unsigned int checkLightFaultPeriod = 3000;  //Delay time after LED lighting has been turned ON, before checking if it works.
 unsigned long checkLightFaultStart = 0;
-bool insideTimeInterval = false;
 
+//Fan.
+bool fanEnabled = false;                    //Enable/Disable fan to run.
+
+//Set time for when fan, LED lights and water pump is allowd to run.
+  unsigned short lightFanStartTime = 700;   //Time set as an intiger (700 = 07:00 and 2335 = 23:35).
+  unsigned short lightFanStopTime = 2300;
+  unsigned short pumpStartTime = 800;
+  unsigned short pumpStopTime = 1500;
 
 /*
 ==============================================================
@@ -518,32 +524,15 @@ void ledLightStop() {
   Serial.println("LED lighting OFF");
 }
 
+
 /*
 ======================================================================================
 || Check current clock time and light need to enable/disable start of LED lighting. ||
 ====================================================================================== */
 void checkLightNeed() {
-  //Check if current time is inside specified time interval: 06:31 - 23:31 where LED lighting is allowed to be turned ON. This variable also controls when water pump is allowed to run.
-  if(currentClockTime >= 631 && currentClockTime < 2332) {
-    ledLightEnabled = true;
-    //insideTimeInterval = true;   
-  } else {
-    ledLightEnabled = false;
-    //insideTimeInterval = false;   
-  }
-
-  /*
-  //Check if measured light value is below light threshold value.
-  if(insideTimeInterval == true) {
-    if(uvValue < uvThresholdValue) {
-      ledLightEnabled = true;       //Enable LED lighting to be turned on.
-    }
-    else {
-      ledLightEnabled = false;      //Disable LED lighting from being turned on.
-    }
-   
-  } */
-  Serial.println("Check light need");
+  //Check if LED lighting is allowed to run now.
+  checkTimePermission();                  //Check if LED lighting is allowed to be turned ON (inside allowed time interval).
+  Serial.println("Check light need.");
 }
 
 /*
@@ -615,17 +604,38 @@ void waterFlowCheck() {
 ====================================== */
 void checkWaterNeed() {
   //Water pump is enabled if soil moisture is too dry or at the same time as no water related fault codes are set.
-  if(ledLightEnabled == true) {   //Variable checked and set/cleared in checkLightNeed-function.
-    if(moistureDry == true && moistureWet == false) {            
-      if(waterLevelValue == false && waterFlowFault == false) {   //Make sure no water related fault codes are set.
-        waterPumpEnabled = true;                                  //Enable water pump to run let it start when activated.
-      }
-      else {
-        waterPumpEnabled = false;                                 //Disable water pump to prevent it from starting.  
-      }
+  if(moistureDry == true && moistureWet == false) {            
+    if(waterLevelValue == false && waterFlowFault == false) {   //Make sure no water related fault codes are set.
+      checkTimePermission();              //Check if water pump is allowed to be running when needed (inside allowed time interval).
     }
   }
-  Serial.println("Check water need");
+  Serial.println("Check water need.");
+}
+
+/*
+===========================================================================================
+|| Check current clock time to enable/disable start of LED lighting, fan and water pump. ||
+=========================================================================================== */
+void checkTimePermission() {
+  //LED lighting and fan are allowed to run in this time window.
+  if(currentClockTime >= lightFanStartTime && currentClockTime < lightFanStopTime) {
+    ledLightEnabled = true;         //Enable LED lighting to be turned on.
+    fanEnabled = true;              //Enable fan to run.
+    Serial.println("LED lighting allowed.");
+    Serial.println("Fan allowed.");
+  }
+  else {
+    ledLightEnabled = false;        //Disable LED lighting to be turned on.
+    fanEnabled = false;             //Disable fan to run.
+  }
+
+  //Water pump allowed to run in below time window.
+  if(currentClockTime >= pumpStartTime && currentClockTime < pumpStopTime) {
+    waterPumpEnabled = true;        //Enable water pump to be run to pump water when needed.
+  }
+  else {
+    waterPumpEnabled = false;       //Enable water pump to be run to pump water when needed.
+  }
 }
 
 /*
@@ -858,10 +868,10 @@ void toggleDisplayMode() {
       //flowFaultDisplay = false;                   //Clear current screen display mode to enable next display mode to shown next time MODE-button is pressed.
       //SeeedGrayOled.clearDisplay();                   //Clear display.
       Serial.println("flowFaultDisplay");
-      if (testThisBitch == true) {
+      if (allowRestart == true) {
         flowFaultDisplay = false;                   //Clear current screen display mode to enable next display mode to shown next time MODE-button is pressed.
         waterFlowFault = false;                   //Clear water flow fault code.
-        testThisBitch = false;
+        allowRestart = false;
         resetClockTime();                         //Reset clock time.
         startupImageDisplay = true;               //Reboot greenhouse program by printing the startup image to display.                
         Serial.println("Go to startupImageDisplay");             
@@ -1262,61 +1272,53 @@ void resolveFlowFault() {
   //Clear symbols from previous display mode.   
   blankToDisplay(0, 0, 2);
   blankToDisplay(1, 0, 16);
-  blankToDisplay(2, 10, 6);
-  blankToDisplay(2, 11, 1);
+  blankToDisplay(2, 13, 3);
   blankToDisplay(3, 0, 16);
   
-  blankToDisplay(4, 13, 3);
- 
-  blankToDisplay(6, 14, 2);
-  blankToDisplay(7, 0, 16);
+  blankToDisplay(5, 13, 3);
+  blankToDisplay(6, 15, 1);
+  blankToDisplay(7, 12, 4);
+  blankToDisplay(8, 0, 16);
+  blankToDisplay(9, 5, 11);
+  blankToDisplay(10, 0, 16);
+  blankToDisplay(11, 15, 1);
+  blankToDisplay(12, 11, 5);
   
-  blankToDisplay(8, 12, 4);
-  blankToDisplay(9, 0, 16);
-  blankToDisplay(10, 15, 1);
-  blankToDisplay(11, 14, 2);
-
-  blankToDisplay(12, 0, 16);
-  blankToDisplay(13, 0, 16);
   blankToDisplay(14, 0, 16);
-  blankToDisplay(15, 0, 16);
+  blankToDisplay(15, 12, 4);
+  blankToDisplay(16, 0, 16);
+  
   
   stringToDisplay(0, 2, "RSLV FLOWFAULT");          //Print current display state to upper right corner of display.
 
-  //Print fault code instruction to display. To let user resolve fault.
-  stringToDisplay(0, 2, "waterFlow:");
+  stringToDisplay(2, 0, "Chk hardware!");
   
-//  SeeedOled.setTextXY(2, 11*8);
-//  SeeedOled.putNumber(waterFlowFault);
+  stringToDisplay(4, 0, "Water in hose?");
+  stringToDisplay(5, 0, "Hose tangled?");
+  stringToDisplay(6, 0, "Vacuum in tank?");
+  stringToDisplay(7, 0, "Any leakage?");
   
-/*
-  SeeedOled.setTextXY(2, 0);
-  SeeedOled.putString("Chk hardware: ");
-  SeeedOled.setTextXY(3, 0);
-  SeeedOled.putString("*is hose empty?");
-  SeeedOled.setTextXY(4, 0);
-  SeeedOled.putString("*vacuum in tank?");
-  SeeedOled.setTextXY(5, 0);
-  SeeedOled.putString("*Done? Press:");
-  SeeedOled.setTextXY(6, 0);
-  SeeedOled.putString("SET = clear/set");
-  SeeedOled.setTextXY(7, 0);
-  SeeedOled.putString("MODE = confirm");
-*/
+  stringToDisplay(9, 0, "DONE?");
+  
+  stringToDisplay(11, 0, "Keep SET-button");
+  stringToDisplay(12, 0, "pressed and");
+  stringToDisplay(13, 0, "push MODE-button");
+  
+  stringToDisplay(15, 0, "Restart: ");
+  
   static bool toggle1 = false;
-  //Clear fault code status.
-   if(pushButton1 == true) testThisBitch = true; 
-  /*
-  if(pushButton1 == true && toggle == false) {
-    waterFlowFault = false;           //Clear fault code to let water pump run.
-    toggle = true;
-    Serial.println("waterFlowFault active");
+  if(pushButton1 == true) {
+    allowRestart = true;
+    stringToDisplay(15, 9, "YES");
+    resetStartupVariables();
   }
-  else if(pushButton1 == true && toggle == true) {
-    waterFlowFault = true;            //Let fault code stay active.
-    toggle = false;
-    Serial.println("waterFlowFault inactive");
-  }*/
+  else {
+    stringToDisplay(15, 9, "NO ");
+  }
+}
+
+void resetStartupVariables() {
+  
 }
 
 /*
