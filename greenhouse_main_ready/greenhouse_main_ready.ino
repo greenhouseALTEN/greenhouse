@@ -1332,8 +1332,7 @@ void resetStartupVariables() {
   waterPumpEnabled = false;              
   ledLightEnabled = false;               
   fanEnabled = false;  
-  fanState = false;
-  fanStop();                  
+  fanState = false;                  
 }
 
 /*
@@ -1478,7 +1477,7 @@ void loop() {
     //greenhouseProgramStart = false;                               //Stop greenhouse program.
     waterPumpStop();                                                //Stop(OFF) water pump.
     ledLightStop();                                                 //Stop(OFF) LED lighting.
-                                                                    //Stop(OFF) fan.
+    fanStop();                                                      //Stop(OFF) fan.
   }
   
   //Continuesly read out sensor values, calculate values and alert user if any fault code is set.
