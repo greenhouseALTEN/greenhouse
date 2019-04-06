@@ -103,6 +103,7 @@ static unsigned short TEMP_VALUE_MAX = 80;
 Multi_Channel_Relay relay;                //Relay object created from Multi_Channel_Relay class.
 uint8_t WATER_PUMP = 4;                   //Relay channel number where water pump is connected.
 uint8_t LED_LIGHTING = 3;                 //Relay channel number where led lighting is connected.
+uint8_t FAN = 2;                          //Relay channel number where fan is connected.
 
 //Rotary encoder to adjust temperature threshold.
 int tempThresholdValue = 60;              //Starting value for temperature threshold adjustment is 30°C.
@@ -127,7 +128,7 @@ volatile int rotations;
 int waterFlowValue; 
 bool waterPumpState = false;              //Indicate current status of water pump. Variable is 'true' when water pump is running.
 bool waterFlowFault = false;              //Indicate if water is being pumped when water pump is running. Variable is 'false' when water flow is above threshold value. 
-int flowThresholdValue = 99;              //Variable value specifies the minimum water flow threshold required to avoid setting water flow fault.
+int flowThresholdValue = 80;              //Variable value specifies the minimum water flow threshold required to avoid setting water flow fault.
 
 //Water level switch.
 bool waterLevelValue = false;             //If variable is 'false' water level is OK. If 'true' tank water level is too low.
@@ -164,7 +165,6 @@ bool readoutValuesDisplay = false;
 bool serviceModeDisplay = false;
 bool clockViewFinished = false;
 bool flowFaultDisplay = false;
-int y = 0;                              //Toggle variable to clear/set water flow fault.
 
 /*
 ---------------------
@@ -191,6 +191,7 @@ unsigned long checkLightFaultStart = 0;
 
 //Fan.
 bool fanEnabled = false;                    //Enable/Disable fan to run.
+bool fanState = false;
 
 //Set time for when fan, LED lights and water pump is allowd to run.
   unsigned short lightFanStartTime = 700;   //Time set as an intiger (700 = 07:00 and 2335 = 23:35).
@@ -531,7 +532,7 @@ void ledLightStop() {
 ====================================================================================== */
 void checkLightNeed() {
   //Check if LED lighting is allowed to run now.
-  checkTimePermission();                  //Check if LED lighting is allowed to be turned ON (inside allowed time interval).
+  checkTimePermission();                  //Check if LED lighting is allowed Fan will also be turned ON here (inside allowed time interval).
   Serial.println("Check light need.");
 }
 
@@ -610,6 +611,26 @@ void checkWaterNeed() {
     }
   }
   Serial.println("Check water need.");
+}
+
+/*
+==================
+|| Turn ON fan. ||
+================== */
+void fanStart() {
+  relay.turn_on_channel(FAN);                                 //Turn on fan.
+  fanState = true;                                            //Update current fan state, 'true' means lighting is on.
+  Serial.println("Fan is ON");
+}
+
+/*
+===================
+|| Turn OFF fan. ||
+=================== */
+void fanStop() {
+  relay.turn_off_channel(FAN);                                 //Turn on fan.
+  fanState = false;                                              //Update current fan state, 'true' means lighting is on.
+  Serial.println("Fan is OFF");
 }
 
 /*
@@ -1264,6 +1285,57 @@ int calculateMoistureMean(int moistureValue1, int moistureValue2, int moistureVa
   }
   return moistureMean;
 }
+
+/*
+==========================
+|| Reset all variables. ||
+==========================*/
+void resetStartupVariables() {
+  //Resetting all variables.
+  greenhouseProgramStart = false;      
+  ledLightEnabled = false;               
+  pushButton1 = false;
+
+  clockStartMode = false;
+  clockSetFinished = false;
+
+  ledLightState = false;               
+  ledLightFault = false;               
+
+  waterPumpState = false;              
+  waterFlowFault = false;              
+
+  currentClockTime = 0;
+  hourPointer1 = 0;
+  hourPointer2 = 0;
+  minutePointer1 = 0;                 
+  minutePointer2 = 0;                 
+  secondPointer1 = 0;                 
+  secondPointer2 = 0;                 
+  hour2InputMode = true;
+  hour1InputMode = false;
+  minute2InputMode = false;
+  minute1InputMode = false;
+  pushButton1 = false; 
+
+  clockStartMode = false;
+  clockSetFinished = false;
+  alarmMessageEnabled = false;       
+
+  startupImageDisplay = true;        
+  setTimeDisplay = false;                 
+  readoutValuesDisplay = false;
+  serviceModeDisplay = false;
+  clockViewFinished = false;
+  flowFaultDisplay = false;
+
+  waterPumpEnabled = false;              
+  ledLightEnabled = false;               
+  fanEnabled = false;  
+  fanState = false;
+  fanStop();                  
+}
+
 /*
 =========================================================================
 || FLOW FAULT DISPLAY MODE. Print service mode screen to OLED display. ||
@@ -1315,10 +1387,6 @@ void resolveFlowFault() {
   else {
     stringToDisplay(15, 9, "NO ");
   }
-}
-
-void resetStartupVariables() {
-  
 }
 
 /*
@@ -1408,8 +1476,9 @@ void loop() {
   else if(flowFaultDisplay == true) {
     resolveFlowFault();                                             //Water flow fault display mode is printed to display. It contains fault code instruction and possibility to reset fault code.
     //greenhouseProgramStart = false;                               //Stop greenhouse program.
-    waterPumpStop(); 
-    ledLightStop();                               //Stop(OFF) LED lighting.
+    waterPumpStop();                                                //Stop(OFF) water pump.
+    ledLightStop();                                                 //Stop(OFF) LED lighting.
+                                                                    //Stop(OFF) fan.
   }
   
   //Continuesly read out sensor values, calculate values and alert user if any fault code is set.
@@ -1439,9 +1508,17 @@ void loop() {
       if(ledLightEnabled == true) {
         ledLightStart();                              //Start(ON) LED lighting.
       }
-      else {
+      else if(ledLightEnabled == false) {
         ledLightStop();                               //Stop(OFF) LED lighting.
-      }                
+      }    
+            
+      if(fanEnabled == true) {                      
+        fanStart();             //Start(ON) fan.
+      }
+      else {
+        fanStop();                       //Stop(OFF) LED lighting.
+      }               
+            
       checkLightNeedStart = millis();                 //Get current time stamp from millis() to make it loop.   
     }
     
