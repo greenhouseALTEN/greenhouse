@@ -230,7 +230,7 @@ unsigned short clockTime2 = 0;
 --------------------*/
 bool greenhouseProgramStart = false;        //If variable is set to 'true', automatic water and lighting control of greenhouse is turned on.
 static bool allowRestart = false;
-unsigned short actionFlagRegister;
+unsigned short actionRegister;
 unsigned short timeDiffClock = 0;
 
 //Water pump.
@@ -498,8 +498,7 @@ void viewReadoutValues() {
   blankToDisplay(11, 0, 16);
   blankToDisplay(12, 7, 9);
 
-  blankToDisplay(14, 0, 16);
-  //blankToDisplay(15, 0, 16);
+  blankToDisplay(14, 7, 9);
 
   stringToDisplay(0, 2, "READOUT VALUES");          //Print current display state to upper right corner of display.
 
@@ -567,18 +566,29 @@ void viewReadoutValues() {
   SeeedGrayOled.setTextXY(10, 10 * 8);
   SeeedGrayOled.putNumber(fanSpeedValue);                //Print water flow value to display.
 
+  /****************
+  |Current action.|
+  ****************/
+  stringToDisplay(12, 0, "Action:");
+  switch (actionRegister) {
+    case 1:
+      stringToDisplay(13, 0, "Check light need");
+      break;
+    case 2:
+      stringToDisplay(13, 0, "Check water need");
+      break;
+    case 4:
+      stringToDisplay(13, 0, "Pumping water...");
+      break;
+    case 8:
+      blankToDisplay(13, 0, 16);
+      break;
+  }
+  
   /*****************************
   |Space for any active alarms.|
   *****************************/
-  stringToDisplay(12, 0, "Alarms:");
-
-
-  SeeedGrayOled.setTextXY(15, 0);
-  SeeedGrayOled.putString("timeDiff: ");
-  blankToDisplay(15, 10, 6);
-  SeeedGrayOled.setTextXY(15, 10 * 8);
-  SeeedGrayOled.putNumber(timeDiffClock);              //Print first digit of second pointer value to display.
-
+  stringToDisplay(14, 0, "Alarms:");
 }
 
 /*
@@ -1209,15 +1219,15 @@ void alarmMessageDisplay() {
     |Water flow fault.|
     ******************/
     if (alarmTimeDiff <= alarmTimePeriod) {
-      SeeedGrayOled.setTextXY(13, 0);                          //Set cordinates to which row that will be cleared.
+      SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to which row that will be cleared.
       SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
       if (waterFlowFault == true) {                       //If fault variable is set to 'true', fault message is printed to display.
-        SeeedGrayOled.setTextXY(13, 0);
-        SeeedGrayOled.putString("No water flow");             //Print fault message to display.
+        SeeedGrayOled.setTextXY(15, 0);
+        SeeedGrayOled.putString("NO WATER FLOW   ");             //Print fault message to display.
       }
 
       else {  //If this alarm not active, clear the warning message row.
-        SeeedGrayOled.setTextXY(13, 0);                        //Set cordinates to the warning message will be printed.
+        SeeedGrayOled.setTextXY(15, 0);                        //Set cordinates to the warning message will be printed.
         SeeedGrayOled.putString("                ");          //Clear row to enable other warnings to be printed to display.
       }
     }
@@ -1227,13 +1237,13 @@ void alarmMessageDisplay() {
     **********************/
     if (alarmTimePeriod < alarmTimeDiff && alarmTimeDiff <= alarmTimePeriod * 2) {
       if (waterLevelValue == true) {                        //If fault variable is set to 'true', fault message is printed to display.
-        SeeedGrayOled.setTextXY(13, 0);                          //Set cordinates to which row that will be cleared.
+        SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to which row that will be cleared.
         SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
-        SeeedGrayOled.setTextXY(13, 0);
-        SeeedGrayOled.putString("Low water level");             //Print fault message to display.
+        SeeedGrayOled.setTextXY(15, 0);
+        SeeedGrayOled.putString("LOW WATER LEVEL ");             //Print fault message to display.
       }
       else {  //If this alarm not active, clear the warning message row.
-        SeeedGrayOled.setTextXY(13, 0);                          //Set cordinates to the warning message will be printed.
+        SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to the warning message will be printed.
         SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
       }
     }
@@ -1243,13 +1253,13 @@ void alarmMessageDisplay() {
     *******************/
     if (alarmTimePeriod * 2 < alarmTimeDiff && alarmTimeDiff <= alarmTimePeriod * 3) {
       if (tempValueFault == true) {                         //If fault variable is set to 'true', fault message is printed to display.
-        SeeedGrayOled.setTextXY(13, 0);                          //Set cordinates to which row that will be cleared.
+        SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to which row that will be cleared.
         SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
-        SeeedGrayOled.setTextXY(13, 0);
-        SeeedGrayOled.putString("High temperature");            //Print fault message to display.
+        SeeedGrayOled.setTextXY(15, 0);
+        SeeedGrayOled.putString("HIGH TEMPERATURE");            //Print fault message to display.
       }
       else {  //If this alarm not active, clear the warning message row.
-        SeeedGrayOled.setTextXY(13, 0);                          //Set cordinates to the warning message will be printed.
+        SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to the warning message will be printed.
         SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
       }
     }
@@ -1259,19 +1269,19 @@ void alarmMessageDisplay() {
     ********************/
     if (alarmTimePeriod * 3 < alarmTimeDiff && alarmTimeDiff <= alarmTimePeriod * 4) {
       if (ledLightFault == true) {                          //If fault variable is set to 'true', fault message is printed to display.
-        SeeedGrayOled.setTextXY(13, 0);                          //Set cordinates to which row that will be cleared.
+        SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to which row that will be cleared.
         SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
-        SeeedGrayOled.setTextXY(13, 0);
-        SeeedGrayOled.putString("LED not working");             //If measured water flow is below a certain value without the water level sensor indicating the water tank is empty, there is a problem with the water tank hose. "Check water hose!" is printed to display.
+        SeeedGrayOled.setTextXY(15, 0);
+        SeeedGrayOled.putString("LED NOT WORKING ");             //If measured water flow is below a certain value without the water level sensor indicating the water tank is empty, there is a problem with the water tank hose. "Check water hose!" is printed to display.
       }
       else {  //If this alarm not active, clear the warning message row.
-        SeeedGrayOled.setTextXY(13, 0);                          //Set cordinates to the warning message will be printed.
+        SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to the warning message will be printed.
         SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
       }
     }
 
     if (alarmTimeDiff > alarmTimePeriod * 4) {
-      SeeedGrayOled.setTextXY(13, 0);                          //Set cordinates to the warning message will be printed.
+      SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to the warning message will be printed.
       SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
       alarmTimePrev = millis();                           //Read millis() value to reset time delay calculation.
     }
@@ -1306,7 +1316,8 @@ void viewServiceMode() {
 
   blankToDisplay(13, 0, 16);
 
-
+  blankToDisplay(15, 0, 16);
+  
   stringToDisplay(0, 4, "SERVICE MODE");  //Print current display state to upper right corner of display.
 
   //Display clock.
@@ -1389,24 +1400,12 @@ void viewServiceMode() {
   SeeedGrayOled.setTextXY(12, 12 * 8);                         //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putNumber(waterLevelValue);                 //Print moisture sensor1 value.
 
-  stringToDisplay(14, 0, "Action:");
-  switch (actionFlagRegister) {
-    case 1:
-      stringToDisplay(15, 0, "Check light need");
-      break;
-    case 2:
-      stringToDisplay(15, 0, "Check water need");
-      break;
-    case 4:
-      stringToDisplay(15, 0, "Pumping water...");
-      break;
-    case 8:
-      blankToDisplay(15, 0, 16);
-      actionFlagRegister = 0;                         //Clear flag register.
-      break;
-  }
 
-
+  SeeedGrayOled.setTextXY(14, 0);
+  SeeedGrayOled.putString("Time accur.(ms):");
+  blankToDisplay(15, 10, 6);
+  SeeedGrayOled.setTextXY(15, 0);
+  SeeedGrayOled.putNumber(timeDiffClock);              //Print first digit of second pointer value to display.
 }
 
 /*
@@ -1850,8 +1849,8 @@ void loop() {
 
     checkLightNeedCurrent = millis();                 //Get current time stamp from millis().
     if (checkLightNeedCurrent - checkLightNeedStart >= CHECK_LIGHT_NEED_PERIOD) { //Check if time period has elapsed.
-      if (actionFlagRegister != 4 && actionFlagRegister != 2) {                  //If water pump is not running and program is not checking water need set follwing value to register.
-        actionFlagRegister = 1;                         //Register to print what action that is currently performed in the greenhouse program.
+      if (actionRegister != 4) {                  //If water pump is not running set follwing value to register.
+        actionRegister = 1;                         //Register to print what action that is currently performed in the greenhouse program.
       }
       checkLightNeed();                               //Time period has elapsed. Enable/Disable start of LED lighting.
       if (ledLightEnabled == true) {
@@ -1887,14 +1886,14 @@ void loop() {
 
     checkMoistureCurrent = millis();                  //Get current time stamp from millis().
     if (checkMoistureCurrent - checkMoistureStart >= CHECK_MOISTURE_PERIOD) {   //Check if time period has elapsed.
-      if (actionFlagRegister != 4) {                  //If water pump is not running and program is not checking water need set follwing value to register.
-        actionFlagRegister = 2;                         //Register to print what action that is currently performed in the greenhouse program.
+      if (actionRegister != 4) {                  //If water pump is not running set follwing value to register.
+        actionRegister = 2;                         //Register to print what action that is currently performed in the greenhouse program.
       }
       checkWaterNeed();                               //Time period has elapsed. Enable/Disable start of water pump.
       humiditySpeedControl();                         //Check air humidity to activate any of the two fan speed modes.
       //Start water pump.
       if (waterPumpEnabled == true) {
-        actionFlagRegister = 4;                         //Register to print what action that is currently performed in the greenhouse program.
+        actionRegister = 4;                         //Register to print what action that is currently performed in the greenhouse program.
         waterPumpStart();                               //Start water pump (ON).
         waterPumpTimeStart = millis();                //Get current time stamp from millis() to make it loop.
         checkWaterFlowStart = millis();               //Get current time stamp from millis() to make it loop.
@@ -1908,7 +1907,7 @@ void loop() {
     if (waterPumpState == true) {
       waterPumpTimeCurrent = millis();                  //Get current time stamp from millis().
       if (waterPumpTimeCurrent - waterPumpTimeStart >= WATER_PUMP_TIME_PERIOD) { //Check if time period has elapsed.
-        actionFlagRegister = 8;                         //Register to print what action that is currently performed in the greenhouse program.
+        actionRegister = 8;                           //Register to print what action that is currently performed in the greenhouse program.
         waterPumpStop();                              //Time period has elapsed. Stop water pump (OFF).
         waterPumpEnabled = false;                     //Disable water pump from running until next time moisture value readout.
       }
