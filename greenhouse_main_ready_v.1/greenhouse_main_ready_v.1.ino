@@ -25,7 +25,8 @@
 #define DHTPIN 4
 //#define rotaryEncoderOutpA 11
 //#define rotaryEncoderOutpB 10
-#define flowSensor 3
+#define waterFlowSensor 3
+#define fanSpeedSensor 13
 #define waterLevelSwitch 12
 #define clockSetButton 7
 #define clockModeButton 2
@@ -53,21 +54,22 @@ ________________________________________________________________________________
 GROVE connectors                      | DIGITAL (PWM~)                                                                                                        |
 ****************                      | **************                                                                                                        |
 A3:   Moisture Sensor4                | GND:  10 kohm resistor in in series with with 12 (I/O)                                                                |
-A2:   Moisture Sensor3                | 12:   10 kohm resistor parallell with signal wire1 to water tank level switch. Resistor is in series with GND (I/O)   |
-A1:   Moisture Sensor2                | 11~:  Signal wire1 to temperature rotary encoder                                                                      |
-A0:   Moisture Sensor1                | 10~:  Signal wire2 to temperature rotary encoder                                                                      |
-D4:   Humidity & Temperature Sensor   |                                                                                                                       |
-D8:   'EMPTY'                         | All other (unspecified) of its I/O:s are 'EMPTY'.                                                                     |
-I2C:  4-Channel Relay                 |                                                                                                                       |
-D3:   Water Flow Sensor               |                                                                                                                       |                                                                                                                      |
-D7:   SET-Button                      | POWER                                                                                                                 |
-I2C:  Sunlight Sensor                 | *****                                                                                                                 |
-D2:   MODE-Button                     | 5V:   Supply wire to water tank level switch in parallell supply wire to temperature rotary encoder.                  |
-D6:   'EMPTY'                         | GND:  Ground wire to temperature rotary encoder.                                                                      |
-I2C:  OLED Display                    |                                                                                                                       |
-UART: 'EMPTY'                         | All other (unspecified) of its I/O:s are 'EMPTY'.                                                                     |
-D5:   'EMPTY'                         |                                                                                                                       |
+A2:   Moisture Sensor3                | 13:   Fan signal cable in parallell with 10 kohm resistor to +5V                                                      |
+A1:   Moisture Sensor2                | 12:   10 kohm resistor parallell with signal wire1 to water tank level switch. Resistor is in series with GND (I/O)   |
+A0:   Moisture Sensor1                | 11~:  Signal wire1 to temperature rotary encoder                                                                      |
+D4:   Humidity & Temperature Sensor   | 10~:  Signal wire2 to temperature rotary encoder                                                                      |
+D8:   'EMPTY'                         |                                                                                                                       |
+I2C:  4-Channel Relay                 | All other (unspecified) of its I/O:s are 'EMPTY'.                                                                     |
+D3:   Water Flow Sensor               |                                                                                                                       |
+D7:   SET-Button                      |                                                                                                                       |                                                                                                                      |
+I2C:  Sunlight Sensor                 | POWER                                                                                                                 |
+D2:   MODE-Button                     | *****                                                                                                                 |
+D6:   'EMPTY'                         | 5V:   Supply wire to water tank level switch in parallell supply wire to temperature rotary encoder.                  |
+I2C:  OLED Display (128x128 px)       | GND:  Ground wire to temperature rotary encoder.                                                                      |
+UART: 'EMPTY'                         |                                                                                                                       |
+D5:   'EMPTY'                         | All other (unspecified) of its I/O:s are 'EMPTY'.                                                                     |
 I2C:  'EMPTY'                         |                                                                                                                       |
+                                      |                                                                                                                       |
                                       | ANALOG IN                                                                                                             |
                                       | *********                                                                                                             |
                                       | All I/O:s are 'EMPTY'.                                                                                                |
@@ -80,10 +82,10 @@ ______________________________________|_________________________________________
 /*
 /////////////////////////////////////////////////////////////////////////////
 PARAMETERS ALLOWED TO BE CHANGED TO ALTER THE WAY GREENHOUSE PROGRAM RUNS. //
----------------------------------------------------------------------------//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  */
+                                                                           //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  */
 //SOIL MOISTURE.
-const unsigned short MOISTURE_THRESHOLD_LOW = 650;                  //Set moisture interval values. When measured moisture value (soil humidity) is within this interval soil moisture is considered to be OK for plants.
-const unsigned short MOISTURE_THRESHOLD_HIGH = 700;                 //Same as above but upper threshold for what is considered to be OK soil humidity.
+const unsigned short MOISTURE_THRESHOLD_LOW = 640;                  //Set moisture interval values. When measured moisture value (how much water soil contains) is within this interval soil moisture is considered to be OK for plants.
+const unsigned short MOISTURE_THRESHOLD_HIGH = 660;                 //Same as above but upper threshold for what is considered to be OK soil moisture.
 
 //FAN SPEED CONTROL.
 const unsigned short HUMIDITY_THRESHOLD_VALUE = 60;                 //Set air humidity threshold value (humidity in procentage, value < 100) for when fan should run at low speed. If measured air humidity is lower than specified value fan will run at low speed mode.
@@ -179,7 +181,7 @@ bool ledLightState = false;               //Indicate current status of LED light
 bool ledLightFault = false;               //Indicate if LED lighting is not turned on/not working when LED lighting has been turned on.
 
 //Water pump and flow sensor.
-volatile int rotations;
+volatile int flowSensorRotations;
 int waterFlowValue;
 bool waterPumpState = false;              //Indicate current status of water pump. Variable is 'true' when water pump is running.
 bool waterFlowFault = false;              //Indicate if water is being pumped when water pump is running. Variable is 'false' when water flow is above threshold value.
@@ -259,6 +261,11 @@ bool fanState = false;
 bool lowFanSpeedEnabled = false;
 unsigned short fanSpeedValue = 0;               //Fan speed readout.
 bool fanTimeAllowed = false;                //Is set 'true' when current time is inside time interval where fan is allowed to be turned ON.
+bool checkFanSpeed = false;                 //Variable is set 'true' when one second has passed. This makes it possible to calculate fan rpm value.
+volatile int fanRotations = 0;
+unsigned long timeNow;
+unsigned long timePrev = 0;
+unsigned long timeDiff;
 
 //Set time for when fan, LED lights and water pump is allowd to run.
 //unsigned short LIGHT_FAN_START_TIME = 700;   //Time set as an intiger (700 = 07:00 and 2335 = 23:35).
@@ -558,9 +565,9 @@ void viewReadoutValues() {
   SeeedGrayOled.setTextXY(9, 10 * 8);
   SeeedGrayOled.putNumber(waterFlowValue);          //Print water flow value to display.
 
-  /*************************
-  |Water flow sensor value.|
-  *************************/
+  /*****************
+  |Fan speed value.|
+  *****************/
   SeeedGrayOled.setTextXY(10, 0);                    //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putString("Fan speed:");           //Print string to display.
   SeeedGrayOled.setTextXY(10, 10 * 8);
@@ -599,6 +606,34 @@ void lightRead() {
   lightValue = lightSensor.ReadVisible();
   uvValue = lightSensor.ReadUV();
   //irValue = lightSensor.ReadIR();
+}
+
+/*
+===========================================================================================
+|| Check current clock time to enable/disable start of LED lighting, fan and water pump. ||
+=========================================================================================== */
+void checkTimePermission() {
+  //LED lighting and fan are allowed to run in this time window.
+  if (currentClockTime >= LIGHT_FAN_START_TIME && currentClockTime < LIGHT_FAN_STOP_TIME) {
+    ledLightTimeAllowed = true;       //LED lighting is allowed to be turned on.
+    fanTimeAllowed = true;            //Fan is allowed to run.
+    Serial.println("LED lighting allowed.");
+    Serial.println("Fan allowed.");
+  }
+  else {
+    ledLightTimeAllowed = false;       //LED lighting is not allowed to be turned on.
+    fanTimeAllowed = false;            //Fan is not allowed to run.
+  }
+
+  //Water pump allowed to run in below time window.
+  if (currentClockTime >= PUMP_START_TIME && currentClockTime < pumpStopTime) {
+    if (moistureDry == true) {
+      waterPumpTimeAllowed = true;    //Water pump is allowed to run.
+    }
+  }
+  else {
+    waterPumpTimeAllowed = false;   //Water pump is not allowed to run.
+  }
 }
 
 /*
@@ -661,12 +696,21 @@ void waterLevelRead() {
 }
 
 /*
-===========================================================================================
-|| Count number of rotations on flow sensor, runs every time interrupt pin is triggered. ||
-=========================================================================================== */
-void flowCount() {
+================================================================================================================
+|| Count number of rotations flow sensor propeller does. Function runs every time interrupt pin is triggered. ||
+================================================================================================================ */
+void waterFlowCount() {
   //Interrupt function to count number of rotations that flow sensor makes when water is being pumped.
-  rotations++;
+  flowSensorRotations++;
+}
+
+/*
+======================================================
+|| Calculate water flow when water pump is running. ||
+====================================================== */
+void waterFlow() {
+  waterFlowValue = (flowSensorRotations * 60) / 7.5;   //Calculate the flow rate in Liter/hour.
+  flowSensorRotations = 0;
 }
 
 /*
@@ -677,13 +721,6 @@ void waterPumpStart() {
   relay.turn_on_channel(WATER_PUMP);          //Start water pump.
   waterPumpState = true;                  //Update current water pump state, 'true' means water pump is running.
   Serial.println("Water pump ON");
-
-  //Calculate water flow (Liter/hour) by counting number of rotations that flow sensor makes. Water flow sensor is connected to interrupt pin.
-  if (waterPumpState == true) {           //Only check water flow when water pump is running.
-    rotations = 0;
-    delay(1000);                          //Count number of rotations during one second to calculate water flow in Liter/hour.
-    waterFlowValue = (rotations * 60) / 7.5;   //Calculate the flow rate in Liter/hour.
-  }
 }
 
 /*
@@ -714,34 +751,6 @@ void waterFlowCheck() {
 }
 
 /*
-===========================================================================================
-|| Check current clock time to enable/disable start of LED lighting, fan and water pump. ||
-=========================================================================================== */
-void checkTimePermission() {
-  //LED lighting and fan are allowed to run in this time window.
-  if (currentClockTime >= LIGHT_FAN_START_TIME && currentClockTime < LIGHT_FAN_STOP_TIME) {
-    ledLightTimeAllowed = true;       //LED lighting is allowed to be turned on.
-    fanTimeAllowed = true;            //Fan is allowed to run.
-    Serial.println("LED lighting allowed.");
-    Serial.println("Fan allowed.");
-  }
-  else {
-    ledLightTimeAllowed = false;       //LED lighting is not allowed to be turned on.
-    fanTimeAllowed = false;            //Fan is not allowed to run.
-  }
-
-  //Water pump allowed to run in below time window.
-  if (currentClockTime >= PUMP_START_TIME && currentClockTime < pumpStopTime) {
-    if (moistureDry == true) {
-      waterPumpTimeAllowed = true;    //Water pump is allowed to run.
-    }
-  }
-  else {
-    waterPumpTimeAllowed = false;   //Water pump is not allowed to run.
-  }
-}
-
-/*
 ======================================
 || Enable/Disable water pump start. ||
 ====================================== */
@@ -760,6 +769,26 @@ void checkWaterNeed() {
 }
 
 /*
+=====================================================================================================
+|| Count number of rotations fan blades does. Function runs every time interrupt pin is triggered. ||
+===================================================================================================== */
+void fanRotationCount() {
+  //Interrupt function to count number of rotations that flow sensor makes when water is being pumped.
+  fanRotations++;
+}
+
+/*
+==========================
+|| Calculate fan speed. ||
+========================== */
+void fanRpm() {
+  //Calculate fan rpm (rotations/minute) by counting number of rotations that fan blades make. Sensor is connected to interrupt pin.
+  //Function called once every second only when fan is running.
+    fanSpeedValue = fanRotations * 60 / 2;           //Calculate number of rotations fan blade have made during the time that passed since last measurement.
+    fanRotations = 0;
+}
+
+/*
 =========================================================================
 || Check and compare air-humidity to decide which speed to run fan at. ||
 ========================================================================= */
@@ -771,6 +800,8 @@ void humiditySpeedControl() {
     lowFanSpeedEnabled = false;
   }
 }
+
+
 
 /*
 ==================
@@ -835,9 +866,18 @@ ISR(RTC_CNT_vect) {
           break;
       }
 
-
-
       divider10 = 0;                        //Clear divider variable.
+      //Calculating fan speed on.
+      if(fanState == true) {
+        fanRpm();
+      }
+      
+      //Time delay for calculating water flow.
+      if(waterPumpState == true) {
+        waterFlow();
+      }
+      
+      //Internal clock.
       secondPointer1++;                     //Increase second pointer every time this function runs.
 
       //Second pointer.
@@ -1057,20 +1097,6 @@ void toggleDisplayMode() {
         startupImageDisplay = true;               //Reboot greenhouse program by printing the startup image to display.
         Serial.println("Go to startupImageDisplay");
       }
-      //Check if water flow fault code has been cleared by user or not.
-      /*
-        if(waterFlowFault == false) {               //Fault code has been cleared by user. Continue to run greenhouse program.
-        greenhouseProgramStart = true;
-        readoutValuesDisplay = true;              //Set next display mode to be printed to display.
-        alarmMessageEnabled = true;               //Enable any alarm message from being printed to display.
-        Serial.println("Resume program");
-        }
-        else {                                      //If flow fault code is not cleared, reboot greenhouse program.
-        waterFlowFault = false;                   //Clear water flow fault code.
-        resetClockTime();                         //Reset clock time.
-        startupImageDisplay = true;               //Reboot greenhouse program by printing the startup image to display.
-        Serial.println("Go to startupImageDisplay");
-        }*/
     }
 
     //Check if water flow fault code is active. If active enter flow fault display to handle fault code.
@@ -1705,16 +1731,14 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
 
+  //Declaring I/O-ports.
   pinMode(moistureSensorPort1, INPUT);
   pinMode(moistureSensorPort2, INPUT);
   pinMode(moistureSensorPort3, INPUT);
   pinMode(moistureSensorPort4, INPUT);
 
-  pinMode(flowSensor, INPUT);
-
-  attachInterrupt(3, flowCount, RISING);  //Initialize interrupt to enable water flow sensor to calculate water flow pumped by water pump.
-
-  attachInterrupt(2, toggleDisplayMode, RISING); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
+  pinMode(waterFlowSensor, INPUT);
+  pinMode(fanSpeedSensor, INPUT);
 
   pinMode(waterLevelSwitch, INPUT);
 
@@ -1724,6 +1748,11 @@ void setup() {
 
   pinMode(clockSetButton, INPUT);
   pinMode(clockModeButton, INPUT);
+
+  //Interupt pins.
+  attachInterrupt(13, fanRotationCount, RISING);  //Initialize interrupt to water flow sensor to calculate water flow pumped by water pump.
+  attachInterrupt(3, waterFlowCount, RISING);  //Initialize interrupt to enable calculation of fan speed when it is running.
+  attachInterrupt(2, toggleDisplayMode, RISING); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
 
   Wire.begin();
 
@@ -1842,6 +1871,7 @@ void loop() {
 
     lightRead();                                                                                          //Read light sensor UV value.
     waterLevelRead();                                                                                     //Check water level in water tank.
+    
     alarmMessageDisplay();                                                                                //Print alarm messages to display for any faults that is currently active. Warning messages on display will alert user to take action to solve a certain fault.
 
     //Check readout light value according to a time cycle and turn led lighting ON/OFF based on the readout.
