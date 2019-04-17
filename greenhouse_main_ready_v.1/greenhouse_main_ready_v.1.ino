@@ -84,7 +84,7 @@ ______________________________________|_________________________________________
 PARAMETERS ALLOWED TO BE CHANGED TO ALTER THE WAY GREENHOUSE PROGRAM RUNS. //
                                                                            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  */
 //SOIL MOISTURE.
-const unsigned short MOISTURE_THRESHOLD_LOW = 640;                  //Set moisture interval values. When measured moisture value (how much water soil contains) is within this interval soil moisture is considered to be OK for plants.
+const unsigned short MOISTURE_THRESHOLD_LOW = 700;                  //Set moisture interval values. When measured moisture value (how much water soil contains) is within this interval soil moisture is considered to be OK for plants.
 const unsigned short MOISTURE_THRESHOLD_HIGH = 660;                 //Same as above but upper threshold for what is considered to be OK soil moisture.
 
 //FAN SPEED CONTROL.
@@ -94,7 +94,7 @@ const unsigned short HUMIDITY_THRESHOLD_VALUE = 60;                 //Set air hu
 //Temperature.
 const unsigned short TEMP_THRESHOLD_VALUE = 30;                     //Set temperature threshold for as threshold for triggering the temperature alarm. Value 30 means that if measured temperature exceeds 30°C a temperature alarm will be activated.
 //Water flow.
-const unsigned short FLOW_THRESHOLD_VALUE = 80;                     //Variable value specifies the minimum water flow required to avoid activating water flow fault.
+const unsigned short FLOW_THRESHOLD_VALUE = 3;                      //Variable value specifies the minimum water flow (Liter/hour) required to avoid activating water flow fault.
 const unsigned short CHECK_WATER_FLOW_PERIOD = 1500;                //Set for how long time (in milliseconds) after water pump has been activated (turned ON) before program checks the water flow. IMPORTANT: Value must be above 1000, since it takes 1 sec before water flow value is calculated.
 //LED lighting.
 const unsigned short UV_THRESHOLD_VALUE = 4;                        //Set at which UV-value LED lighting alarm is activated. If UV-value is lower than specified value when LED lighting is ON, an alarm is activated.
@@ -110,7 +110,7 @@ unsigned short pumpStopTime = 1500;                                 //Stop clock
 //LOOP TIME.
 //Loop time for how often certain readouts and/or motors  be activated.
 const unsigned int CHECK_MOISTURE_PERIOD = 20000;                   //Loop time (in milliseconds) how often soil moisture is being checked and hence water pump is activated (only when soil is too dry).
-const unsigned short WATER_PUMP_TIME_PERIOD = 3000;                 //Set time (in milliseconds) how long water pump will run each time it is activated. Fan speed mode is also checked in same interval as water pump.
+const unsigned short WATER_PUMP_TIME_PERIOD = 7000;                 //Set time (in milliseconds) how long water pump will run each time it is activated. Fan speed mode is also checked in same interval as water pump.
 const unsigned int CHECK_LIGHT_NEED_PERIOD = 5000;                  //Loop time (in milliseconds) how often ligtht and fan need is being checked. Light need is only checking if current time is in allowed interval meanwhile fan also checks if humidity level is too high.
 /*
 .................................................................///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -182,7 +182,7 @@ bool ledLightFault = false;               //Indicate if LED lighting is not turn
 
 //Water pump and flow sensor.
 volatile int flowSensorRotations;
-int waterFlowValue;
+float waterFlowValue = 0;
 bool waterPumpState = false;              //Indicate current status of water pump. Variable is 'true' when water pump is running.
 bool waterFlowFault = false;              //Indicate if water is being pumped when water pump is running. Variable is 'false' when water flow is above threshold value.
 //int FLOW_THRESHOLD_VALUE = 80;              //Variable value specifies the minimum water flow threshold required to avoid setting water flow fault.
@@ -501,7 +501,7 @@ void viewReadoutValues() {
   blankToDisplay(7, 5, 11);
   blankToDisplay(8, 9, 7);
   blankToDisplay(9, 9, 7);
-  blankToDisplay(10, 10, 6);
+  blankToDisplay(10, 8, 8);
   blankToDisplay(11, 0, 16);
   blankToDisplay(12, 7, 9);
 
@@ -515,7 +515,7 @@ void viewReadoutValues() {
   *************************************/
   stringToDisplay(2, 0, "Moisture:");
   numberToDisplay(2, 10, moistureMeanValue);    //Moisture mean value calculated from all four moisture sensor readouts.
-
+  
   stringToDisplay(3, 0, "Soil:");               //Prints "Dry", "OK" or "Wet" to display based on soil humidity.
   if (moistureDry == true) {
     stringToDisplay(3, 10, "Dry");
@@ -534,45 +534,52 @@ void viewReadoutValues() {
   SeeedGrayOled.putString("Light:");            //Print string to display.
   SeeedGrayOled.setTextXY(4, 10 * 8);
   SeeedGrayOled.putNumber(lightValue);          //Print light value in the unit, lux, to display.
+  stringToDisplay(4, 14, "lm");
 
   SeeedGrayOled.setTextXY(5, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putString("UV-light:");         //Print string to display.
   SeeedGrayOled.setTextXY(5, 10 * 8);
   SeeedGrayOled.putNumber(uvValue);             //Print light value in the unit, lux, to display.
-
+  stringToDisplay(5, 13, "UN");
+  
   /********************
   |Air humidity value.|
   ********************/
   stringToDisplay(6, 0, "Humidity:");
   numberToDisplay(6, 10, humidityValue);      //Air humidity value, unit in %.
+  stringToDisplay(6, 13, "%");
 
   /*************************************************************************
   |Temperature value and temperature threshold value set by rotary encoder.|
   *************************************************************************/
   stringToDisplay(7, 0, "Temp:");
   numberToDisplay(7, 10, tempValue);            //Temperature value.
+  stringToDisplay(7, 13, "*C");
 
   stringToDisplay(8, 0, "Temp lim:");
   SeeedGrayOled.setTextXY(8, 10 * 8);
   SeeedGrayOled.putNumber(TEMP_THRESHOLD_VALUE);  //Print temperature threshold value to display. Value 24 corresponds to 24°C. //CHANGED NOT VALID NOW temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
-
+  stringToDisplay(8, 13, "*C");
 
   /*************************
   |Water flow sensor value.|
   *************************/
   SeeedGrayOled.setTextXY(9, 0);                    //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putString("Wtr flow:");           //Print string to display.
+  SeeedGrayOled.putString("Wtr flow:");              //Print string to display.
   SeeedGrayOled.setTextXY(9, 10 * 8);
   SeeedGrayOled.putNumber(waterFlowValue);          //Print water flow value to display.
+  stringToDisplay(9, 12, "L/h");
 
   /*****************
   |Fan speed value.|
   *****************/
-  SeeedGrayOled.setTextXY(10, 0);                    //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putString("Fan speed:");           //Print string to display.
-  SeeedGrayOled.setTextXY(10, 10 * 8);
+  SeeedGrayOled.setTextXY(10, 0);                     //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putString("Fan spd:");                //Print string to display.
+  SeeedGrayOled.setTextXY(10, 9 * 8);
   SeeedGrayOled.putNumber(fanSpeedValue);                //Print water flow value to display.
-
+  stringToDisplay(10, 13, "rpm");
+  
+  
   /****************
   |Current action.|
   ****************/
@@ -709,8 +716,12 @@ void waterFlowCount() {
 || Calculate water flow when water pump is running. ||
 ====================================================== */
 void waterFlow() {
-  waterFlowValue = (flowSensorRotations * 60) / 7.5;   //Calculate the flow rate in Liter/hour.
+  waterFlowValue = (float(flowSensorRotations) * 3600) / 55064;   //(water flow value in Liter/hour) = ((total rotations during 1 sec) * (3600 sec converting to hours) / (number of rotations it takes to pump 1 liter of water).
+  Serial.print("flowSensorRotations: ");
+  Serial.println(flowSensorRotations);
   flowSensorRotations = 0;
+  Serial.print("waterFlowValue: ");
+  Serial.println(waterFlowValue);
 }
 
 /*
@@ -1333,8 +1344,8 @@ void viewServiceMode() {
   blankToDisplay(6, 12, 3);
 
   blankToDisplay(7, 0, 16);
-
-  blankToDisplay(9, 10, 4);
+  blankToDisplay(8, 12, 4);
+  blankToDisplay(9, 10, 6);
 
   blankToDisplay(10, 9, 7);
   blankToDisplay(11, 10, 6);
