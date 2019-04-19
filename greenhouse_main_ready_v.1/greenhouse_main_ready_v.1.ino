@@ -23,8 +23,8 @@
 #define moistureSensorPort3 A2
 #define moistureSensorPort4 A3
 #define DHTPIN 4
-//#define rotaryEncoderOutpA 11
-//#define rotaryEncoderOutpB 10
+#define rotaryEncoderOutpA 11
+#define rotaryEncoderOutpB 10
 #define waterFlowSensor 3
 #define fanSpeedSensor 13
 #define waterLevelSwitch 12
@@ -84,7 +84,7 @@ ______________________________________|_________________________________________
 PARAMETERS ALLOWED TO BE CHANGED TO ALTER THE WAY GREENHOUSE PROGRAM RUNS. //
                                                                            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  */
 //SOIL MOISTURE.
-const unsigned short MOISTURE_THRESHOLD_LOW = 700;                  //Set moisture interval values. When measured moisture value (how much water soil contains) is within this interval soil moisture is considered to be OK for plants.
+const unsigned short MOISTURE_THRESHOLD_LOW = 640;                  //Set moisture interval values. When measured moisture value (how much water soil contains) is within this interval soil moisture is considered to be OK for plants.
 const unsigned short MOISTURE_THRESHOLD_HIGH = 660;                 //Same as above but upper threshold for what is considered to be OK soil moisture.
 
 //FAN SPEED CONTROL.
@@ -92,7 +92,7 @@ const unsigned short HUMIDITY_THRESHOLD_VALUE = 60;                 //Set air hu
 
 //ALARM TRIGGER VALUES.
 //Temperature.
-const unsigned short TEMP_THRESHOLD_VALUE = 30;                     //Set temperature threshold for as threshold for triggering the temperature alarm. Value 30 means that if measured temperature exceeds 30°C a temperature alarm will be activated.
+const unsigned short TEMP_THRESHOLD_VALUE = 28;                     //Set temperature threshold value (°C). If measured temperature is above this specified value a temperature alarm is activated. Value 30 means equal to 30°C.
 //Water flow.
 const unsigned short FLOW_THRESHOLD_VALUE = 3;                      //Variable value specifies the minimum water flow (Liter/hour) required to avoid activating water flow fault.
 const unsigned short CHECK_WATER_FLOW_PERIOD = 1500;                //Set for how long time (in milliseconds) after water pump has been activated (turned ON) before program checks the water flow. IMPORTANT: Value must be above 1000, since it takes 1 sec before water flow value is calculated.
@@ -103,7 +103,7 @@ const unsigned short CHECK_LIGHT_FAULT_PERIOD = 3000;               //Set delay 
 //ALLOWED CLOCK TIME TO RUN.
 //Specify clock time when fan, LED lighting and water pump is allowd to run. Clock time converted to an intiger (700 = 07:00 and 2335 = 23:35).
 unsigned short LIGHT_FAN_START_TIME = 700;                          //Start clock time (after specified time) fan and LED lighting is allowed to be activated (ON).
-unsigned short LIGHT_FAN_STOP_TIME = 2300;                          //Stop time for when fan and LED lighting is NOT allowed to be activated and is turned OFF.
+unsigned short LIGHT_FAN_STOP_TIME = 2300;                          //Stop clock time (after specified time) for when fan and LED lighting is NOT allowed to be activated and is turned OFF if is currently running.
 unsigned short PUMP_START_TIME = 800;                               //Start clock time (after specified time) water pump is allowed to be activated (ON).
 unsigned short pumpStopTime = 1500;                                 //Stop clock time (after specified time) water pump is NOT allowed to run and is turned OFF.
 
@@ -160,8 +160,8 @@ uint8_t FAN_LOW_SPEED = 1;                //Relay channel number where fan (low 
 
 
 //Rotary encoder to adjust temperature threshold.
-//int tempThresholdValue = 60;              //Starting value for temperature threshold adjustment is 30°C.
-//int aLastState;
+unsigned short tempThresholdValue = TEMP_THRESHOLD_VALUE * 2;              //Starting value for temperature threshold adjustment is value specified in TEMP_THRESHOLD_VALUE variable. Temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
+int aLastState;
 
 //Debouncing button press, MODE-button (triggers external interrupt when pressed).
 volatile unsigned long pressTimePrev;     //Variable to store previous millis() value.
@@ -487,9 +487,9 @@ void blankToDisplay(unsigned char x, unsigned char y, int numOfBlanks) {
 }
 
 /*
-=========================================================================
-|| VALUE READ OUT DISPLAY MODE. Print read out values to OLED display. ||
-========================================================================= */
+========================================================================
+|| VALUE READOUT DISPLAY MODE. Print read out values to OLED display. ||
+======================================================================== */
 void viewReadoutValues() {
   //Clear symbols from previous display mode.
   blankToDisplay(0, 0, 2);
@@ -558,7 +558,7 @@ void viewReadoutValues() {
 
   stringToDisplay(8, 0, "Temp lim:");
   SeeedGrayOled.setTextXY(8, 10 * 8);
-  SeeedGrayOled.putNumber(TEMP_THRESHOLD_VALUE);  //Print temperature threshold value to display. Value 24 corresponds to 24°C. //CHANGED NOT VALID NOW temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
+  SeeedGrayOled.putNumber(tempThresholdValue / 2);  //Print temperature threshold value to display. Temp value is doubled to reduce rotary sensitivity and increase knob rotation precision. Value 24 corresponds to 12°C.
   stringToDisplay(8, 13, "*C");
 
   /*************************
@@ -1229,12 +1229,38 @@ void setClockDisplay() {
 || Compare read out temperature with temperature threshold that has been set by adjusting rotary encoder. ||
 ============================================================================================================ */
 void tempThresholdCompare() {
-  if (tempValue > TEMP_THRESHOLD_VALUE) {                             //Compare read out temperature value with temperature threshold value set by rotary encoder.
+  if (tempValue > tempThresholdValue) {                             //Compare read out temperature value with temperature threshold value set by rotary encoder.
     tempValueFault = true;                                         //If measured temperature is higher than temperature threshold that has been set, variable is set to 'true' to alert user.
   }
   else {
     tempValueFault = false;
   }
+}
+
+/*
+================================================
+|| Read temperature threshold rotary encoder. ||
+================================================ */
+void temperatureThresholdRead() {
+  //Reading preset temperature threshold thas is being adjusted by rotary encoder knob.
+
+  int minTemp = 24;   //Temperature value can be set within the boundaries of 12 - 40°C (minTemp - maxTemp). Temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
+  int maxTemp = 80;
+  int aState;
+
+  aState = digitalRead(rotaryEncoderOutpA);                         //Reads the current state of the rotary knob, outputA.
+
+  if (aState != aLastState) {                                       //A turn on rotary knob is detected by comparing previous and current state of outputA.
+    if (digitalRead(rotaryEncoderOutpB) != aState && tempThresholdValue <= maxTemp) { //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
+      tempThresholdValue++;                                         //Clockwise rotation means increasing position value. Position value is only increased if less than max value.
+      Serial.println("forward rotated!");
+    }
+    else if (tempThresholdValue > minTemp) {
+      tempThresholdValue--;                                         //Counter clockwise rotation means decreasing position value.
+      Serial.println("backward rotated!");
+    }
+  }
+  aLastState = aState;                                              //Updates the previous state of outputA with current state.
 }
 
 /*
@@ -1753,17 +1779,19 @@ void setup() {
 
   pinMode(waterLevelSwitch, INPUT);
 
-  //pinMode(rotaryEncoderOutpA, INPUT);
-  //pinMode(rotaryEncoderOutpB, INPUT);
-  //aLastState = digitalRead(rotaryEncoderOutpA);      //Read initial position value.
+  pinMode(rotaryEncoderOutpA, INPUT);
+  pinMode(rotaryEncoderOutpB, INPUT);
+  aLastState = digitalRead(rotaryEncoderOutpA);      //Read initial position value.
 
   pinMode(clockSetButton, INPUT);
   pinMode(clockModeButton, INPUT);
 
   //Interupt pins.
   attachInterrupt(13, fanRotationCount, RISING);  //Initialize interrupt to water flow sensor to calculate water flow pumped by water pump.
+  attachInterrupt(11, temperatureThresholdRead, RISING); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
   attachInterrupt(3, waterFlowCount, RISING);  //Initialize interrupt to enable calculation of fan speed when it is running.
   attachInterrupt(2, toggleDisplayMode, RISING); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
+  
 
   Wire.begin();
 
@@ -1840,6 +1868,8 @@ void loop() {
 
   //Set current time and toggle between different screen display modes.
   pushButton1 = digitalRead(clockSetButton);                        //Check if SET-button is being pressed.
+  
+  //temperatureThresholdRead();
 
   //Different functions to be run depending of which screen display mode that is currently active.
   if (startupImageDisplay == true) {
