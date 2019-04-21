@@ -27,61 +27,61 @@
 #define rotaryEncoderOutpB 10
 #define waterFlowSensor 3
 #define fanSpeedSensor 13
-#define waterLevelSwitch 12
+#define waterLevelSensor 12
 #define clockSetButton 7
 #define clockModeButton 2
 
 //Arduino UNO base shield I/O layout.
 /*
-################### ARDUINO UNO ############################
-#|                                                        |#
-#|__________________DIGITAL_(PWM_~)_______________________|#
-#||X|X|X|GND|13|12|~11|~10|~9| 8|<>| 7|~6|~5| 4|~3| 2|X|X||#
-#|                                                        |#
-#|     |A3|                                               |#
-#|               |D4|      |D3|      |D2|      |UART|     |#
-#|     |A2|                                               |#
-#|               |D8|      |D7|      |D6|      |D5|       |#
-#|     |A1|                                               |#
-#|               |I2C|     |I2C|     |I2C|     |I2C|      |#
-#|     |A0|                                               |#
-#|                                                        |#
-#|______________POWER_____________________ANALOG IN_______|#
-#||A0| | |X|X|X|3.3V|5V|GND|GND|Vin|<>|A0|A1|A2|A3|A4|A5| |#
-#|                                                        |#
-################### ARDUINO UNO ############################
-______________________________________________________________________________________________________________________________________________________________
-GROVE connectors                      | DIGITAL (PWM~)                                                                                                        |
+  ################### ARDUINO UNO ############################
+  #|                                                        |#
+  #|__________________DIGITAL_(PWM_~)_______________________|#
+  #||X|X|X|GND|13|12|~11|~10|~9| 8|<>| 7|~6|~5| 4|~3| 2|X|X||#
+  #|                                                        |#
+  #|     |A3|                                               |#
+  #|               |D4|      |D3|      |D2|      |UART|     |#
+  #|     |A2|                                               |#
+  #|               |D8|      |D7|      |D6|      |D5|       |#
+  #|     |A1|                                               |#
+  #|               |I2C|     |I2C|     |I2C|     |I2C|      |#
+  #|     |A0|                                               |#
+  #|                                                        |#
+  #|______________POWER_____________________ANALOG IN_______|#
+  #||A0| | |X|X|X|3.3V|5V|GND|GND|Vin|<>|A0|A1|A2|A3|A4|A5| |#
+  #|                                                        |#
+  ################### ARDUINO UNO ############################
+  ______________________________________________________________________________________________________________________________________________________________
+  GROVE connectors                      | DIGITAL (PWM~)                                                                                                        |
 ****************                      | **************                                                                                                        |
-A3:   Moisture Sensor4                | GND:  10 kohm resistor in in series with with 12 (I/O)                                                                |
-A2:   Moisture Sensor3                | 13:   Fan signal cable in parallell with 10 kohm resistor to +5V                                                      |
-A1:   Moisture Sensor2                | 12:   10 kohm resistor parallell with signal wire1 to water tank level switch. Resistor is in series with GND (I/O)   |
-A0:   Moisture Sensor1                | 11~:  Signal wire1 to temperature rotary encoder                                                                      |
-D4:   Humidity & Temperature Sensor   | 10~:  Signal wire2 to temperature rotary encoder                                                                      |
-D8:   'EMPTY'                         |                                                                                                                       |
-I2C:  4-Channel Relay                 | All other (unspecified) of its I/O:s are 'EMPTY'.                                                                     |
-D3:   Water Flow Sensor               |                                                                                                                       |
-D7:   SET-Button                      |                                                                                                                       |                                                                                                                      |
-I2C:  Sunlight Sensor                 | POWER                                                                                                                 |
-D2:   MODE-Button                     | *****                                                                                                                 |
-D6:   'EMPTY'                         | 5V:   Supply wire to water tank level switch in parallell supply wire to temperature rotary encoder.                  |
-I2C:  OLED Display (128x128 px)       | GND:  Ground wire to temperature rotary encoder.                                                                      |
-UART: 'EMPTY'                         |                                                                                                                       |
-D5:   'EMPTY'                         | All other (unspecified) of its I/O:s are 'EMPTY'.                                                                     |
-I2C:  'EMPTY'                         |                                                                                                                       |
+  A3:   Moisture Sensor4                | GND:  10 kohm resistor in in series with with 12 (I/O)                                                                |
+  A2:   Moisture Sensor3                | 13:   Fan signal cable in parallell with 10 kohm resistor to +5V                                                      |
+  A1:   Moisture Sensor2                | 12:   10 kohm resistor parallell with signal wire1 to water tank level switch. Resistor is in series with GND (I/O)   |
+  A0:   Moisture Sensor1                | 11~:  Signal wire1 to temperature rotary encoder                                                                      |
+  D4:   Humidity & Temperature Sensor   | 10~:  Signal wire2 to temperature rotary encoder                                                                      |
+  D8:   'EMPTY'                         |                                                                                                                       |
+  I2C:  4-Channel Relay                 | All other (unspecified) of its I/O:s are 'EMPTY'.                                                                     |
+  D3:   Water Flow Sensor               |                                                                                                                       |
+  D7:   SET-Button                      |                                                                                                                       |                                                                                                                      |
+  I2C:  Sunlight Sensor                 | POWER                                                                                                                 |
+  D2:   MODE-Button                     | *****                                                                                                                 |
+  D6:   'EMPTY'                         | 5V:   Supply wire to water tank level switch in parallell supply wire to temperature rotary encoder.                  |
+  I2C:  OLED Display (128x128 px)       | GND:  Ground wire to temperature rotary encoder.                                                                      |
+  UART: 'EMPTY'                         |                                                                                                                       |
+  D5:   'EMPTY'                         | All other (unspecified) of its I/O:s are 'EMPTY'.                                                                     |
+  I2C:  'EMPTY'                         |                                                                                                                       |
                                       |                                                                                                                       |
                                       | ANALOG IN                                                                                                             |
                                       | *********                                                                                                             |
                                       | All I/O:s are 'EMPTY'.                                                                                                |
-______________________________________|_______________________________________________________________________________________________________________________|
+  ______________________________________|_______________________________________________________________________________________________________________________|
 
-/*
+  /*
 *********************
-* Global variables. *
+  Global variables.
 *********************/
 /*
-/////////////////////////////////////////////////////////////////////////////
-PARAMETERS ALLOWED TO BE CHANGED TO ALTER THE WAY GREENHOUSE PROGRAM RUNS. //
+  /////////////////////////////////////////////////////////////////////////////
+  PARAMETERS ALLOWED TO BE CHANGED TO ALTER THE WAY GREENHOUSE PROGRAM RUNS. //
                                                                            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  */
 //SOIL MOISTURE.
 const unsigned short MOISTURE_THRESHOLD_LOW = 640;                  //Set moisture interval values. When measured moisture value (how much water soil contains) is within this interval soil moisture is considered to be OK for plants.
@@ -113,17 +113,17 @@ const unsigned int CHECK_MOISTURE_PERIOD = 20000;                   //Loop time 
 const unsigned short WATER_PUMP_TIME_PERIOD = 7000;                 //Set time (in milliseconds) how long water pump will run each time it is activated. Fan speed mode is also checked in same interval as water pump.
 const unsigned int CHECK_LIGHT_NEED_PERIOD = 5000;                  //Loop time (in milliseconds) how often ligtht and fan need is being checked. Light need is only checking if current time is in allowed interval meanwhile fan also checks if humidity level is too high.
 /*
-.................................................................///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Oliver Staberg                                                   //
-ALTEN Sweden AB in cooperation with Västsvenska Handelskammaren  //
-Gothenburg, April 2019.                                          //
-///////////////////////////////////////////////////////////////////
-/*
+  .................................................................///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  Oliver Staberg                                                   //
+  ALTEN Sweden AB in cooperation with Västsvenska Handelskammaren  //
+  Gothenburg, April 2019.                                          //
+  ///////////////////////////////////////////////////////////////////
+  /*
 
-/*
-\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-OTHER GLOBAL VARIABLES BELOW, DO NOT TOUCH! \\
-//////////////////////////////////////////////
+  /*
+  \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+  OTHER GLOBAL VARIABLES BELOW, DO NOT TOUCH! \\
+  //////////////////////////////////////////////
 */
 
 //Moisture sensors.
@@ -148,8 +148,8 @@ DHT humiditySensor(DHTPIN, DHTTYPE);      //Create humidity sensor from DHT clas
 float tempValue;
 float humidityValue;                      //Air humidity value.
 bool tempValueFault = false;              //Indicate if read out temperature is higher than temperature treshold that has been set by adjusting temperature rotary encoder. Variable is 'false' when read out temperature is below set temperature threshold.
-//static unsigned short TEMP_VALUE_MIN = 28;                    //Temperature value can be set within the boundaries of 14 - 40°C. Temp value is doubled to reduce rotary knob sensitivity.
-//static unsigned short TEMP_VALUE_MAX = 80;
+const unsigned short TEMP_VALUE_MIN = 24;                    //Temperature value can be set within the boundaries of 12 - 40°C. Temp value is doubled to reduce rotary knob sensitivity. Values are doubled to increase rotary encoder precision.
+const unsigned short TEMP_VALUE_MAX = 80;
 
 //4-Channel Relay
 Multi_Channel_Relay relay;                //Relay object created from Multi_Channel_Relay class.
@@ -188,7 +188,7 @@ bool waterFlowFault = false;              //Indicate if water is being pumped wh
 //int FLOW_THRESHOLD_VALUE = 80;              //Variable value specifies the minimum water flow threshold required to avoid setting water flow fault.
 
 //Water level switch.
-bool waterLevelValue = false;             //If variable is 'false' water level is OK. If 'true' tank water level is too low.
+bool waterLevelFault = false;             //If variable is 'false' water level is OK. If 'true' tank water level is too low.
 
 //Internal clock to keep track of current time.
 int currentClockTime = 0;
@@ -227,9 +227,9 @@ static bool toggle2 = false;
 unsigned short clockTime1 = 0;
 unsigned short clockTime2 = 0;
 /*
----------------------
-|Greenhouse program.|
---------------------*/
+  ---------------------
+  |Greenhouse program.|
+  --------------------*/
 bool greenhouseProgramStart = false;        //If variable is set to 'true', automatic water and lighting control of greenhouse is turned on.
 static bool allowRestart = false;
 unsigned short actionRegister;
@@ -293,9 +293,9 @@ char         server[]       = "iotgarage.expericom.ericsson.net";
 WiFiClient client;
 
 /*
-==============================================================
-|| Bitmap image 2 to be printed on OLED display at startup. ||
-============================================================== */
+  ==============================================================
+  || Bitmap image 2 to be printed on OLED display at startup. ||
+  ============================================================== */
 const unsigned char greenhouse[] PROGMEM = {
   //Startup image.
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -429,9 +429,9 @@ const unsigned char greenhouse[] PROGMEM = {
 };
 
 /*
-======================================================
-|| Initialize OLED display and show startup images. ||
-====================================================== */
+  ======================================================
+  || Initialize OLED display and show startup images. ||
+  ====================================================== */
 void viewStartupImage() {
   if (startupImageDisplay) {
     Serial.println("startupImageDisplay");
@@ -454,9 +454,9 @@ void viewStartupImage() {
 }
 
 /*
-=======================================
-|| Print number variable to display. ||
-======================================= */
+  =======================================
+  || Print number variable to display. ||
+  ======================================= */
 void numberToDisplay(unsigned char x, unsigned char y, unsigned short variable) {
   y *= 8;                                         //To align symbol with rest printed text. Each symbol requires 8px in width.
   SeeedGrayOled.setTextXY(x, y);                  //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
@@ -464,9 +464,9 @@ void numberToDisplay(unsigned char x, unsigned char y, unsigned short variable) 
 }
 
 /*
-===================================
-|| Print custom text to display. ||
-=================================== */
+  ===================================
+  || Print custom text to display. ||
+  =================================== */
 void stringToDisplay(unsigned char x, unsigned char y, char* text) {
   y *= 8;                                         //To align symbol with rest printed text. Each symbol requires 8px in width.
   SeeedGrayOled.setTextXY(x, y);                  //Set cordinates to where text will be printed. X = row (0-7), Y = column (0-127).
@@ -474,9 +474,9 @@ void stringToDisplay(unsigned char x, unsigned char y, char* text) {
 }
 
 /*
-======================================================
-|| Clear any character/s (print blanks) at display. ||
-====================================================== */
+  ======================================================
+  || Clear any character/s (print blanks) at display. ||
+  ====================================================== */
 void blankToDisplay(unsigned char x, unsigned char y, int numOfBlanks) {
   y *= 8;                                         //To align symbol with rest printed text. Each symbol requires 8px in width.
   for (int i = 0; i < numOfBlanks; i++) {         //Print blank space to display. Each loop one blank space is printed.
@@ -487,9 +487,9 @@ void blankToDisplay(unsigned char x, unsigned char y, int numOfBlanks) {
 }
 
 /*
-========================================================================
-|| VALUE READOUT DISPLAY MODE. Print read out values to OLED display. ||
-======================================================================== */
+  ========================================================================
+  || VALUE READOUT DISPLAY MODE. Print read out values to OLED display. ||
+  ======================================================================== */
 void viewReadoutValues() {
   //Clear symbols from previous display mode.
   blankToDisplay(0, 0, 2);
@@ -511,11 +511,11 @@ void viewReadoutValues() {
 
   //Printing read out values from the greenhouse to display.
   /*************************************
-  |Moisture mean value and soil status.|
+    |Moisture mean value and soil status.|
   *************************************/
   stringToDisplay(2, 0, "Moisture:");
   numberToDisplay(2, 10, moistureMeanValue);    //Moisture mean value calculated from all four moisture sensor readouts.
-  
+
   stringToDisplay(3, 0, "Soil:");               //Prints "Dry", "OK" or "Wet" to display based on soil humidity.
   if (moistureDry == true) {
     stringToDisplay(3, 10, "Dry");
@@ -528,7 +528,7 @@ void viewReadoutValues() {
   }
 
   /***************************
-  |Light and UV-light values.|
+    |Light and UV-light values.|
   ***************************/
   SeeedGrayOled.setTextXY(4, 0);                //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putString("Light:");            //Print string to display.
@@ -540,48 +540,48 @@ void viewReadoutValues() {
   SeeedGrayOled.putString("UV-light:");         //Print string to display.
   SeeedGrayOled.setTextXY(5, 10 * 8);
   SeeedGrayOled.putNumber(uvValue);             //Print light value in the unit, lux, to display.
-  stringToDisplay(5, 13, "UN");
-  
+  stringToDisplay(5, 14, "UN");
+
   /********************
-  |Air humidity value.|
+    |Air humidity value.|
   ********************/
   stringToDisplay(6, 0, "Humidity:");
   numberToDisplay(6, 10, humidityValue);      //Air humidity value, unit in %.
-  stringToDisplay(6, 13, "%");
+  stringToDisplay(6, 13, "pct");
 
   /*************************************************************************
-  |Temperature value and temperature threshold value set by rotary encoder.|
+    |Temperature value and temperature threshold value set by rotary encoder.|
   *************************************************************************/
   stringToDisplay(7, 0, "Temp:");
   numberToDisplay(7, 10, tempValue);            //Temperature value.
-  stringToDisplay(7, 13, "*C");
+  stringToDisplay(7, 14, "*C");
 
   stringToDisplay(8, 0, "Temp lim:");
   SeeedGrayOled.setTextXY(8, 10 * 8);
   SeeedGrayOled.putNumber(tempThresholdValue / 2);  //Print temperature threshold value to display. Temp value is doubled to reduce rotary sensitivity and increase knob rotation precision. Value 24 corresponds to 12°C.
-  stringToDisplay(8, 13, "*C");
+  stringToDisplay(8, 14, "*C");
 
   /*************************
-  |Water flow sensor value.|
+    |Water flow sensor value.|
   *************************/
   SeeedGrayOled.setTextXY(9, 0);                    //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putString("Wtr flow:");              //Print string to display.
   SeeedGrayOled.setTextXY(9, 10 * 8);
   SeeedGrayOled.putNumber(waterFlowValue);          //Print water flow value to display.
-  stringToDisplay(9, 12, "L/h");
+  stringToDisplay(9, 13, "L/h");
 
   /*****************
-  |Fan speed value.|
+    |Fan speed value.|
   *****************/
   SeeedGrayOled.setTextXY(10, 0);                     //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putString("Fan spd:");                //Print string to display.
   SeeedGrayOled.setTextXY(10, 9 * 8);
   SeeedGrayOled.putNumber(fanSpeedValue);                //Print water flow value to display.
   stringToDisplay(10, 13, "rpm");
-  
-  
+
+
   /****************
-  |Current action.|
+    |Current action.|
   ****************/
   stringToDisplay(12, 0, "Action:");
   switch (actionRegister) {
@@ -598,17 +598,17 @@ void viewReadoutValues() {
       blankToDisplay(13, 0, 16);
       break;
   }
-  
+
   /*****************************
-  |Space for any active alarms.|
+    |Space for any active alarms.|
   *****************************/
   stringToDisplay(14, 0, "Alarms:");
 }
 
 /*
-==========================================
-|| Read light values from light sensor. ||
-========================================== */
+  ==========================================
+  || Read light values from light sensor. ||
+  ========================================== */
 void lightRead() {
   lightValue = lightSensor.ReadVisible();
   uvValue = lightSensor.ReadUV();
@@ -616,9 +616,9 @@ void lightRead() {
 }
 
 /*
-===========================================================================================
-|| Check current clock time to enable/disable start of LED lighting, fan and water pump. ||
-=========================================================================================== */
+  ===========================================================================================
+  || Check current clock time to enable/disable start of LED lighting, fan and water pump. ||
+  =========================================================================================== */
 void checkTimePermission() {
   //LED lighting and fan are allowed to run in this time window.
   if (currentClockTime >= LIGHT_FAN_START_TIME && currentClockTime < LIGHT_FAN_STOP_TIME) {
@@ -644,9 +644,9 @@ void checkTimePermission() {
 }
 
 /*
-===========================
-|| Turn ON LED lighting. ||
-=========================== */
+  ===========================
+  || Turn ON LED lighting. ||
+  =========================== */
 void ledLightStart() {
   relay.turn_on_channel(LED_LIGHTING);                                 //Turn on LED lighting.
   ledLightState = true;                                           //Update current LED lighting state, 'true' means lighting is on.
@@ -654,9 +654,9 @@ void ledLightStart() {
 }
 
 /*
-=======================================
-|| Check if LED lighting is working. ||
-======================================= */
+  =======================================
+  || Check if LED lighting is working. ||
+  ======================================= */
 //Alarm if light read out value does not get above light threshold when LED lighting is turned on.
 void ledLightCheck() {
   if (ledLightState == true && uvValue < UV_THRESHOLD_VALUE) {
@@ -669,9 +669,9 @@ void ledLightCheck() {
 }
 
 /*
-============================
-|| Turn OFF LED lighting. ||
-============================ */
+  ============================
+  || Turn OFF LED lighting. ||
+  ============================ */
 void ledLightStop() {
   relay.turn_off_channel(LED_LIGHTING);                                //Turn off LED lighting.
   ledLightState = false;                                        //Update current LED lighting state, 'false' means lighting is off.
@@ -680,9 +680,9 @@ void ledLightStop() {
 
 
 /*
-======================================================================================
-|| Check current clock time and light need to enable/disable start of LED lighting. ||
-====================================================================================== */
+  ======================================================================================
+  || Check current clock time and light need to enable/disable start of LED lighting. ||
+  ====================================================================================== */
 void checkLightNeed() {
   //Check if LED lighting is allowed to run now.
   checkTimePermission();            //Check if LED lighting is allowed to be turned ON (inside allowed time interval). Fan run permission is also checked here be since it has the same defined time interval as LED lighting.
@@ -695,26 +695,26 @@ void checkLightNeed() {
 }
 
 /*
-==============================
-|| Read water level switch. ||
-============================== */
+  ==============================
+  || Read water level switch. ||
+  ============================== */
 void waterLevelRead() {
-  waterLevelValue = digitalRead(waterLevelSwitch);                  //If variable is 'false' water level is OK. If 'true' tank water level is too low.
+  waterLevelFault = digitalRead(waterLevelSensor);                  //If variable is 'false' water level is OK. If 'true' tank water level is too low.
 }
 
 /*
-================================================================================================================
-|| Count number of rotations flow sensor propeller does. Function runs every time interrupt pin is triggered. ||
-================================================================================================================ */
+  ================================================================================================================
+  || Count number of rotations flow sensor propeller does. Function runs every time interrupt pin is triggered. ||
+  ================================================================================================================ */
 void waterFlowCount() {
   //Interrupt function to count number of rotations that flow sensor makes when water is being pumped.
   flowSensorRotations++;
 }
 
 /*
-======================================================
-|| Calculate water flow when water pump is running. ||
-====================================================== */
+  ======================================================
+  || Calculate water flow when water pump is running. ||
+  ====================================================== */
 void waterFlow() {
   waterFlowValue = (float(flowSensorRotations) * 3600) / 55064;   //(water flow value in Liter/hour) = ((total rotations during 1 sec) * (3600 sec converting to hours) / (number of rotations it takes to pump 1 liter of water).
   Serial.print("flowSensorRotations: ");
@@ -725,9 +725,9 @@ void waterFlow() {
 }
 
 /*
-===============================================
-|| Start water pump, read water flow sensor. ||
-=============================================== */
+  ===============================================
+  || Start water pump, read water flow sensor. ||
+  =============================================== */
 void waterPumpStart() {
   relay.turn_on_channel(WATER_PUMP);          //Start water pump.
   waterPumpState = true;                  //Update current water pump state, 'true' means water pump is running.
@@ -735,9 +735,9 @@ void waterPumpStart() {
 }
 
 /*
-======================
-|| Stop water pump. ||
-====================== */
+  ======================
+  || Stop water pump. ||
+  ====================== */
 void waterPumpStop() {
   relay.turn_off_channel(WATER_PUMP);         //Stop water pump.
   waterPumpState = false;               //Update current water pump state, 'false' means water pump not running.
@@ -746,9 +746,9 @@ void waterPumpStop() {
 }
 
 /*
-=========================================================================
-|| Check if water flow is above a certain amount when pump is running. ||
-========================================================================= */
+  =========================================================================
+  || Check if water flow is above a certain amount when pump is running. ||
+  ========================================================================= */
 void waterFlowCheck() {
   Serial.println("Check water flow");
   if (waterFlowValue < FLOW_THRESHOLD_VALUE) { //Check current water flow.
@@ -762,16 +762,16 @@ void waterFlowCheck() {
 }
 
 /*
-======================================
-|| Enable/Disable water pump start. ||
-====================================== */
+  ======================================
+  || Enable/Disable water pump start. ||
+  ====================================== */
 void checkWaterNeed() {
   checkTimePermission();              //Check if water pump is allowed to be running when needed (inside allowed time interval).
   if (waterPumpTimeAllowed == true) {
 
     //Water pump is enabled if soil moisture is too dry or at the same time as no water related fault codes are set.
     if (moistureDry == true && moistureWet == false) {
-      if (waterLevelValue == false && waterFlowFault == false) {  //Make sure no water related fault codes are set.
+      if (waterLevelFault == false && waterFlowFault == false) {  //Make sure no water related fault codes are set.
         waterPumpEnabled = true;      //Enable water pump to run to pump water if needed.
       }
     }
@@ -780,29 +780,29 @@ void checkWaterNeed() {
 }
 
 /*
-=====================================================================================================
-|| Count number of rotations fan blades does. Function runs every time interrupt pin is triggered. ||
-===================================================================================================== */
+  =====================================================================================================
+  || Count number of rotations fan blades does. Function runs every time interrupt pin is triggered. ||
+  ===================================================================================================== */
 void fanRotationCount() {
   //Interrupt function to count number of rotations that flow sensor makes when water is being pumped.
   fanRotations++;
 }
 
 /*
-==========================
-|| Calculate fan speed. ||
-========================== */
+  ==========================
+  || Calculate fan speed. ||
+  ========================== */
 void fanRpm() {
   //Calculate fan rpm (rotations/minute) by counting number of rotations that fan blades make. Sensor is connected to interrupt pin.
   //Function called once every second only when fan is running.
-    fanSpeedValue = fanRotations * 60 / 2;           //Calculate number of rotations fan blade have made during the time that passed since last measurement.
-    fanRotations = 0;
+  fanSpeedValue = fanRotations * 60 / 2;           //Calculate number of rotations fan blade have made during the time that passed since last measurement.
+  fanRotations = 0;
 }
 
 /*
-=========================================================================
-|| Check and compare air-humidity to decide which speed to run fan at. ||
-========================================================================= */
+  =========================================================================
+  || Check and compare air-humidity to decide which speed to run fan at. ||
+  ========================================================================= */
 void humiditySpeedControl() {
   if (humidityValue < HUMIDITY_THRESHOLD_VALUE) {
     lowFanSpeedEnabled = true;                                  //Activate low fan speed mode if air humidity is below humidity threshold value.
@@ -815,9 +815,9 @@ void humiditySpeedControl() {
 
 
 /*
-==================
-|| Turn ON fan. ||
-================== */
+  ==================
+  || Turn ON fan. ||
+  ================== */
 void fanStart() {
   if (lowFanSpeedEnabled == true) {
     relay.turn_off_channel(FAN);                                //Make sure other fan mode is deactivated.
@@ -835,9 +835,9 @@ void fanStart() {
 }
 
 /*
-===================
-|| Turn OFF fan. ||
-=================== */
+  ===================
+  || Turn OFF fan. ||
+  =================== */
 void fanStop() {
   relay.turn_off_channel(FAN);                                  //Turn OFF fan no matter what fan speed mode that is currently running.
   relay.turn_off_channel(FAN_LOW_SPEED);
@@ -846,14 +846,9 @@ void fanStop() {
 }
 
 /*
-=============================================================================================================
-|| Timer interrupt to read temperature threshold value, that is being adjusted by rotary encoder.          ||
-|| Timer interrupt is also used to work as a second ticker for the built clock, included in this function. ||
-============================================================================================================= */
-/*
-===========================================================================================================================================================
-|| Timer interrupt triggered with frequency of 10 Hz used as second ticker for internal clock and to flash clock pointer values when in "set time" mode. ||
-=========================================================================================================================================================== */
+  ===========================================================================================================================================================
+  || Timer interrupt triggered with frequency of 10 Hz used as second ticker for internal clock and to flash clock pointer values when in "set time" mode. ||
+  =========================================================================================================================================================== */
 ISR(RTC_CNT_vect) {
   //Timer interrupt triggered with a frequency of 10 Hz.
   /***************************************************
@@ -879,15 +874,15 @@ ISR(RTC_CNT_vect) {
 
       divider10 = 0;                        //Clear divider variable.
       //Calculating fan speed on.
-      if(fanState == true) {
+      if (fanState == true) {
         fanRpm();
       }
-      
+
       //Time delay for calculating water flow.
-      if(waterPumpState == true) {
+      if (waterPumpState == true) {
         waterFlow();
       }
-      
+
       //Internal clock.
       secondPointer1++;                     //Increase second pointer every time this function runs.
 
@@ -933,31 +928,8 @@ ISR(RTC_CNT_vect) {
     }
   }
 
-  //NOT WORKING DUE TO TOO LOW FREQUENCY OF INTERRUPT.
-  /*************************************
-  |Temperature rotary encoder read out.|
-  *************************************/
-  //Reading preset temperature threshold thas is being adjusted by rotary encoder knob.
-  /*
-    int minTemp = 28;   //Temperature value can be set within the boundaries of 14 - 40°C (minTemp - maxTemp). Temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
-    int maxTemp = 80;
-    int aState;
-
-    aState = digitalRead(rotaryEncoderOutpA);                         //Reads the current state of the rotary knob, outputA.
-
-    if(aState != aLastState) {                                        //A turn on rotary knob is detected by comparing previous and current state of outputA.
-    if(digitalRead(rotaryEncoderOutpB) != aState && tempThresholdValue <= maxTemp) { //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
-      tempThresholdValue++;                                         //Clockwise rotation means increasing position value. Position value is only increased if less than max value.
-    }
-    else if(tempThresholdValue > minTemp) {
-      tempThresholdValue--;                                         //Counter clockwise rotation means decreasing position value.
-    }
-    }
-    aLastState = aState;                                              //Updates the previous state of outputA with current state.
-  */
-
   /**************************
-  |Flash clock digit cursor.|
+    |Flash clock digit cursor.|
   **************************/
   static bool toggle = false;               //Initiate variable only once (instead of declaring it as a global variable).
   divider5++;                               //Increase divider variable.
@@ -980,9 +952,11 @@ ISR(RTC_CNT_vect) {
 }
 
 /*
-===============================================================
-|| Set current time by using SET- and MODE-buttons as input. ||
-=============================================================== */
+  ===============================================================
+  || Set current time by using SET- and MODE-buttons as input. ||
+  =============================================================== */
+//REMOVE THIS!!
+/*
 void setClockTime() {
   //Set current clock time by toggling each hour pointer and minute pointer individualy.
   if (pushButton1 == true && hour2InputMode == true) {
@@ -1030,11 +1004,12 @@ void setClockTime() {
     }
   }
 }
+*/
 
 /*
-======================
-|| Reset clock time ||
-====================== */
+  ======================
+  || Reset clock time ||
+  ====================== */
 void resetClockTime() {
   //Stop clock and reset all clock pointers.
   clockStartMode = false;                       //Stop clock from ticking.
@@ -1042,9 +1017,9 @@ void resetClockTime() {
 }
 
 /*
-======================================================================================
-|| Toggle set modes and screen display modes when clockModeButton is being pressed. ||
-====================================================================================== */
+  ======================================================================================
+  || Toggle set modes and screen display modes when clockModeButton is being pressed. ||
+  ====================================================================================== */
 void toggleDisplayMode() {
   //Debouncing button press to avoid multiple interrupts, display toggles.
   if ((millis() - pressTimePrev) >= DEBOUNCE_TIME_INTERRUPT) {
@@ -1124,27 +1099,142 @@ void toggleDisplayMode() {
 }
 
 /*
-===================================================================================================
-|| SET CLOCK TIME DISPLAY MODE. Print clock values to OLED display to let user set current time. ||
-=================================================================================================== */
+  ===================================================================================================
+  || SET CLOCK TIME DISPLAY MODE. Print clock values to OLED display to let user set current time. ||
+  =================================================================================================== */
 void setClockDisplay() {
   stringToDisplay(0, 7, "SET CLOCK");     //Print current display state to upper right corner of display.
 
-  stringToDisplay(2, 0, "Set current time");
-  stringToDisplay(3, 0, "Use the buttons:");
-  stringToDisplay(5, 0, "SET = inc. value");
-  stringToDisplay(6, 0, "MODE = confirm");
-  stringToDisplay(7, 0, "       selection");
+  stringToDisplay(2, 0, "Use controls to ");
+  stringToDisplay(3, 0, "set each cursor ");
+  stringToDisplay(4, 0, "individually.   ");
+  stringToDisplay(6, 0, "Controls:       ");
+  stringToDisplay(8, 0, "ENCODER = +/-"   );
+  stringToDisplay(9, 0, "MODE = confirm  ");
+  //stringToDisplay(10, 0, "selection");
 
   if (clockStartMode == false) {
+    //stringToDisplay(11, 4, "HH MM SS");
+
+    //Pointer separator character.
+    stringToDisplay(11, 22, ":");
+    stringToDisplay(11, 25, ":");
+  }
+  //Print further instructions when clock start has been activated.
+  else if (clockStartMode == true) {
+    //blankToDisplay(13, 0, 16);
+    blankToDisplay(12, 0, 16);
+
+    //Pointer separater character flash.
+    if (flashClockPointer == true) {
+      SeeedGrayOled.setTextXY(11, 22 * 8);
+      SeeedGrayOled.putString(" ");
+
+      SeeedGrayOled.setTextXY(11, 25 * 8);
+      SeeedGrayOled.putString(" ");
+    }
+    else {
+      SeeedGrayOled.setTextXY(11, 22 * 8);
+      SeeedGrayOled.putString(":");
+
+      SeeedGrayOled.setTextXY(11, 25 * 8);
+      SeeedGrayOled.putString(":");
+    }
+
+    stringToDisplay(13, 0, "Clock is ticking");
+
+    stringToDisplay(14, 0, "Press MODE to");
+    stringToDisplay(15, 0, "continue.");
+  }
+
+  numberToDisplay(11, 20, hourPointer2);
+  numberToDisplay(11, 21, hourPointer1);
+  numberToDisplay(11, 23, minutePointer2);
+  numberToDisplay(11, 24, minutePointer1);
+
+  //Second pointers.
+  SeeedGrayOled.setTextXY(11, 26 * 8);
+  SeeedGrayOled.putNumber(secondPointer2);                   //Print second digit of second pointer value to display.
+  SeeedGrayOled.setTextXY(11, 27 * 8);
+  SeeedGrayOled.putNumber(secondPointer1);                   //Print first digit of second pointer value to display.
+
+  //Print and flash individual clock time pointers to display which clock parameter that is currently set.
+  //Hour pointer2
+  if (hour2InputMode == true) {
+    if (flashClockPointer == true) {
+      SeeedGrayOled.setTextXY(12, 20 * 8);
+      SeeedGrayOled.putString(" ");                             //Clear display where 10-digit hour pointer value is located.
+    }
+    else {
+      SeeedGrayOled.setTextXY(12, 20 * 8);                         //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+      SeeedGrayOled.putString("_");                             //Clear display where 10-digit hour pointer value   }
+    }
+  }
+
+  //Hour pointer1.
+  if (hour1InputMode == true) {
+    if (flashClockPointer == true) {
+      blankToDisplay(12, 0, 16);
+      //SeeedGrayOled.setTextXY(12, 21 * 8);
+      //SeeedGrayOled.putString(" ");                             //Clear display where 1-digit hour pointer value is located.
+    }
+    else {
+      SeeedGrayOled.setTextXY(12, 21 * 8);                         //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+      SeeedGrayOled.putString("_");                   //Print 1-digit hour pointer value to display.
+    }
+  }
+
+  //Minute pointer2.
+  if (minute2InputMode == true) {
+    if (flashClockPointer == true) {
+      blankToDisplay(12, 0, 16);
+      //SeeedGrayOled.setTextXY(12, 23 * 8);
+      //SeeedGrayOled.putString(" ");
+    }
+    else {
+      SeeedGrayOled.setTextXY(12, 23 * 8);
+      SeeedGrayOled.putString("_");
+    }
+  }
+
+  //Minute pointer1.
+  if (minute1InputMode == true) {
+    if (flashClockPointer == true) {
+      blankToDisplay(12, 0, 16);
+      //SeeedGrayOled.setTextXY(12, 24 * 8);
+      //SeeedGrayOled.putString(" ");
+    }
+    else {
+      SeeedGrayOled.setTextXY(12, 24 * 8);
+      SeeedGrayOled.putString("_");
+    }
+  }
+
+  /*
+    SeeedGrayOled.setTextXY(12, 0);
+    SeeedGrayOled.putString("timeDiff: ");
+    SeeedGrayOled.setTextXY(12, 10*8);
+    SeeedGrayOled.putNumber(timeDiffClock);              //Print first digit of second pointer value to display.
+  */
+
+  /*
+    stringToDisplay(0, 7, "SET CLOCK");     //Print current display state to upper right corner of display.
+
+    stringToDisplay(2, 0, "Set current time");
+    stringToDisplay(3, 0, "Use the buttons:");
+    stringToDisplay(5, 0, "SET = inc. value");
+    stringToDisplay(6, 0, "MODE = confirm");
+    stringToDisplay(7, 0, "       selection");
+
+    if (clockStartMode == false) {
     stringToDisplay(9, 4, "HH MM SS");
 
     //Pointer separator character.
     stringToDisplay(10, 22, ":");
     stringToDisplay(10, 25, ":");
-  }
-  //Print further instructions when clock start has been activated.
-  else if (clockStartMode == true) {
+    }
+    //Print further instructions when clock start has been activated.
+    else if (clockStartMode == true) {
     blankToDisplay(9, 0, 16);
 
     //Pointer separater character flash.
@@ -1167,56 +1257,56 @@ void setClockDisplay() {
 
     stringToDisplay(14, 0, "Press MODE to");
     stringToDisplay(15, 0, "continue.");
-  }
+    }
 
-  //Print and flash individual clock time pointers to display which clock parameter that is currently set.
-  //Hour pointer2
-  if (flashClockPointer == true && hour2InputMode == true) {
+    //Print and flash individual clock time pointers to display which clock parameter that is currently set.
+    //Hour pointer2
+    if (flashClockPointer == true && hour2InputMode == true) {
     SeeedGrayOled.setTextXY(10, 20 * 8);
     SeeedGrayOled.putString(" ");                             //Clear display where 10-digit hour pointer value is located.
-  }
-  else {
+    }
+    else {
     SeeedGrayOled.setTextXY(10, 20 * 8);                         //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
     SeeedGrayOled.putNumber(hourPointer2);                    //Print 10-digit hour pointer value to display.
-  }
+    }
 
-  //Hour pointer1.
-  if (flashClockPointer == true && hour1InputMode == true) {
+    //Hour pointer1.
+    if (flashClockPointer == true && hour1InputMode == true) {
     SeeedGrayOled.setTextXY(10, 21 * 8);
     SeeedGrayOled.putString(" ");                             //Clear display where 1-digit hour pointer value is located.
 
-  }
-  else {
+    }
+    else {
     SeeedGrayOled.setTextXY(10, 21 * 8);                         //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
     SeeedGrayOled.putNumber(hourPointer1);                    //Print 1-digit hour pointer value to display.
-  }
+    }
 
-  //Minute pointer2.
-  if (flashClockPointer == true && minute2InputMode == true) {
+    //Minute pointer2.
+    if (flashClockPointer == true && minute2InputMode == true) {
     SeeedGrayOled.setTextXY(10, 23 * 8);
     SeeedGrayOled.putString(" ");
-  }
-  else {
+    }
+    else {
     SeeedGrayOled.setTextXY(10, 23 * 8);
     SeeedGrayOled.putNumber(minutePointer2);
-  }
+    }
 
-  //Minute pointer1.
-  if (flashClockPointer == true && minute1InputMode == true) {
+    //Minute pointer1.
+    if (flashClockPointer == true && minute1InputMode == true) {
     SeeedGrayOled.setTextXY(10, 24 * 8);
     SeeedGrayOled.putString(" ");
-  }
-  else {
+    }
+    else {
     SeeedGrayOled.setTextXY(10, 24 * 8);
     SeeedGrayOled.putNumber(minutePointer1);
-  }
+    }
 
-  //Second pointers.
-  SeeedGrayOled.setTextXY(10, 26 * 8);
-  SeeedGrayOled.putNumber(secondPointer2);                   //Print second digit of second pointer value to display.
-  SeeedGrayOled.setTextXY(10, 27 * 8);
-  SeeedGrayOled.putNumber(secondPointer1);                   //Print first digit of second pointer value to display.
-  /*
+    //Second pointers.
+    SeeedGrayOled.setTextXY(10, 26 * 8);
+    SeeedGrayOled.putNumber(secondPointer2);                   //Print second digit of second pointer value to display.
+    SeeedGrayOled.setTextXY(10, 27 * 8);
+    SeeedGrayOled.putNumber(secondPointer1);                   //Print first digit of second pointer value to display.
+    /*
     SeeedGrayOled.setTextXY(12, 0);
     SeeedGrayOled.putString("timeDiff: ");
     SeeedGrayOled.setTextXY(12, 10*8);
@@ -1225,11 +1315,11 @@ void setClockDisplay() {
 }
 
 /*
-============================================================================================================
-|| Compare read out temperature with temperature threshold that has been set by adjusting rotary encoder. ||
-============================================================================================================ */
+  ============================================================================================================
+  || Compare read out temperature with temperature threshold that has been set by adjusting rotary encoder. ||
+  ============================================================================================================ */
 void tempThresholdCompare() {
-  if (tempValue > tempThresholdValue) {                             //Compare read out temperature value with temperature threshold value set by rotary encoder.
+  if (tempValue > tempThresholdValue || tempValue < TEMP_VALUE_MIN / 2) {                             //Compare read out temperature value with temperature threshold value set by rotary encoder.
     tempValueFault = true;                                         //If measured temperature is higher than temperature threshold that has been set, variable is set to 'true' to alert user.
   }
   else {
@@ -1238,35 +1328,100 @@ void tempThresholdCompare() {
 }
 
 /*
-================================================
-|| Read temperature threshold rotary encoder. ||
-================================================ */
-void temperatureThresholdRead() {
-  //Reading preset temperature threshold thas is being adjusted by rotary encoder knob.
+  ========================================================================================================
+  || Read temperature threshold set by rotary encoder respectively increas/decrease clock cursor value. ||
+  ======================================================================================================== */
+void rotaryEncoderRead() {
+  static unsigned long lastInterruptTime = 0;
+  unsigned long interruptTime = millis();
+  volatile int virtualPosition = 0;
 
-  int minTemp = 24;   //Temperature value can be set within the boundaries of 12 - 40°C (minTemp - maxTemp). Temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
-  int maxTemp = 80;
-  int aState;
-
-  aState = digitalRead(rotaryEncoderOutpA);                         //Reads the current state of the rotary knob, outputA.
-
-  if (aState != aLastState) {                                       //A turn on rotary knob is detected by comparing previous and current state of outputA.
-    if (digitalRead(rotaryEncoderOutpB) != aState && tempThresholdValue <= maxTemp) { //If outputB state is different to outputA state, that meant the encoder knob is rotation clockwise.
-      tempThresholdValue++;                                         //Clockwise rotation means increasing position value. Position value is only increased if less than max value.
-      Serial.println("forward rotated!");
+  // If interrupts come faster than 5ms, assume it's a bounce and ignore
+  if (interruptTime - lastInterruptTime > 5) {
+    if (digitalRead(rotaryEncoderOutpB) == LOW)
+    {
+      virtualPosition-- ; // Could be -5 or -10
     }
-    else if (tempThresholdValue > minTemp) {
-      tempThresholdValue--;                                         //Counter clockwise rotation means decreasing position value.
-      Serial.println("backward rotated!");
+    else {
+      virtualPosition++ ; // Could be +5 or +10
     }
+
+    //Adjust cursor value when in set clock time display mode.
+    if (setTimeDisplay == true) {
+      if (hour2InputMode == true) {
+        hourPointer2 += virtualPosition;                            //Increase/Decrease cursor value whenever rotary encoder knob is turned.
+        if (hourPointer2 == 3) {                                    //If 10-digit hour pointer reaches 3, clear digit.
+          hourPointer2 = 0;
+        }
+        else if (hourPointer2 < 0) {                                //No negative cursor value allowed.
+          hourPointer2 = 0;
+        }
+      }
+      else if (hour1InputMode == true) {
+        hourPointer1 += virtualPosition;                            //Increase/Decrease cursor value whenever rotary encoder knob is turned.
+
+        if (hourPointer2 == 2) {                                    //If hour pointer2 is equal to 2, hour pointer 1 is only allowed to reach a maximum value of 4.
+          if (hourPointer1 == 5) {
+            hourPointer1 = 0;
+          }
+        }
+
+        if (hourPointer1 == 10 || hourPointer1 < 0) {               //If 1-digit hour pointer reaches 10 or is less than zero, clear digit.
+          hourPointer1 = 0;
+        }
+      }
+      else if (minute2InputMode == true) {
+        minutePointer2 += virtualPosition;                          //Increase/Decrease cursor value whenever rotary encoder knob is turned.
+        if (minutePointer2 == 6 || minutePointer2 < 0) {            //If 10-digit minute pointer reaches 6 or is less than zero, clear 10-digit minute pointer.
+          minutePointer2 = 0;
+        }
+      }
+      else if (minute1InputMode == true) {
+        minutePointer1 += virtualPosition;                          //Increase/Decrease cursor value whenever rotary encoder knob is turned.
+        if (minutePointer1 == 10 || minutePointer1 < 0) {           //If 10-digit minute pointer reaches a value of 10, clear 1-digit minute pointer.
+          minutePointer1 = 0;
+        }
+      }
+
+      //Replace clock time represenation. When current clock time is 24 hours is replaced with 00.
+      if (clockStartMode == true) {
+        if (hourPointer2 == 2 && hourPointer1 == 4) {               //If 10-digit hour pointer reaches a value of 2 and 1-digit hour pointer reaches a value of 4 (elapsed time is 24 hours).
+          hourPointer2 = 0;                                         //Clear both hour pointer values.
+          hourPointer1 = 0;
+        }
+      }
+    }
+
+    //Adjust temperature threshold when in readout display mode.
+    else if (readoutValuesDisplay == true) {
+      tempThresholdValue += virtualPosition;
+
+      if (tempThresholdValue >= TEMP_VALUE_MAX) {
+        tempThresholdValue = TEMP_VALUE_MAX;
+      }
+      else if (tempThresholdValue <= TEMP_VALUE_MIN) {
+        tempThresholdValue = TEMP_VALUE_MIN;
+      }
+    }
+
+    Serial.print("hourPointer2: ");
+    Serial.println(hourPointer2);
+
+    Serial.print("tempThresholdValue: ");
+    Serial.println(tempThresholdValue);
+
+    //Serial.print(virtualPosition > lastCount ? "Up  :" : "Down:");
+    Serial.println(virtualPosition);
+
+    // Keep track of when we were here last (no more than every 5ms)
+    lastInterruptTime = interruptTime;
   }
-  aLastState = aState;                                              //Updates the previous state of outputA with current state.
 }
 
 /*
-============================================================================================================
-|| ALARM MESSAGE TO DISPLAY. Print alarm message to OLED display for any fault that is currently active . ||
-============================================================================================================ */
+  ============================================================================================================
+  || ALARM MESSAGE TO DISPLAY. Print alarm message to OLED display for any fault that is currently active . ||
+  ============================================================================================================ */
 void alarmMessageDisplay() {
   unsigned long alarmTimeNow;
   unsigned long alarmTimeDiff;                            //Calculate time difference from when the warning message function was started. Keeps track for how long time each warning message is shown on display.
@@ -1279,14 +1434,14 @@ void alarmMessageDisplay() {
 
   if (alarmMessageEnabled == true) {                      //Any alarm can only be printed to display if variable is set to 'true'.
     /******************
-    |Water flow fault.|
+      |Water flow fault.|
     ******************/
     if (alarmTimeDiff <= alarmTimePeriod) {
       SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to which row that will be cleared.
       SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
       if (waterFlowFault == true) {                       //If fault variable is set to 'true', fault message is printed to display.
         SeeedGrayOled.setTextXY(15, 0);
-        SeeedGrayOled.putString("NO WATER FLOW   ");             //Print fault message to display.
+        SeeedGrayOled.putString("NO WATER FLOW");             //Print fault message to display.
       }
 
       else {  //If this alarm not active, clear the warning message row.
@@ -1296,14 +1451,14 @@ void alarmMessageDisplay() {
     }
 
     /**********************
-    |Low water tank level.|
+      |Low water tank level.|
     **********************/
     if (alarmTimePeriod < alarmTimeDiff && alarmTimeDiff <= alarmTimePeriod * 2) {
-      if (waterLevelValue == true) {                        //If fault variable is set to 'true', fault message is printed to display.
+      if (waterLevelFault == true) {                        //If fault variable is set to 'true', fault message is printed to display.
         SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to which row that will be cleared.
         SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
         SeeedGrayOled.setTextXY(15, 0);
-        SeeedGrayOled.putString("LOW WATER LEVEL ");             //Print fault message to display.
+        SeeedGrayOled.putString("LOW WATER LEVEL");             //Print fault message to display.
       }
       else {  //If this alarm not active, clear the warning message row.
         SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to the warning message will be printed.
@@ -1312,30 +1467,38 @@ void alarmMessageDisplay() {
     }
 
     /*******************
-    |Temperature fault.|
+      |Temperature fault.|
     *******************/
     if (alarmTimePeriod * 2 < alarmTimeDiff && alarmTimeDiff <= alarmTimePeriod * 3) {
       if (tempValueFault == true) {                         //If fault variable is set to 'true', fault message is printed to display.
-        SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to which row that will be cleared.
-        SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
-        SeeedGrayOled.setTextXY(15, 0);
-        SeeedGrayOled.putString("HIGH TEMPERATURE");            //Print fault message to display.
-      }
-      else {  //If this alarm not active, clear the warning message row.
-        SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to the warning message will be printed.
-        SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
+        if (tempValue > tempThresholdValue) {
+          SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to which row that will be cleared.
+          SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
+          SeeedGrayOled.setTextXY(15, 0);
+          SeeedGrayOled.putString("HIGH TEMPERATURE");            //Print fault message to display.
+        }
+        else if (tempValue < TEMP_VALUE_MIN) {
+          SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to the warning message will be printed.
+          SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
+          SeeedGrayOled.setTextXY(15, 0);
+          SeeedGrayOled.putString("LOW TEMPERATURE");            //Print fault message to display.
+        }
+        else {  //If this alarm not active, clear the warning message row.
+          SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to the warning message will be printed.
+          SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
+        }
       }
     }
 
     /********************
-    |LED lighting fault.|
+      |LED lighting fault.|
     ********************/
     if (alarmTimePeriod * 3 < alarmTimeDiff && alarmTimeDiff <= alarmTimePeriod * 4) {
       if (ledLightFault == true) {                          //If fault variable is set to 'true', fault message is printed to display.
         SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to which row that will be cleared.
         SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
         SeeedGrayOled.setTextXY(15, 0);
-        SeeedGrayOled.putString("LED NOT WORKING ");             //If measured water flow is below a certain value without the water level sensor indicating the water tank is empty, there is a problem with the water tank hose. "Check water hose!" is printed to display.
+        SeeedGrayOled.putString("LED NOT WORKING");             //If measured water flow is below a certain value without the water level sensor indicating the water tank is empty, there is a problem with the water tank hose. "Check water hose!" is printed to display.
       }
       else {  //If this alarm not active, clear the warning message row.
         SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to the warning message will be printed.
@@ -1352,9 +1515,9 @@ void alarmMessageDisplay() {
 }
 
 /*
-===========================================================================
-|| SERVICE MODE DISPLAY MODE. Print service mode screen to OLED display. ||
-=========================================================================== */
+  ===========================================================================
+  || SERVICE MODE DISPLAY MODE. Print service mode screen to OLED display. ||
+  =========================================================================== */
 void viewServiceMode() {
   //Clear symbols from previous display mode.
   blankToDisplay(0, 0, 4);
@@ -1380,7 +1543,7 @@ void viewServiceMode() {
   blankToDisplay(13, 0, 16);
 
   blankToDisplay(15, 0, 16);
-  
+
   stringToDisplay(0, 4, "SERVICE MODE");  //Print current display state to upper right corner of display.
 
   //Display clock.
@@ -1444,24 +1607,24 @@ void viewServiceMode() {
   //Fault code status.
   stringToDisplay(8, 0, "Fault codes:");
   SeeedGrayOled.setTextXY(9, 0);
-  SeeedGrayOled.putString("tempValue:");                   //Print text to display.
-  SeeedGrayOled.setTextXY(9, 12 * 8);                         //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putNumber(tempValueFault);                  //Print moisture sensor1 value.
+  SeeedGrayOled.putString("tempValue:");                    //Print text to display.
+  SeeedGrayOled.setTextXY(9, 12 * 8);                       //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(tempValueFault);                  //Print tempValueFault status.
 
   SeeedGrayOled.setTextXY(10, 0);
-  SeeedGrayOled.putString("ledLight:");                    //Print text to display.
-  SeeedGrayOled.setTextXY(10, 12 * 8);                         //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putNumber(ledLightFault);                   //Print moisture sensor1 value.
+  SeeedGrayOled.putString("ledLight:");                     //Print text to display.
+  SeeedGrayOled.setTextXY(10, 12 * 8);                      //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(ledLightFault);                   //Print ledLightFault status.
 
   SeeedGrayOled.setTextXY(11, 0);
-  SeeedGrayOled.putString("waterFlow:");                   //Print text to display.
-  SeeedGrayOled.setTextXY(11, 12 * 8);                         //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putNumber(waterFlowFault);                  //Print moisture sensor1 value.
+  SeeedGrayOled.putString("waterFlow:");                    //Print text to display.
+  SeeedGrayOled.setTextXY(11, 12 * 8);                      //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(waterFlowFault);                  //Print waterFlowFault status.
 
   SeeedGrayOled.setTextXY(12, 0);
-  SeeedGrayOled.putString("waterLevel:");                  //Print text to display.
-  SeeedGrayOled.setTextXY(12, 12 * 8);                         //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putNumber(waterLevelValue);                 //Print moisture sensor1 value.
+  SeeedGrayOled.putString("waterLevel:");                   //Print text to display.
+  SeeedGrayOled.setTextXY(12, 12 * 8);                      //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
+  SeeedGrayOled.putNumber(waterLevelFault);                 //Print waterLevelFault status.
 
 
   SeeedGrayOled.setTextXY(14, 0);
@@ -1472,9 +1635,9 @@ void viewServiceMode() {
 }
 
 /*
-==========================================================================================
-|| Calculate moisture mean value from moisture measurements and evaluate soil humidity. ||
-========================================================================================== */
+  ==========================================================================================
+  || Calculate moisture mean value from moisture measurements and evaluate soil humidity. ||
+  ========================================================================================== */
 int calculateMoistureMean(int moistureValue1, int moistureValue2, int moistureValue3, int moistureValue4) {
   int moistureValues[4] = {moistureValue1, moistureValue2, moistureValue3, moistureValue4};
   int moistureMax = 0;                                      //Variable used to store a moisture value when comparing it to other moisture sensor values and finally store the highest moisture value.
@@ -1523,9 +1686,9 @@ int calculateMoistureMean(int moistureValue1, int moistureValue2, int moistureVa
 }
 
 /*
-==========================
-|| Reset all variables. ||
-==========================*/
+  ==========================
+  || Reset all variables. ||
+  ==========================*/
 void resetStartupVariables() {
   //Resetting all variables.
   greenhouseProgramStart = false;
@@ -1572,9 +1735,9 @@ void resetStartupVariables() {
 }
 
 /*
-=========================================================================
-|| FLOW FAULT DISPLAY MODE. Print service mode screen to OLED display. ||
-========================================================================= */
+  =========================================================================
+  || FLOW FAULT DISPLAY MODE. Print service mode screen to OLED display. ||
+  ========================================================================= */
 void resolveFlowFault() {
   //Clear symbols from previous display mode.
   blankToDisplay(0, 0, 2);
@@ -1625,9 +1788,9 @@ void resolveFlowFault() {
 
 
 /*
-================================================================
-|| WiFi functions for posting readout values to server below. ||
-================================================================ */
+  ================================================================
+  || WiFi functions for posting readout values to server below. ||
+  ================================================================ */
 void printWifiStatus() {
   // print the SSID of the network you're attached to:
   Serial.print("SSID: ");
@@ -1762,7 +1925,7 @@ void postToServer(String authToken, String key, float val) {
 
 /*
 *******************************
-* Arduino program setup code. *
+  Arduino program setup code.
 *******************************/
 void setup() {
   // put your setup code here, to run once:
@@ -1777,7 +1940,7 @@ void setup() {
   pinMode(waterFlowSensor, INPUT);
   pinMode(fanSpeedSensor, INPUT);
 
-  pinMode(waterLevelSwitch, INPUT);
+  pinMode(waterLevelSensor, INPUT);
 
   pinMode(rotaryEncoderOutpA, INPUT);
   pinMode(rotaryEncoderOutpB, INPUT);
@@ -1788,10 +1951,10 @@ void setup() {
 
   //Interupt pins.
   attachInterrupt(13, fanRotationCount, RISING);  //Initialize interrupt to water flow sensor to calculate water flow pumped by water pump.
-  attachInterrupt(11, temperatureThresholdRead, RISING); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
+  attachInterrupt(11, rotaryEncoderRead, LOW); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
   attachInterrupt(3, waterFlowCount, RISING);  //Initialize interrupt to enable calculation of fan speed when it is running.
   attachInterrupt(2, toggleDisplayMode, RISING); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
-  
+
 
   Wire.begin();
 
@@ -1824,59 +1987,57 @@ void setup() {
 
   sei();                                              //Allow external interrupt again.
 
-/*
-  //WiFi setup.
-  while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
-  }
+  /*
+    //WiFi setup.
+    while (!Serial) {
+      ; // wait for serial port to connect. Needed for native USB port only
+    }
 
-  // check for the WiFi module:
-  if (WiFi.status() == WL_NO_MODULE) {
-    Serial.println("Communication with WiFi module failed!");
-    // don't continue
-    while (true);
-  }
+    // check for the WiFi module:
+    if (WiFi.status() == WL_NO_MODULE) {
+      Serial.println("Communication with WiFi module failed!");
+      // don't continue
+      while (true);
+    }
 
-  String fv = WiFi.firmwareVersion();
-  if (fv < "1.0.0") {
-    Serial.println("Please upgrade the firmware");
-  }
+    String fv = WiFi.firmwareVersion();
+    if (fv < "1.0.0") {
+      Serial.println("Please upgrade the firmware");
+    }
 
-  // attempt to connect to Wifi network:
-  while (status != WL_CONNECTED) {
-    Serial.print("Attempting to connect to SSID: ");
-    Serial.println(ssid);
-    // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
-    status = WiFi.begin(ssid, pass);
+    // attempt to connect to Wifi network:
+    while (status != WL_CONNECTED) {
+      Serial.print("Attempting to connect to SSID: ");
+      Serial.println(ssid);
+      // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
+      status = WiFi.begin(ssid, pass);
 
-    // wait 10 seconds for connection:
-    delay(10000);
-  }
-  Serial.println("Connected to wifi");
-  printWifiStatus();
-*/
+      // wait 10 seconds for connection:
+      delay(10000);
+    }
+    Serial.println("Connected to wifi");
+    printWifiStatus();
+  */
 }
 
 /*
 *******************************************
-* Arduino program main code to be looped. *
+  Arduino program main code to be looped.
 *******************************************/
 void loop() {
   // put your main code here, to run repeatedly:
 
-//  String authToken = connectAndLogin(cloudUser, cloudPass);
+  //  String authToken = connectAndLogin(cloudUser, cloudPass);
 
   //Set current time and toggle between different screen display modes.
   pushButton1 = digitalRead(clockSetButton);                        //Check if SET-button is being pressed.
-  
-  //temperatureThresholdRead();
 
   //Different functions to be run depending of which screen display mode that is currently active.
   if (startupImageDisplay == true) {
     viewStartupImage();                                             //Initialize the OLED Display and show startup images.
   }
   else if (setTimeDisplay == true) {                                //Display time set screen only if current time has not been set.
-    setClockTime();
+    //setClockTime();
     setClockDisplay();
   }
   else if (readoutValuesDisplay == true) {                          //Only display read out values after current time on internal clock, has been set.
@@ -1884,8 +2045,6 @@ void loop() {
   }
   else if (serviceModeDisplay == true) {
     viewServiceMode();                                              //Service mode screen is printed to display.
-
-
   }
   else if (flowFaultDisplay == true) {
     resolveFlowFault();                                             //Water flow fault display mode is printed to display. It contains fault code instruction and possibility to reset fault code.
@@ -1905,14 +2064,14 @@ void loop() {
     moistureMeanValue = calculateMoistureMean(moistureValue1, moistureValue2, moistureValue3, moistureValue4);    //Mean value from all sensor readouts.
 
     tempValue = humiditySensor.readTemperature(false);                                                    //Read temperature value from DHT-sensor. "false" gives the value in °C.
-//    postToServer(authToken, TemperatureKey, float(tempValue));      //Post value to server.
+    //    postToServer(authToken, TemperatureKey, float(tempValue));      //Post value to server.
 
     humidityValue = humiditySensor.readHumidity();                                                           //Read humidity value from DHT-sensor.
     tempThresholdCompare();
 
     lightRead();                                                                                          //Read light sensor UV value.
     waterLevelRead();                                                                                     //Check water level in water tank.
-    
+
     alarmMessageDisplay();                                                                                //Print alarm messages to display for any faults that is currently active. Warning messages on display will alert user to take action to solve a certain fault.
 
     //Check readout light value according to a time cycle and turn led lighting ON/OFF based on the readout.
