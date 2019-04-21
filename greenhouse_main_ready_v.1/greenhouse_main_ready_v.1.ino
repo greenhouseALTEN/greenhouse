@@ -28,8 +28,8 @@
 #define waterFlowSensor 3
 #define fanSpeedSensor 13
 #define waterLevelSensor 12
-#define clockSetButton 7
-#define clockModeButton 2
+#define resetButton 7
+#define modeButton 2
 
 //Arduino UNO base shield I/O layout.
 /*
@@ -148,8 +148,8 @@ DHT humiditySensor(DHTPIN, DHTTYPE);      //Create humidity sensor from DHT clas
 float tempValue;
 float humidityValue;                      //Air humidity value.
 bool tempValueFault = false;              //Indicate if read out temperature is higher than temperature treshold that has been set by adjusting temperature rotary encoder. Variable is 'false' when read out temperature is below set temperature threshold.
-const unsigned short TEMP_VALUE_MIN = 24;                    //Temperature value can be set within the boundaries of 12 - 40°C. Temp value is doubled to reduce rotary knob sensitivity. Values are doubled to increase rotary encoder precision.
-const unsigned short TEMP_VALUE_MAX = 80;
+const unsigned short TEMP_VALUE_MIN = 12;                    //Temperature value can be set within the boundaries of 12 - 40°C. Temp value is doubled to reduce rotary knob sensitivity. Values are doubled to increase rotary encoder precision.
+const unsigned short TEMP_VALUE_MAX = 40;
 
 //4-Channel Relay
 Multi_Channel_Relay relay;                //Relay object created from Multi_Channel_Relay class.
@@ -160,7 +160,7 @@ uint8_t FAN_LOW_SPEED = 1;                //Relay channel number where fan (low 
 
 
 //Rotary encoder to adjust temperature threshold.
-unsigned short tempThresholdValue = TEMP_THRESHOLD_VALUE * 2;              //Starting value for temperature threshold adjustment is value specified in TEMP_THRESHOLD_VALUE variable. Temp value is doubled to reduce rotary sensitivity and increase knob rotation precision.
+unsigned short tempThresholdValue = TEMP_THRESHOLD_VALUE;              //Starting value for temperature threshold adjustment is value specified in TEMP_THRESHOLD_VALUE variable.
 int aLastState;
 
 //Debouncing button press, MODE-button (triggers external interrupt when pressed).
@@ -202,7 +202,7 @@ bool hour2InputMode = true;
 bool hour1InputMode = false;
 bool minute2InputMode = false;
 bool minute1InputMode = false;
-bool pushButton1 = false;
+bool pushButton = false;
 
 bool clockStartMode = false;
 bool clockSetFinished = false;
@@ -495,13 +495,13 @@ void viewReadoutValues() {
   blankToDisplay(0, 0, 2);
   blankToDisplay(2, 9, 7);
   blankToDisplay(3, 5, 11);
-  blankToDisplay(4, 6, 10);
-  blankToDisplay(5, 9, 7);
-  blankToDisplay(6, 9, 7);
-  blankToDisplay(7, 5, 11);
-  blankToDisplay(8, 9, 7);
-  blankToDisplay(9, 9, 7);
-  blankToDisplay(10, 8, 8);
+  blankToDisplay(4, 6, 8);
+  blankToDisplay(5, 9, 5);
+  blankToDisplay(6, 9, 4);
+  blankToDisplay(7, 5, 9);
+  blankToDisplay(8, 9, 5);
+  blankToDisplay(9, 9, 4);
+  blankToDisplay(10, 8, 5);
   blankToDisplay(11, 0, 16);
   blankToDisplay(12, 7, 9);
 
@@ -518,13 +518,13 @@ void viewReadoutValues() {
 
   stringToDisplay(3, 0, "Soil:");               //Prints "Dry", "OK" or "Wet" to display based on soil humidity.
   if (moistureDry == true) {
-    stringToDisplay(3, 10, "Dry");
+    stringToDisplay(3, 10, "Dry   ");
   }
   else if (moistureDry == false && moistureWet == false) {
-    stringToDisplay(3, 10, "OK");
+    stringToDisplay(3, 10, "OK    ");
   }
   else if (moistureWet == true) {
-    stringToDisplay(3, 10, "Wet");
+    stringToDisplay(3, 10, "Wet   ");
   }
 
   /***************************
@@ -957,16 +957,16 @@ ISR(RTC_CNT_vect) {
   =============================================================== */
 //REMOVE THIS!!
 /*
-void setClockTime() {
+  void setClockTime() {
   //Set current clock time by toggling each hour pointer and minute pointer individualy.
-  if (pushButton1 == true && hour2InputMode == true) {
+  if (pushButton == true && hour2InputMode == true) {
     delay(DEBOUNCE_TIME_BUTTON);                                                 //Delay to avoid contact bounce.
     hourPointer2++;                                             //Increase hour pointer every time button is pressed.
     if (hourPointer2 == 3) {                                    //If 10-digit hour pointer reaches 3, clear digit.
       hourPointer2 = 0;
     }
   }
-  else if (pushButton1 == true && hour1InputMode == true) {
+  else if (pushButton == true && hour1InputMode == true) {
     delay(DEBOUNCE_TIME_BUTTON);                                                 //Delay to debounce button press.
     hourPointer1++;                                             //Increase hour pointer every time button is pressed.
 
@@ -981,14 +981,14 @@ void setClockTime() {
       }
     }
   }
-  else if (pushButton1 == true && minute2InputMode == true) {
+  else if (pushButton == true && minute2InputMode == true) {
     delay(DEBOUNCE_TIME_BUTTON);
     minutePointer2++;
     if (minutePointer2 == 6) {                                  //If 10-digit minute pointer reaches a value of 6, clear 10-digit minute pointer.
       minutePointer2 = 0;
     }
   }
-  else if (pushButton1 == true && minute1InputMode == true) {
+  else if (pushButton == true && minute1InputMode == true) {
     delay(DEBOUNCE_TIME_BUTTON);
     minutePointer1++;
     if (minutePointer1 == 10) {                                //If 10-digit minute pointer reaches a value of 10, clear 1-digit minute pointer.
@@ -1003,7 +1003,7 @@ void setClockTime() {
       hourPointer1 = 0;
     }
   }
-}
+  }
 */
 
 /*
@@ -1018,7 +1018,7 @@ void resetClockTime() {
 
 /*
   ======================================================================================
-  || Toggle set modes and screen display modes when clockModeButton is being pressed. ||
+  || Toggle set modes and screen display modes when modeButton is being pressed. ||
   ====================================================================================== */
 void toggleDisplayMode() {
   //Debouncing button press to avoid multiple interrupts, display toggles.
@@ -1105,25 +1105,33 @@ void toggleDisplayMode() {
 void setClockDisplay() {
   stringToDisplay(0, 7, "SET CLOCK");     //Print current display state to upper right corner of display.
 
-  stringToDisplay(2, 0, "Use controls to ");
-  stringToDisplay(3, 0, "set each cursor ");
-  stringToDisplay(4, 0, "individually.   ");
-  stringToDisplay(6, 0, "Controls:       ");
-  stringToDisplay(8, 0, "ENCODER = +/-"   );
-  stringToDisplay(9, 0, "MODE = confirm  ");
-  //stringToDisplay(10, 0, "selection");
-
   if (clockStartMode == false) {
-    //stringToDisplay(11, 4, "HH MM SS");
+    stringToDisplay(2, 0, "Use controls to ");
+    stringToDisplay(3, 0, "set the time    ");
+
+    stringToDisplay(5, 0, "Controls:       ");
+    stringToDisplay(7, 0, "ENCODER = +/-"   );
+    stringToDisplay(8, 0, "MODE = confirm  ");
+    stringToDisplay(9, 0, "RESET = go back ");
+
 
     //Pointer separator character.
     stringToDisplay(11, 22, ":");
     stringToDisplay(11, 25, ":");
   }
-  //Print further instructions when clock start has been activated.
   else if (clockStartMode == true) {
-    //blankToDisplay(13, 0, 16);
-    blankToDisplay(12, 0, 16);
+    //Print further instructions when clock start has been activated.
+    stringToDisplay(2, 0, "Clock ticking...");
+    blankToDisplay(3, 0, 16);
+    stringToDisplay(4, 0, "Greenhouse pgrm ");
+    stringToDisplay(5, 0, "is ready to be  ");
+    stringToDisplay(6, 0, "started         ");
+    stringToDisplay(7, 0, "Automated water-");
+    stringToDisplay(8, 0, "ing, lighting & ");
+    stringToDisplay(9, 0, "humidity control");
+
+    stringToDisplay(13, 0, "Press MODE to  ");
+    stringToDisplay(14, 0, "continue");
 
     //Pointer separater character flash.
     if (flashClockPointer == true) {
@@ -1140,26 +1148,23 @@ void setClockDisplay() {
       SeeedGrayOled.setTextXY(11, 25 * 8);
       SeeedGrayOled.putString(":");
     }
-
-    stringToDisplay(13, 0, "Clock is ticking");
-
-    stringToDisplay(14, 0, "Press MODE to");
-    stringToDisplay(15, 0, "continue.");
   }
 
   numberToDisplay(11, 20, hourPointer2);
   numberToDisplay(11, 21, hourPointer1);
   numberToDisplay(11, 23, minutePointer2);
   numberToDisplay(11, 24, minutePointer1);
+  numberToDisplay(11, 26, secondPointer2);
+  numberToDisplay(11, 27, secondPointer1);
 
   //Second pointers.
-  SeeedGrayOled.setTextXY(11, 26 * 8);
-  SeeedGrayOled.putNumber(secondPointer2);                   //Print second digit of second pointer value to display.
-  SeeedGrayOled.setTextXY(11, 27 * 8);
-  SeeedGrayOled.putNumber(secondPointer1);                   //Print first digit of second pointer value to display.
-
+  /*SeeedGrayOled.setTextXY(11, 26 * 8);
+    SeeedGrayOled.putNumber(secondPointer2);                   //Print second digit of second pointer value to display.
+    SeeedGrayOled.setTextXY(11, 27 * 8);
+    SeeedGrayOled.putNumber(secondPointer1);                   //Print first digit of second pointer value to display.
+  */
   //Print and flash individual clock time pointers to display which clock parameter that is currently set.
-  //Hour pointer2
+  //Hour pointer2.
   if (hour2InputMode == true) {
     if (flashClockPointer == true) {
       SeeedGrayOled.setTextXY(12, 20 * 8);
@@ -1171,6 +1176,8 @@ void setClockDisplay() {
     }
   }
 
+  //pushButton = digitalRead(resetButton);                        //Check if SET-button is being pressed.
+  
   //Hour pointer1.
   if (hour1InputMode == true) {
     if (flashClockPointer == true) {
@@ -1319,8 +1326,9 @@ void setClockDisplay() {
   || Compare read out temperature with temperature threshold that has been set by adjusting rotary encoder. ||
   ============================================================================================================ */
 void tempThresholdCompare() {
-  if (tempValue > tempThresholdValue || tempValue < TEMP_VALUE_MIN / 2) {                             //Compare read out temperature value with temperature threshold value set by rotary encoder.
+  if (tempValue > tempThresholdValue || tempValue < TEMP_VALUE_MIN) {                             //Compare read out temperature value with temperature threshold value set by rotary encoder.
     tempValueFault = true;                                         //If measured temperature is higher than temperature threshold that has been set, variable is set to 'true' to alert user.
+    Serial.println("hello");
   }
   else {
     tempValueFault = false;
@@ -1471,6 +1479,7 @@ void alarmMessageDisplay() {
     *******************/
     if (alarmTimePeriod * 2 < alarmTimeDiff && alarmTimeDiff <= alarmTimePeriod * 3) {
       if (tempValueFault == true) {                         //If fault variable is set to 'true', fault message is printed to display.
+        Serial.println("ALARMA!!");
         if (tempValue > tempThresholdValue) {
           SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to which row that will be cleared.
           SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
@@ -1483,10 +1492,10 @@ void alarmMessageDisplay() {
           SeeedGrayOled.setTextXY(15, 0);
           SeeedGrayOled.putString("LOW TEMPERATURE");            //Print fault message to display.
         }
-        else {  //If this alarm not active, clear the warning message row.
-          SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to the warning message will be printed.
-          SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
-        }
+      }
+      else {  //If this alarm not active, clear the warning message row.
+        SeeedGrayOled.setTextXY(15, 0);                          //Set cordinates to the warning message will be printed.
+        SeeedGrayOled.putString("                ");            //Clear row to enable other warnings to be printed to display.
       }
     }
 
@@ -1693,7 +1702,7 @@ void resetStartupVariables() {
   //Resetting all variables.
   greenhouseProgramStart = false;
   ledLightEnabled = false;
-  pushButton1 = false;
+  pushButton = false;
 
   clockStartMode = false;
   clockSetFinished = false;
@@ -1715,7 +1724,7 @@ void resetStartupVariables() {
   hour1InputMode = false;
   minute2InputMode = false;
   minute1InputMode = false;
-  pushButton1 = false;
+  pushButton = false;
 
   clockStartMode = false;
   clockSetFinished = false;
@@ -1776,7 +1785,7 @@ void resolveFlowFault() {
   stringToDisplay(15, 0, "Restart: ");
 
   static bool toggle1 = false;
-  if (pushButton1 == true) {
+  if (pushButton == true) {
     allowRestart = true;
     stringToDisplay(15, 9, "YES");
     resetStartupVariables();
@@ -1946,14 +1955,14 @@ void setup() {
   pinMode(rotaryEncoderOutpB, INPUT);
   aLastState = digitalRead(rotaryEncoderOutpA);      //Read initial position value.
 
-  pinMode(clockSetButton, INPUT);
-  pinMode(clockModeButton, INPUT);
+  pinMode(resetButton, INPUT);
+  pinMode(modeButton, INPUT);
 
   //Interupt pins.
   attachInterrupt(13, fanRotationCount, RISING);  //Initialize interrupt to water flow sensor to calculate water flow pumped by water pump.
-  attachInterrupt(11, rotaryEncoderRead, LOW); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
+  attachInterrupt(11, rotaryEncoderRead, LOW); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by modeButton being pressed.
   attachInterrupt(3, waterFlowCount, RISING);  //Initialize interrupt to enable calculation of fan speed when it is running.
-  attachInterrupt(2, toggleDisplayMode, RISING); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by clockModeButton being pressed.
+  attachInterrupt(2, toggleDisplayMode, RISING); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by modeButton being pressed.
 
 
   Wire.begin();
@@ -2030,7 +2039,7 @@ void loop() {
   //  String authToken = connectAndLogin(cloudUser, cloudPass);
 
   //Set current time and toggle between different screen display modes.
-  pushButton1 = digitalRead(clockSetButton);                        //Check if SET-button is being pressed.
+  pushButton = digitalRead(resetButton);                        //Check if RESET-button is being pressed.
 
   //Different functions to be run depending of which screen display mode that is currently active.
   if (startupImageDisplay == true) {
