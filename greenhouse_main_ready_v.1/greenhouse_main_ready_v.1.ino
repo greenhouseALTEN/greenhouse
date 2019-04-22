@@ -439,14 +439,12 @@ void viewStartupImage() {
     SeeedGrayOled.clearDisplay();                         //Clear display.
     SeeedGrayOled.setVerticalMode();
     SeeedGrayOled.setNormalDisplay();                     //Set display to normal mode (non-inverse mode).
-
-    /*
-        //Startup image.
-        SeeedGrayOled.drawBitmap(greenhouse, (128*128)/8);   //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
-        delay(4000);                                    //Image shown for 4 seconds.
-        SeeedGrayOled.clearDisplay();                       //Clear the display.
-    */
-
+/*
+    //Startup image.
+    SeeedGrayOled.drawBitmap(greenhouse, (128*128)/8);   //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
+    delay(4000);                                    //Image shown for 4 seconds.
+    SeeedGrayOled.clearDisplay();                       //Clear the display.
+*/
     startupImageDisplay = false;                      //Clear current screen display state.
     setTimeDisplay = true;                            //Set next display mode to be printed to display.
     hour2InputMode = true;                             //Set state in next display mode.
@@ -503,7 +501,8 @@ void viewReadoutValues() {
   blankToDisplay(9, 9, 4);
   blankToDisplay(10, 8, 5);
   blankToDisplay(11, 0, 16);
-  blankToDisplay(12, 7, 9);
+  
+  blankToDisplay(13, 0, 16);
 
   blankToDisplay(14, 7, 9);
 
@@ -558,7 +557,7 @@ void viewReadoutValues() {
 
   stringToDisplay(8, 0, "Temp lim:");
   SeeedGrayOled.setTextXY(8, 10 * 8);
-  SeeedGrayOled.putNumber(tempThresholdValue / 2);  //Print temperature threshold value to display. Temp value is doubled to reduce rotary sensitivity and increase knob rotation precision. Value 24 corresponds to 12°C.
+  SeeedGrayOled.putNumber(tempThresholdValue);  //Print temperature threshold value to display. Temp value is doubled to reduce rotary sensitivity and increase knob rotation precision. Value 24 corresponds to 12°C.
   stringToDisplay(8, 14, "*C");
 
   /*************************
@@ -583,19 +582,18 @@ void viewReadoutValues() {
   /****************
     |Current action.|
   ****************/
-  stringToDisplay(12, 0, "Action:");
   switch (actionRegister) {
     case 1:
-      stringToDisplay(13, 0, "Check light need");
+      stringToDisplay(12, 0, "Check light need");
       break;
     case 2:
-      stringToDisplay(13, 0, "Check water need");
+      stringToDisplay(12, 0, "Check water need");
       break;
     case 4:
-      stringToDisplay(13, 0, "Pumping water...");
+      stringToDisplay(12, 0, "Pumping water...");
       break;
     case 8:
-      blankToDisplay(13, 0, 16);
+      blankToDisplay(12, 0, 16);
       break;
   }
 
@@ -1124,14 +1122,14 @@ void setClockDisplay() {
     stringToDisplay(2, 0, "Clock ticking...");
     blankToDisplay(3, 0, 16);
     stringToDisplay(4, 0, "Greenhouse pgrm ");
-    stringToDisplay(5, 0, "is ready to be  ");
-    stringToDisplay(6, 0, "started         ");
-    stringToDisplay(7, 0, "Automated water-");
-    stringToDisplay(8, 0, "ing, lighting & ");
-    stringToDisplay(9, 0, "humidity control");
+    stringToDisplay(5, 0, "is ready to run.");
+    stringToDisplay(6, 0, "                ");
+    stringToDisplay(7, 0, "Auto watering,  ");
+    stringToDisplay(8, 0, "lighting and    ");
+    stringToDisplay(9, 0, "humidity ctrl.  ");
 
     stringToDisplay(13, 0, "Press MODE to  ");
-    stringToDisplay(14, 0, "continue");
+    stringToDisplay(14, 0, "continue.      ");
 
     //Pointer separater character flash.
     if (flashClockPointer == true) {
@@ -1411,15 +1409,14 @@ void rotaryEncoderRead() {
         tempThresholdValue = TEMP_VALUE_MIN;
       }
     }
-
-    Serial.print("hourPointer2: ");
-    Serial.println(hourPointer2);
-
     Serial.print("tempThresholdValue: ");
     Serial.println(tempThresholdValue);
 
-    //Serial.print(virtualPosition > lastCount ? "Up  :" : "Down:");
-    Serial.println(virtualPosition);
+    Serial.print("tempValue: ");
+    Serial.println(tempValue);
+
+    Serial.print("tempValueFault: ");
+    Serial.println(tempValueFault);
 
     // Keep track of when we were here last (no more than every 5ms)
     lastInterruptTime = interruptTime;
@@ -1741,6 +1738,7 @@ void resetStartupVariables() {
   ledLightEnabled = false;
   fanEnabled = false;
   fanState = false;
+  actionRegister = 8;
 }
 
 /*
