@@ -52,7 +52,7 @@
   ################### ARDUINO UNO ############################
   ______________________________________________________________________________________________________________________________________________________________
   GROVE connectors                      | DIGITAL (PWM~)                                                                                                        |
-****************                      | **************                                                                                                        |
+  ****************                      | **************                                                                                                        |
   A3:   Moisture Sensor4                | GND:  10 kohm resistor in in series with with 12 (I/O)                                                                |
   A2:   Moisture Sensor3                | 13:   Fan signal cable in parallell with 10 kohm resistor to +5V                                                      |
   A1:   Moisture Sensor2                | 12:   10 kohm resistor parallell with signal wire1 to water tank level switch. Resistor is in series with GND (I/O)   |
@@ -69,19 +69,19 @@
   UART: 'EMPTY'                         |                                                                                                                       |
   D5:   'EMPTY'                         | All other (unspecified) of its I/O:s are 'EMPTY'.                                                                     |
   I2C:  'EMPTY'                         |                                                                                                                       |
-                                      |                                                                                                                       |
-                                      | ANALOG IN                                                                                                             |
-                                      | *********                                                                                                             |
-                                      | All I/O:s are 'EMPTY'.                                                                                                |
+                                        |                                                                                                                       |
+                                        | ANALOG IN                                                                                                             |
+                                        | *********                                                                                                             |
+                                        | All I/O:s are 'EMPTY'.                                                                                                |
   ______________________________________|_______________________________________________________________________________________________________________________|
 
-  /*
+/*
 *********************
   Global variables.
 *********************/
 /*
-  /////////////////////////////////////////////////////////////////////////////
-  PARAMETERS ALLOWED TO BE CHANGED TO ALTER THE WAY GREENHOUSE PROGRAM RUNS. //
+/////////////////////////////////////////////////////////////////////////////
+PARAMETERS ALLOWED TO BE CHANGED TO ALTER THE WAY GREENHOUSE PROGRAM RUNS. //
                                                                            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  */
 //SOIL MOISTURE.
 const unsigned short MOISTURE_THRESHOLD_LOW = 640;                  //Set moisture interval values. When measured moisture value (how much water soil contains) is within this interval soil moisture is considered to be OK for plants.
@@ -113,17 +113,17 @@ const unsigned int CHECK_MOISTURE_PERIOD = 20000;                   //Loop time 
 const unsigned short WATER_PUMP_TIME_PERIOD = 7000;                 //Set time (in milliseconds) how long water pump will run each time it is activated. Fan speed mode is also checked in same interval as water pump.
 const unsigned int CHECK_LIGHT_NEED_PERIOD = 5000;                  //Loop time (in milliseconds) how often ligtht and fan need is being checked. Light need is only checking if current time is in allowed interval meanwhile fan also checks if humidity level is too high.
 /*
-  .................................................................///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  Oliver Staberg                                                   //
-  ALTEN Sweden AB in cooperation with Västsvenska Handelskammaren  //
-  Gothenburg, April 2019.                                          //
-  ///////////////////////////////////////////////////////////////////
-  /*
+.................................................................///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Oliver Staberg                                                   //
+ALTEN Sweden AB in cooperation with Västsvenska Handelskammaren  //
+Gothenburg, April 2019.                                          //
+///////////////////////////////////////////////////////////////////
+/*
 
-  /*
-  \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-  OTHER GLOBAL VARIABLES BELOW, DO NOT TOUCH! \\
-  //////////////////////////////////////////////
+/*
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+OTHER GLOBAL VARIABLES BELOW, DO NOT TOUCH! \\
+//////////////////////////////////////////////
 */
 
 //Moisture sensors.
@@ -171,7 +171,7 @@ unsigned short DEBOUNCE_TIME_INTERRUPT = 170;             //Delay time before in
 unsigned short DEBOUNCE_TIME_BUTTON = 150;
 
 //Light sensor.
-SI114X lightSensor;                       //Light sensor object created.
+SI114X lightSensor = SI114X();            //Light sensor object created.
 uint16_t lightValue;                      //Light readout, unit in lumens.
 uint16_t uvValue;                         //UV-light readout, UN-scale.
 //uint16_t irValue;                       //IR read out not in use.
@@ -608,8 +608,14 @@ void viewReadoutValues() {
   || Read light values from light sensor. ||
   ========================================== */
 void lightRead() {
+  unsigned short value = 0;
   lightValue = lightSensor.ReadVisible();
-  uvValue = lightSensor.ReadUV();
+  value = lightSensor.ReadUV();
+
+  //Only update uvValue if not equal to zero to avoid an uvValue of zero because it is not updated as frequently as the other light sensor.
+  if(value != 0 && ledLightState == true && ledLightFault == false) {
+    uvValue = value;
+  }
   //irValue = lightSensor.ReadIR();
 }
 
@@ -1968,8 +1974,13 @@ void setup() {
   humiditySensor.begin();                 //Initializing humidity sensor.
 
   lightSensor.Begin();                    //Initializing light sensor.
-
+  
   relay.begin(0x11);
+
+  while (!lightSensor.Begin()) {
+    Serial.println("lightSensor is not ready!");
+    delay(1000);
+  }
 
   //Enable time interrupt.
   cli();                                              //Stop any external interrups.
@@ -2076,7 +2087,11 @@ void loop() {
     humidityValue = humiditySensor.readHumidity();                                                           //Read humidity value from DHT-sensor.
     tempThresholdCompare();
 
-    lightRead();                                                                                          //Read light sensor UV value.
+    //Read light sensor with a less frequency than the rest of the value readouts.
+    unsigned long readLightCurrent;
+    
+    lightRead();                                                                                          //Read light sensor, light and UV value.
+
     waterLevelRead();                                                                                     //Check water level in water tank.
 
     alarmMessageDisplay();                                                                                //Print alarm messages to display for any faults that is currently active. Warning messages on display will alert user to take action to solve a certain fault.
