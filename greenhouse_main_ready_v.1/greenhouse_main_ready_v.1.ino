@@ -75,17 +75,17 @@
                                         | All I/O:s are 'EMPTY'.                                                                                                |
   ______________________________________|_______________________________________________________________________________________________________________________|
 
-/*
+  /*
 *********************
   Global variables.
 *********************/
 /*
-/////////////////////////////////////////////////////////////////////////////
-PARAMETERS ALLOWED TO BE CHANGED TO ALTER THE WAY GREENHOUSE PROGRAM RUNS. //
+  /////////////////////////////////////////////////////////////////////////////
+  PARAMETERS ALLOWED TO BE CHANGED TO ALTER THE WAY GREENHOUSE PROGRAM RUNS. //
                                                                            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  */
 //SOIL MOISTURE.
-const unsigned short MOISTURE_THRESHOLD_LOW = 640;                  //Set moisture interval values. When measured moisture value (how much water soil contains) is within this interval soil moisture is considered to be OK for plants.
-const unsigned short MOISTURE_THRESHOLD_HIGH = 660;                 //Same as above but upper threshold for what is considered to be OK soil moisture.
+const unsigned short MOISTURE_THRESHOLD_LOW = 660;                  //Set moisture interval values. When measured moisture value (how much water soil contains) is within this interval soil moisture is considered to be OK for plants.
+const unsigned short MOISTURE_THRESHOLD_HIGH = 700;                 //Same as above but upper threshold for what is considered to be OK soil moisture.
 
 //FAN SPEED CONTROL.
 const unsigned short HUMIDITY_THRESHOLD_VALUE = 60;                 //Set air humidity threshold value (humidity in procentage, value < 100) for when fan should run at low speed. If measured air humidity is lower than specified value fan will run at low speed mode.
@@ -113,17 +113,17 @@ const unsigned int CHECK_MOISTURE_PERIOD = 20000;                   //Loop time 
 const unsigned short WATER_PUMP_TIME_PERIOD = 7000;                 //Set time (in milliseconds) how long water pump will run each time it is activated. Fan speed mode is also checked in same interval as water pump.
 const unsigned int CHECK_LIGHT_NEED_PERIOD = 5000;                  //Loop time (in milliseconds) how often ligtht and fan need is being checked. Light need is only checking if current time is in allowed interval meanwhile fan also checks if humidity level is too high.
 /*
-.................................................................///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Oliver Staberg                                                   //
-ALTEN Sweden AB in cooperation with Västsvenska Handelskammaren  //
-Gothenburg, April 2019.                                          //
-///////////////////////////////////////////////////////////////////
-/*
+  .................................................................///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  Oliver Staberg                                                   //
+  ALTEN Sweden AB in cooperation with Västsvenska Handelskammaren  //
+  Gothenburg, April 2019.                                          //
+  ///////////////////////////////////////////////////////////////////
+  /*
 
-/*
-\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-OTHER GLOBAL VARIABLES BELOW, DO NOT TOUCH! \\
-//////////////////////////////////////////////
+  /*
+  \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+  OTHER GLOBAL VARIABLES BELOW, DO NOT TOUCH! \\
+  //////////////////////////////////////////////
 */
 
 //Moisture sensors.
@@ -220,7 +220,6 @@ bool startupImageDisplay = true;        //Any variable is set to 'true' when tha
 bool setTimeDisplay = false;
 bool readoutValuesDisplay = false;
 bool serviceModeDisplay = false;
-bool clockViewFinished = false;
 bool flowFaultDisplay = false;
 
 static bool toggle2 = false;
@@ -439,12 +438,30 @@ void viewStartupImage() {
     SeeedGrayOled.clearDisplay();                         //Clear display.
     SeeedGrayOled.setVerticalMode();
     SeeedGrayOled.setNormalDisplay();                     //Set display to normal mode (non-inverse mode).
-/*
-    //Startup image.
-    SeeedGrayOled.drawBitmap(greenhouse, (128*128)/8);   //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
-    delay(4000);                                    //Image shown for 4 seconds.
-    SeeedGrayOled.clearDisplay();                       //Clear the display.
-*/
+
+    //Make sure no items are running.
+    waterPumpStop();                                                //Stop(OFF) water pump.
+    ledLightStop();                                                 //Stop(OFF) LED lighting.
+    fanStop();                                                      //Stop(OFF) fan.
+
+    /*
+        //Startup image.
+        SeeedGrayOled.drawBitmap(greenhouse, (128*128)/8);   //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
+        delay(4000);                                    //Image shown for 4 seconds.
+        SeeedGrayOled.clearDisplay();                       //Clear the display.
+    */
+    stringToDisplay(1, 0, "GREENHOUSE v.1.0");
+    stringToDisplay(4, 0, "A colaboration  ");
+    stringToDisplay(5, 0, "project between:");
+    stringToDisplay(7, 0, "ALTEN");
+    stringToDisplay(9, 0, "VASTSVENSKA HAN-");
+    stringToDisplay(10, 0, "DELSKAMMAREN &  ");
+    stringToDisplay(12, 0, "MATHIVATION     ");
+    stringToDisplay(14, 0, "      Gothenburg");
+    stringToDisplay(15, 0, "     April, 2019");
+    delay(7000);
+    SeeedGrayOled.clearDisplay();
+
     startupImageDisplay = false;                      //Clear current screen display state.
     setTimeDisplay = true;                            //Set next display mode to be printed to display.
     hour2InputMode = true;                             //Set state in next display mode.
@@ -501,7 +518,7 @@ void viewReadoutValues() {
   blankToDisplay(9, 9, 4);
   blankToDisplay(10, 8, 5);
   blankToDisplay(11, 0, 16);
-  
+
   blankToDisplay(13, 0, 16);
 
   blankToDisplay(14, 7, 9);
@@ -564,10 +581,10 @@ void viewReadoutValues() {
     |Water flow sensor value.|
   *************************/
   SeeedGrayOled.setTextXY(9, 0);                    //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putString("Wtr flow:");              //Print string to display.
-  SeeedGrayOled.setTextXY(9, 10 * 8);
+  SeeedGrayOled.putString("Water: ");              //Print string to display.
+  SeeedGrayOled.setTextXY(9, 8 * 8);
   SeeedGrayOled.putNumber(waterFlowValue);          //Print water flow value to display.
-  stringToDisplay(9, 13, "L/h");
+  stringToDisplay(9, 12, "ml/h");
 
   /*****************
     |Fan speed value.|
@@ -613,7 +630,7 @@ void lightRead() {
   value = lightSensor.ReadUV();
 
   //Only update uvValue if not equal to zero to avoid an uvValue of zero because it is not updated as frequently as the other light sensor.
-  if(value != 0 && ledLightState == true && ledLightFault == false) {
+  if (value != 0 && ledLightState == true) {
     uvValue = value;
   }
   //irValue = lightSensor.ReadIR();
@@ -720,7 +737,7 @@ void waterFlowCount() {
   || Calculate water flow when water pump is running. ||
   ====================================================== */
 void waterFlow() {
-  waterFlowValue = (float(flowSensorRotations) * 3600) / 55064;   //(water flow value in Liter/hour) = ((total rotations during 1 sec) * (3600 sec converting to hours) / (number of rotations it takes to pump 1 liter of water).
+  waterFlowValue = (float(flowSensorRotations)) / 55064 * 1000;   //(water flow value in ml/min) = ((total rotations during 1 sec) * (1000 to convert it to milli liters) / (number of rotations it takes to pump 1 liter of water).
   Serial.print("flowSensorRotations: ");
   Serial.println(flowSensorRotations);
   flowSensorRotations = 0;
@@ -959,56 +976,13 @@ ISR(RTC_CNT_vect) {
   ===============================================================
   || Set current time by using SET- and MODE-buttons as input. ||
   =============================================================== */
-//REMOVE THIS!!
-/*
-  void setClockTime() {
+void setClockTime() {
   //Set current clock time by toggling each hour pointer and minute pointer individualy.
-  if (pushButton == true && hour2InputMode == true) {
+  if (pushButton == true) {
     delay(DEBOUNCE_TIME_BUTTON);                                                 //Delay to avoid contact bounce.
-    hourPointer2++;                                             //Increase hour pointer every time button is pressed.
-    if (hourPointer2 == 3) {                                    //If 10-digit hour pointer reaches 3, clear digit.
-      hourPointer2 = 0;
-    }
+    resetStartupVariables();
   }
-  else if (pushButton == true && hour1InputMode == true) {
-    delay(DEBOUNCE_TIME_BUTTON);                                                 //Delay to debounce button press.
-    hourPointer1++;                                             //Increase hour pointer every time button is pressed.
-
-    if (hourPointer2 == 2) {                                    //If hour pointer2 is equal to 2, hour pointer 1 is only allowed to reach a maximum value of 4.
-      if (hourPointer1 == 5) {
-        hourPointer1 = 0;
-      }
-    }
-    else {
-      if (hourPointer1 == 10) {                                 //If 1-digit hour pointer reaches 10, clear digit.
-        hourPointer1 = 0;
-      }
-    }
-  }
-  else if (pushButton == true && minute2InputMode == true) {
-    delay(DEBOUNCE_TIME_BUTTON);
-    minutePointer2++;
-    if (minutePointer2 == 6) {                                  //If 10-digit minute pointer reaches a value of 6, clear 10-digit minute pointer.
-      minutePointer2 = 0;
-    }
-  }
-  else if (pushButton == true && minute1InputMode == true) {
-    delay(DEBOUNCE_TIME_BUTTON);
-    minutePointer1++;
-    if (minutePointer1 == 10) {                                //If 10-digit minute pointer reaches a value of 10, clear 1-digit minute pointer.
-      minutePointer1 = 0;
-    }
-  }
-
-  //Replace clock time represenation. When current clock time is 24 hours is replaced with 00.
-  if (clockStartMode == true) {
-    if (hourPointer2 == 2 && hourPointer1 == 4) {               //If 10-digit hour pointer reaches a value of 2 and 1-digit hour pointer reaches a value of 4 (elapsed time is 24 hours).
-      hourPointer2 = 0;                                         //Clear both hour pointer values.
-      hourPointer1 = 0;
-    }
-  }
-  }
-*/
+}
 
 /*
   ======================
@@ -1017,7 +991,13 @@ ISR(RTC_CNT_vect) {
 void resetClockTime() {
   //Stop clock and reset all clock pointers.
   clockStartMode = false;                       //Stop clock from ticking.
-  currentClockTime = 0;                         //Reset clock time.
+  currentClockTime = 0;
+  hourPointer1 = 0;
+  hourPointer2 = 0;
+  minutePointer1 = 0;
+  minutePointer2 = 0;
+  secondPointer1 = 0;
+  secondPointer2 = 0;
 }
 
 /*
@@ -1083,9 +1063,7 @@ void toggleDisplayMode() {
         flowFaultDisplay = false;                   //Clear current screen display mode to enable next display mode to shown next time MODE-button is pressed.
         waterFlowFault = false;                   //Clear water flow fault code.
         allowRestart = false;
-        resetClockTime();                         //Reset clock time.
-        startupImageDisplay = true;               //Reboot greenhouse program by printing the startup image to display.
-        Serial.println("Go to startupImageDisplay");
+        Serial.println("Go to setTimeDisplay");
       }
     }
 
@@ -1107,35 +1085,44 @@ void toggleDisplayMode() {
   || SET CLOCK TIME DISPLAY MODE. Print clock values to OLED display to let user set current time. ||
   =================================================================================================== */
 void setClockDisplay() {
+  blankToDisplay(0, 0, 7);
   stringToDisplay(0, 7, "SET CLOCK");     //Print current display state to upper right corner of display.
 
   if (clockStartMode == false) {
     stringToDisplay(2, 0, "Use controls to ");
-    stringToDisplay(3, 0, "set the time    ");
-
-    stringToDisplay(5, 0, "Controls:       ");
-    stringToDisplay(7, 0, "ENCODER = +/-"   );
-    stringToDisplay(8, 0, "MODE = confirm  ");
-    stringToDisplay(9, 0, "RESET = go back ");
+    stringToDisplay(3, 0, "set curr. time: ");
+    blankToDisplay(4, 0, 16);
+    stringToDisplay(5, 0, "ENCODER = +/-   ");
+    blankToDisplay(6, 0, 16);
+    stringToDisplay(7, 0, "MODE = confirm  ");
+    blankToDisplay(8, 0, 16);
+    stringToDisplay(9, 0, "RESET = clear   ");
+    blankToDisplay(10, 0, 16);
 
 
     //Pointer separator character.
     stringToDisplay(11, 22, ":");
     stringToDisplay(11, 25, ":");
+    blankToDisplay(12, 0, 16);
+    blankToDisplay(13, 0, 16);
+    blankToDisplay(14, 0, 16);
+    blankToDisplay(15, 0, 16);
   }
   else if (clockStartMode == true) {
     //Print further instructions when clock start has been activated.
-    stringToDisplay(2, 0, "Clock ticking...");
+    stringToDisplay(2, 0, "Clock is ticking");
     blankToDisplay(3, 0, 16);
-    stringToDisplay(4, 0, "Greenhouse pgrm ");
-    stringToDisplay(5, 0, "is ready to run.");
-    stringToDisplay(6, 0, "                ");
-    stringToDisplay(7, 0, "Auto watering,  ");
-    stringToDisplay(8, 0, "lighting and    ");
-    stringToDisplay(9, 0, "humidity ctrl.  ");
-
+    stringToDisplay(4, 0, "Auto watering,  ");
+    stringToDisplay(5, 0, "lighting & hum- ");
+    stringToDisplay(6, 0, "idity control   ");
+    stringToDisplay(7, 0, "is ready to run ");
+    blankToDisplay(8, 0, 16);
+    stringToDisplay(9, 0, "Time is:        ");
+    blankToDisplay(10, 0, 16);
+    blankToDisplay(12, 0, 16);
     stringToDisplay(13, 0, "Press MODE to  ");
     stringToDisplay(14, 0, "continue.      ");
+    blankToDisplay(15, 0, 16);
 
     //Pointer separater character flash.
     if (flashClockPointer == true) {
@@ -1154,6 +1141,8 @@ void setClockDisplay() {
     }
   }
 
+  blankToDisplay(11, 0, 4);
+  blankToDisplay(11, 12, 4);
   numberToDisplay(11, 20, hourPointer2);
   numberToDisplay(11, 21, hourPointer1);
   numberToDisplay(11, 23, minutePointer2);
@@ -1181,7 +1170,7 @@ void setClockDisplay() {
   }
 
   //pushButton = digitalRead(resetButton);                        //Check if SET-button is being pressed.
-  
+
   //Hour pointer1.
   if (hour1InputMode == true) {
     if (flashClockPointer == true) {
@@ -1703,48 +1692,72 @@ int calculateMoistureMean(int moistureValue1, int moistureValue2, int moistureVa
   ==========================*/
 void resetStartupVariables() {
   //Resetting all variables.
-  greenhouseProgramStart = false;
-  ledLightEnabled = false;
-  pushButton = false;
+  if (setTimeDisplay == true) {     //When in set clock mode perform this type of reset.
+    greenhouseProgramStart = false;
+    resetClockTime();
+    ledLightEnabled = false;
+    pushButton = false;
 
-  clockStartMode = false;
-  clockSetFinished = false;
+    clockStartMode = false;
+    clockSetFinished = false;
 
-  ledLightState = false;
-  ledLightFault = false;
+    ledLightState = false;
+    ledLightFault = false;
 
-  waterPumpState = false;
-  waterFlowFault = false;
+    waterPumpState = false;
+    waterFlowFault = false;
 
-  currentClockTime = 0;
-  hourPointer1 = 0;
-  hourPointer2 = 0;
-  minutePointer1 = 0;
-  minutePointer2 = 0;
-  secondPointer1 = 0;
-  secondPointer2 = 0;
-  hour2InputMode = true;
-  hour1InputMode = false;
-  minute2InputMode = false;
-  minute1InputMode = false;
-  pushButton = false;
+    hour2InputMode = true;
+    hour1InputMode = false;
+    minute2InputMode = false;
+    minute1InputMode = false;
+    pushButton = false;
 
-  clockStartMode = false;
-  clockSetFinished = false;
-  alarmMessageEnabled = false;
+    clockStartMode = false;
+    clockSetFinished = false;
+    alarmMessageEnabled = false;
 
-  startupImageDisplay = true;
-  setTimeDisplay = false;
-  readoutValuesDisplay = false;
-  serviceModeDisplay = false;
-  clockViewFinished = false;
-  flowFaultDisplay = false;
+    startupImageDisplay = false;
+    setTimeDisplay = true;
+    readoutValuesDisplay = false;
+    serviceModeDisplay = false;
+    flowFaultDisplay = false;
 
-  waterPumpEnabled = false;
-  ledLightEnabled = false;
-  fanEnabled = false;
-  fanState = false;
-  actionRegister = 8;
+    waterPumpEnabled = false;
+    ledLightEnabled = false;
+    fanEnabled = false;
+    fanState = false;
+    actionRegister = 8;
+  }
+  else if (flowFaultDisplay == true) {               //If getting a water flow fault perform this type of reset without stopping the clock and let the value readout continue.
+    minute1InputMode = false;               //Minute pointer1 has been set. Time set is done.
+    clockStartMode = true;                  //Start clock. Clock starts ticking.
+    clockSetFinished = true;
+    
+    ledLightEnabled = false;
+
+    ledLightState = false;
+    ledLightFault = false;
+
+    waterPumpState = false;
+    waterFlowFault = false;
+
+    pushButton = false;
+
+    alarmMessageEnabled = false;
+
+    startupImageDisplay = false;
+    setTimeDisplay = true;
+    readoutValuesDisplay = false;
+    serviceModeDisplay = false;
+    flowFaultDisplay = false;
+
+    waterPumpEnabled = false;
+    ledLightEnabled = false;
+    fanEnabled = false;
+    fanState = false;
+    actionRegister = 8;
+  }
 }
 
 /*
@@ -1788,10 +1801,13 @@ void resolveFlowFault() {
 
   stringToDisplay(15, 0, "Restart: ");
 
+  actionRegister = 8;     //Clear action register printed to display.
+
   static bool toggle1 = false;
   if (pushButton == true) {
     allowRestart = true;
     stringToDisplay(15, 9, "YES");
+    delay(4000);
     resetStartupVariables();
   }
   else {
@@ -1974,7 +1990,7 @@ void setup() {
   humiditySensor.begin();                 //Initializing humidity sensor.
 
   lightSensor.Begin();                    //Initializing light sensor.
-  
+
   relay.begin(0x11);
 
   while (!lightSensor.Begin()) {
@@ -2055,7 +2071,7 @@ void loop() {
     viewStartupImage();                                             //Initialize the OLED Display and show startup images.
   }
   else if (setTimeDisplay == true) {                                //Display time set screen only if current time has not been set.
-    //setClockTime();
+    setClockTime();
     setClockDisplay();
   }
   else if (readoutValuesDisplay == true) {                          //Only display read out values after current time on internal clock, has been set.
@@ -2066,7 +2082,7 @@ void loop() {
   }
   else if (flowFaultDisplay == true) {
     resolveFlowFault();                                             //Water flow fault display mode is printed to display. It contains fault code instruction and possibility to reset fault code.
-    //greenhouseProgramStart = false;                               //Stop greenhouse program.
+
     waterPumpStop();                                                //Stop(OFF) water pump.
     ledLightStop();                                                 //Stop(OFF) LED lighting.
     fanStop();                                                      //Stop(OFF) fan.
@@ -2089,7 +2105,7 @@ void loop() {
 
     //Read light sensor with a less frequency than the rest of the value readouts.
     unsigned long readLightCurrent;
-    
+
     lightRead();                                                                                          //Read light sensor, light and UV value.
 
     waterLevelRead();                                                                                     //Check water level in water tank.
