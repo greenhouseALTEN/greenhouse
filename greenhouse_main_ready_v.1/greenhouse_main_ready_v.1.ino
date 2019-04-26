@@ -94,7 +94,7 @@ const unsigned short HUMIDITY_THRESHOLD_VALUE = 60;                 //Set air hu
 //Temperature.
 const unsigned short TEMP_THRESHOLD_VALUE = 28;                     //Set temperature threshold value (°C). If measured temperature is above this specified value a temperature alarm is activated. Value 30 means equal to 30°C.
 //Water flow.
-const unsigned short FLOW_THRESHOLD_VALUE = 3;                      //Variable value specifies the minimum water flow (Liter/hour) required to avoid activating water flow fault.
+const unsigned short FLOW_THRESHOLD_VALUE = 250;                    //Variable value specifies the minimum water flow (Liter/hour) required to avoid activating water flow fault.
 const unsigned short CHECK_WATER_FLOW_PERIOD = 1500;                //Set for how long time (in milliseconds) after water pump has been activated (turned ON) before program checks the water flow. IMPORTANT: Value must be above 1000, since it takes 1 sec before water flow value is calculated.
 //LED lighting.
 const unsigned short UV_THRESHOLD_VALUE = 4;                        //Set at which UV-value LED lighting alarm is activated. If UV-value is lower than specified value when LED lighting is ON, an alarm is activated.
@@ -110,7 +110,7 @@ unsigned short pumpStopTime = 1500;                                 //Stop clock
 //LOOP TIME.
 //Loop time for how often certain readouts and/or motors  be activated.
 const unsigned int CHECK_MOISTURE_PERIOD = 20000;                   //Loop time (in milliseconds) how often soil moisture is being checked and hence water pump is activated (only when soil is too dry).
-const unsigned short WATER_PUMP_TIME_PERIOD = 7000;                 //Set time (in milliseconds) how long water pump will run each time it is activated. Fan speed mode is also checked in same interval as water pump.
+const unsigned short WATER_PUMP_TIME_PERIOD = 6000;                 //Set time (in milliseconds) how long water pump will run each time it is activated. Fan speed mode is also checked in same interval as water pump.
 const unsigned int CHECK_LIGHT_NEED_PERIOD = 5000;                  //Loop time (in milliseconds) how often ligtht and fan need is being checked. Light need is only checking if current time is in allowed interval meanwhile fan also checks if humidity level is too high.
 /*
   .................................................................///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -182,7 +182,7 @@ bool ledLightFault = false;               //Indicate if LED lighting is not turn
 
 //Water pump and flow sensor.
 volatile int flowSensorRotations;
-float waterFlowValue = 0;
+unsigned short waterFlowValue = 0;
 bool waterPumpState = false;              //Indicate current status of water pump. Variable is 'true' when water pump is running.
 bool waterFlowFault = false;              //Indicate if water is being pumped when water pump is running. Variable is 'false' when water flow is above threshold value.
 //int FLOW_THRESHOLD_VALUE = 80;              //Variable value specifies the minimum water flow threshold required to avoid setting water flow fault.
@@ -296,6 +296,7 @@ WiFiClient client;
   || Bitmap image 2 to be printed on OLED display at startup. ||
   ============================================================== */
 const unsigned char greenhouse[] PROGMEM = {
+  /*
   //Startup image.
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x01, 0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x00, 0x00, 0x07, 0xC0,
@@ -425,6 +426,7 @@ const unsigned char greenhouse[] PROGMEM = {
   0x00, 0x0F, 0xFC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0xE0, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x03, 0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+*/
 };
 
 /*
@@ -452,13 +454,13 @@ void viewStartupImage() {
     */
     stringToDisplay(1, 0, "GREENHOUSE v.1.0");
     stringToDisplay(4, 0, "A colaboration  ");
-    stringToDisplay(5, 0, "project between:");
-    stringToDisplay(7, 0, "ALTEN");
-    stringToDisplay(9, 0, "VASTSVENSKA HAN-");
-    stringToDisplay(10, 0, "DELSKAMMAREN &  ");
-    stringToDisplay(12, 0, "MATHIVATION     ");
+    stringToDisplay(5, 0, "project with:");
+    stringToDisplay(7, 0, "Alten");
+    stringToDisplay(9, 0, "Vastsvenska Han-");
+    stringToDisplay(10, 0, "delskammaren   ");
+    stringToDisplay(12, 0, "Mathivation     ");
     stringToDisplay(14, 0, "      Gothenburg");
-    stringToDisplay(15, 0, "     April, 2019");
+    stringToDisplay(15, 0, "     april, 2019");
     delay(7000);
     SeeedGrayOled.clearDisplay();
 
@@ -515,7 +517,7 @@ void viewReadoutValues() {
   blankToDisplay(6, 9, 4);
   blankToDisplay(7, 5, 9);
   blankToDisplay(8, 9, 5);
-  blankToDisplay(9, 9, 4);
+  blankToDisplay(9, 5, 5);
   blankToDisplay(10, 8, 5);
   blankToDisplay(11, 0, 16);
 
@@ -581,10 +583,10 @@ void viewReadoutValues() {
     |Water flow sensor value.|
   *************************/
   SeeedGrayOled.setTextXY(9, 0);                    //Set cordinates to where it will print text. X = row (0-7), Y = column (0-127).
-  SeeedGrayOled.putString("Water: ");              //Print string to display.
-  SeeedGrayOled.setTextXY(9, 8 * 8);
+  SeeedGrayOled.putString("Flow:");              //Print string to display.
+  SeeedGrayOled.setTextXY(9, 6 * 8);
   SeeedGrayOled.putNumber(waterFlowValue);          //Print water flow value to display.
-  stringToDisplay(9, 12, "ml/h");
+  stringToDisplay(9, 10, "ml/min");
 
   /*****************
     |Fan speed value.|
@@ -607,7 +609,7 @@ void viewReadoutValues() {
       stringToDisplay(12, 0, "Check water need");
       break;
     case 4:
-      stringToDisplay(12, 0, "Pumping water...");
+      stringToDisplay(12, 0, "Pumping water.. ");
       break;
     case 8:
       blankToDisplay(12, 0, 16);
@@ -737,10 +739,16 @@ void waterFlowCount() {
   || Calculate water flow when water pump is running. ||
   ====================================================== */
 void waterFlow() {
-  waterFlowValue = (float(flowSensorRotations)) / 55064 * 1000;   //(water flow value in ml/min) = ((total rotations during 1 sec) * (1000 to convert it to milli liters) / (number of rotations it takes to pump 1 liter of water).
+  waterFlowValue = (float(flowSensorRotations) * 60 * 1000) / 3467;   //(water flow value in ml/min) = ((total rotations during 1 sec * 60 sec) / (number of rotations it takes to pump 1 liter of water) * (1000 to convert value to milli liter).
+  flowSensorRotations = 0;
+
   Serial.print("flowSensorRotations: ");
   Serial.println(flowSensorRotations);
-  flowSensorRotations = 0;
+
+  Serial.print("timer: ");
+  Serial.println(millis());
+
+
   Serial.print("waterFlowValue: ");
   Serial.println(waterFlowValue);
 }
@@ -894,15 +902,6 @@ ISR(RTC_CNT_vect) {
       }
 
       divider10 = 0;                        //Clear divider variable.
-      //Calculating fan speed on.
-      if (fanState == true) {
-        fanRpm();
-      }
-
-      //Time delay for calculating water flow.
-      if (waterPumpState == true) {
-        waterFlow();
-      }
 
       //Internal clock.
       secondPointer1++;                     //Increase second pointer every time this function runs.
@@ -945,7 +944,16 @@ ISR(RTC_CNT_vect) {
       if (currentClockTime < 60) {          //Prevent clock time from seeing 00:00 as less than 23:00.
         currentClockTime += 2400;
       }
-      //Serial.println(currentClockTime);
+
+      //Calculating fan speed on.
+      if (fanState == true) {
+        fanRpm();
+      }
+
+      //Time delay for calculating water flow.
+      if (waterPumpState == true) {
+        waterFlow();
+      }
     }
   }
 
@@ -1733,7 +1741,7 @@ void resetStartupVariables() {
     minute1InputMode = false;               //Minute pointer1 has been set. Time set is done.
     clockStartMode = true;                  //Start clock. Clock starts ticking.
     clockSetFinished = true;
-    
+
     ledLightEnabled = false;
 
     ledLightState = false;
@@ -1997,6 +2005,7 @@ void setup() {
     Serial.println("lightSensor is not ready!");
     delay(1000);
   }
+  Serial.println("lightsensor is ready!");
 
   //Enable time interrupt.
   cli();                                              //Stop any external interrups.
