@@ -1743,7 +1743,7 @@ void resetStartupVariables() {
     hour1InputMode = false;
     minute2InputMode = false;
     minute1InputMode = false;               //Minute pointer1 has been set. Time set is done.
-    
+
     clockStartMode = true;                  //Start clock. Clock starts ticking.
     clockSetFinished = true;
 
@@ -2073,6 +2073,25 @@ void loop() {
     Serial.print(":");
     Serial.print(secondPointer2);
     Serial.println(secondPointer1);
+
+    //Replace clock time represenation. When current clock time is 24 hours is replaced with 00.
+    if (clockStartMode == true) {
+      if (hourPointer2 == 2 && hourPointer1 == 4) {               //If 10-digit hour pointer reaches a value of 2 and 1-digit hour pointer reaches a value of 4 (elapsed time is 24 hours).
+        hourPointer2 = 0;                                         //Clear both hour pointer values.
+        hourPointer1 = 0;
+      }
+    }
+
+    //Convert clock pointer into single int variable. Value of this variable represent clock time.
+    currentClockTime = 0;
+    currentClockTime += (hourPointer2 * 1000);
+    currentClockTime += (hourPointer1 * 100);
+    currentClockTime += (minutePointer2 * 10);
+    currentClockTime += minutePointer1;
+
+    if (currentClockTime < 60) {          //Prevent clock time from seeing 00:00 as less than 23:00.
+      currentClockTime += 2400;
+    }
   }
 
 
