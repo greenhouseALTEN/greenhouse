@@ -11,8 +11,7 @@
 #include <SPI.h>
 #include <WiFiNINA.h>
 #include <WiFiUdp.h>
-#include <ArduinoJson.h>
-#include "arduino_secrets.h"    //Contains password cridentials for connecting to wifi.
+#include "arduino_secrets.h"    //Fill in cridentials (password and username) for connecting to local wifi where greenhouse is placed.
 
 /*
 ****************************************************************
@@ -272,11 +271,15 @@ unsigned long timeDiff;
 //unsigned short PUMP_START_TIME = 800;
 //unsigned short pumpStopTime = 1500;
 
-//Wifi variables.
-bool connectedToWifi = true;
+//Wifi variables to sync internal clock with NTP-server.
 int status = WL_IDLE_STATUS;
-#include "arduino_secrets.h"
-///////please enter your sensitive data in the Secret tab/arduino_secrets.h
+static bool WiFiConnected = true;
+static bool timerInterruptHasSetup = false;
+static unsigned int counterRashid = 0;
+static unsigned int counterWifiDiscounected = 0;
+bool setTimeWifiCompleted = false;
+
+//Enter your sensitive data in the Secret tab/arduino_secrets.h.
 char ssid[] = SECRET_SSID;        // your network SSID (name)
 char pass[] = SECRET_PASS;        // your network password (use for WPA, or use as key for WEP)
 int keyIndex = 0;                 // your network key Index number (needed only for WEP)
@@ -293,9 +296,9 @@ byte packetBuffer[ NTP_PACKET_SIZE]; //buffer to hold incoming and outgoing pack
 WiFiUDP Udp;
 
 /*
-  ==============================================================
-  || Bitmap image 2 to be printed on OLED display at startup. ||
-  ============================================================== */
+  ============================================================
+  || Bitmap image to be printed on OLED display at startup. ||
+  ============================================================ */
 const unsigned char greenhouse[] PROGMEM = {
   /*
     //Startup image.
@@ -435,39 +438,45 @@ const unsigned char greenhouse[] PROGMEM = {
   || Initialize OLED display and show startup images. ||
   ====================================================== */
 void viewStartupImage() {
-  if (startupImageDisplay) {
-    Serial.println("startupImageDisplay");
-    SeeedGrayOled.init(SH1107G);
-    SeeedGrayOled.clearDisplay();                         //Clear display.
-    SeeedGrayOled.setVerticalMode();
-    SeeedGrayOled.setNormalDisplay();                     //Set display to normal mode (non-inverse mode).
+  Serial.println("startupImageDisplay");
+  SeeedGrayOled.clearDisplay();                         //Clear display.
 
-    //Make sure no items are running.
-    waterPumpStop();                                                //Stop(OFF) water pump.
-    ledLightStop();                                                 //Stop(OFF) LED lighting.
-    fanStop();                                                      //Stop(OFF) fan.
+  //Make everything is shut down.
+  //waterPumpStop();                                                //Stop(OFF) water pump.
+  //ledLightStop();                                                 //Stop(OFF) LED lighting.
+  //fanStop();                                                      //Stop(OFF) fan.
 
-    /*
-        //Startup image.
-        SeeedGrayOled.drawBitmap(greenhouse, (128*128)/8);   //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
-        delay(4000);                                    //Image shown for 4 seconds.
-        SeeedGrayOled.clearDisplay();                       //Clear the display.
-    */
-    stringToDisplay(1, 0, "GREENHOUSE v.1.0");
-    stringToDisplay(4, 0, "A colaboration  ");
-    stringToDisplay(5, 0, "project with:");
-    stringToDisplay(7, 0, "Alten");
-    stringToDisplay(9, 0, "Vastsvenska Han-");
-    stringToDisplay(10, 0, "delskammaren   ");
-    stringToDisplay(12, 0, "Mathivation     ");
-    stringToDisplay(14, 0, "      Gothenburg");
-    stringToDisplay(15, 0, "     april, 2019");
-    delay(7000);
-    SeeedGrayOled.clearDisplay();
+  /*
+      //Startup image.
+      SeeedGrayOled.drawBitmap(greenhouse, (128*128)/8);   //Show greenhouse logo. Second parameter in drawBitmap function specifies the size of the image in bytes. Fullscreen image = 128 * 64 pixels / 8.
+      delay(4000);                                    //Image shown for 4 seconds.
+      SeeedGrayOled.clearDisplay();                       //Clear the display.
+  */
+  stringToDisplay(1, 0, "GREENHOUSE v.1.0");
+  stringToDisplay(4, 0, "A colaboration  ");
+  stringToDisplay(5, 0, "project with:");
+  stringToDisplay(7, 0, "Alten");
+  stringToDisplay(9, 0, "Vastsvenska Han-");
+  stringToDisplay(10, 0, "delskammaren    ");
+  stringToDisplay(12, 0, "Mathivation     ");
+  stringToDisplay(14, 0, "      Gothenburg");
+  stringToDisplay(15, 0, "       apr, 2019");
+  delay(5000);
+  SeeedGrayOled.clearDisplay();
 
-    startupImageDisplay = false;                      //Clear current screen display state.
-    setTimeDisplay = true;                            //Set next display mode to be printed to display.
-    hour2InputMode = true;                             //Set state in next display mode.
+  startupImageDisplay = false;                            //Clear current screen display state.
+  setTimeDisplay = true;                                  //Set next display mode to be printed to display.
+
+  if (setTimeWifiCompleted == true) {
+    //Clock has been synced with wifi. Set variables in order to skip the set clock mode.
+    hour2InputMode = false;                               //Set state in next display mode.
+    minute1InputMode = false;                             //Minute pointer1 has been set. Time set is done.
+    clockStartMode = true;                                //Start clock. Clock starts ticking.
+    clockSetFinished = true;
+  }
+  else {
+    //Clock has not been synced with wifi.
+    hour2InputMode = true;                                //Set state in next display mode.
   }
 }
 
@@ -880,11 +889,67 @@ void fanStop() {
   || Timer interrupt triggered with frequency of 10 Hz used as second ticker for internal clock and to flash clock pointer values when in "set time" mode. ||
   =========================================================================================================================================================== */
 ISR(RTC_CNT_vect) {
-  //Timer interrupt triggered with a frequency of 10 Hz.
-  /***************************************************
-    |Internal clock used to keep track of current time.|
-  ****************************************************/
-  if (clockStartMode == true) {          //Check if internal clock is enabled to run.
+  RTC.INTFLAGS = 0x3;  //Clearing OVF and CMP interrupt flags.
+
+  if (greenhouseProgramStart == true) {
+    divider10++;
+
+    //Timer interrupt triggered with a frequency of 10 Hz.
+    if (divider10 >= 10) {                  //This part of the function will run once every second and therefore will provide a 1 Hz pulse to feed the second pointer.
+      divider10 = 0;                       //Clear divider variable.
+
+      //Internal clock.
+      secondPointer1++;                     //Increase second pointer every time this function runs.
+
+      //Second pointer.
+      if (secondPointer1 == 10) {           //If 1-digit second pointer reaches a value of 10 (elapsed time is 10 seconds).
+        secondPointer2++;                   //Increase 10-digit second pointer.
+        secondPointer1 = 0;                 //Clear 1-digit pointer.
+      }
+      if (secondPointer2 == 6) {            //If 10-digit pointer reaches a value of 6 (elapsed time is 60 seconds).
+        minutePointer1++;                   //Increase minute pointer.
+        secondPointer2 = 0;                 //Clear 10-digit second pointer.
+      }
+      //Minute pointer.
+      if (minutePointer1 == 10) {           //If 1-digit minute pointer reaches a value of 10 (elapsed time is 10 minutes).
+        minutePointer2++;                   //Increase 10-digit minute pointer.
+        minutePointer1 = 0;                 //Clear 1-digit minute pointer.
+      }
+      if (minutePointer2 == 6) {            //If 10-digit minute pointer reaches a value of 6 (elapsed time is 60 minutes).
+        hourPointer1++;                     //Increase 1-digit hour pointer.
+        minutePointer2 = 0;                 //Clear 10-digit minute pointer.
+      }
+      //Hour pointer.
+      if (hourPointer1 == 10) {             //If 1-digit hour pointer reaches a value of 10 (elapsed time is 10 hours).
+        hourPointer2++;                     //Increase 10-digit hour pointer.
+        hourPointer1 = 0;                   //Clear 1-digit hour pointer.
+      }
+      if (hourPointer2 == 2 && hourPointer1 == 4) { //If 1-digit and 10-digit hourPointer combined reaches 24 (elapsed time is 24 hours).
+        hourPointer1 = 0;                           //Clear both hour digits.
+        hourPointer2 = 0;
+      }
+
+      //Convert clock pointer into single int variable. Value of this variable represent clock time.
+      currentClockTime = 0;
+      currentClockTime += (hourPointer2 * 1000);
+      currentClockTime += (hourPointer1 * 100);
+      currentClockTime += (minutePointer2 * 10);
+      currentClockTime += minutePointer1;
+
+      if (currentClockTime < 60) {          //Prevent clock time from seeing 00:00 as less than 23:00.
+        currentClockTime += 2400;
+      }
+    }
+  }
+}
+
+
+//ISR(RTC_CNT_vect) {
+//Timer interrupt triggered with a frequency of 10 Hz.
+/***************************************************
+  |Internal clock used to keep track of current time.|
+****************************************************/
+/*  if (clockStartMode == true) {          //Check if internal clock is enabled to run.
     divider10++;                            //Increase divider variable.
 
     if (divider10 >= 10) {                  //This part of the function will run once every second and therefore will provide a 1 Hz pulse to feed the second pointer.
@@ -957,11 +1022,12 @@ ISR(RTC_CNT_vect) {
       }
     }
   }
+*/
 
-  /**************************
-    |Flash clock digit cursor.|
-  **************************/
-  static bool toggle = false;               //Initiate variable only once (instead of declaring it as a global variable).
+/**************************
+  |Flash clock digit cursor.|
+**************************/
+/*  static bool toggle = false;               //Initiate variable only once (instead of declaring it as a global variable).
   divider5++;                               //Increase divider variable.
 
   if (divider5 >= 5) {                    //This part of the function will run twice every second and therefore will provide a 2 Hz pulse to feed the toggling of flash variable below.
@@ -979,7 +1045,8 @@ ISR(RTC_CNT_vect) {
     }
   }
   RTC.INTFLAGS = 0x3;                       //Clearing OVF and CMP interrupt flags to enable new interrupt to take place according the preset time period.
-}
+  }
+*/
 
 /*
   ===============================================================
@@ -1330,7 +1397,6 @@ void setClockDisplay() {
 void tempThresholdCompare() {
   if (tempValue > tempThresholdValue || tempValue < TEMP_VALUE_MIN) {                             //Compare read out temperature value with temperature threshold value set by rotary encoder.
     tempValueFault = true;                                         //If measured temperature is higher than temperature threshold that has been set, variable is set to 'true' to alert user.
-    Serial.println("hello");
   }
   else {
     tempValueFault = false;
@@ -1413,14 +1479,6 @@ void rotaryEncoderRead() {
         tempThresholdValue = TEMP_VALUE_MIN;
       }
     }
-    Serial.print("tempThresholdValue: ");
-    Serial.println(tempThresholdValue);
-
-    Serial.print("tempValue: ");
-    Serial.println(tempValue);
-
-    Serial.print("tempValueFault: ");
-    Serial.println(tempValueFault);
 
     // Keep track of when we were here last (no more than every 5ms)
     lastInterruptTime = interruptTime;
@@ -1701,7 +1759,7 @@ int calculateMoistureMean(int moistureValue1, int moistureValue2, int moistureVa
   ==========================*/
 void resetStartupVariables() {
   //Resetting all variables.
-  if (setTimeDisplay == true && connectedToWifi == false) {     //When in set clock mode perform this type of reset.
+  if (setTimeDisplay == true) {     //When in set clock mode perform this type of reset.
     greenhouseProgramStart = false;
     resetClockTime();
     ledLightEnabled = false;
@@ -1738,12 +1796,8 @@ void resetStartupVariables() {
     fanState = false;
     actionRegister = 8;
   }
-  else if (flowFaultDisplay == true || connectedToWifi == true) {               //If getting a water flow fault perform this type of reset without stopping the clock and let the value readout continue.
-    hour2InputMode = false;
-    hour1InputMode = false;
-    minute2InputMode = false;
+  else if (flowFaultDisplay == true) {               //If getting a water flow fault perform this type of reset without stopping the clock and let the value readout continue.
     minute1InputMode = false;               //Minute pointer1 has been set. Time set is done.
-
     clockStartMode = true;                  //Start clock. Clock starts ticking.
     clockSetFinished = true;
 
@@ -1796,6 +1850,7 @@ void resolveFlowFault() {
   blankToDisplay(14, 0, 16);
   blankToDisplay(15, 12, 4);
 
+
   stringToDisplay(0, 2, "RSLV FLOWFAULT");          //Print current display state to upper right corner of display.
 
   stringToDisplay(2, 0, "Chk hardware!");
@@ -1829,9 +1884,9 @@ void resolveFlowFault() {
 
 
 /*
-  ===========================================================================
-  || WiFi functions for connecting to wifi and sync with NTP-server below. ||
-  =========================================================================== */
+  ================================================================
+  || WiFi functions for posting readout values to server below. ||
+  ================================================================ */
 void printWifiStatus() {
   // print the SSID of the network you're attached to:
   Serial.print("SSID: ");
@@ -1849,111 +1904,8 @@ void printWifiStatus() {
   Serial.println(" dBm");
 }
 
-// send an NTP request to the time server at the given address
-unsigned long sendNTPpacket(IPAddress & address) {
-  //Serial.println("1");
-  // set all bytes in the buffer to 0
-  memset(packetBuffer, 0, NTP_PACKET_SIZE);
-  // Initialize values needed to form NTP request
-  // (see URL above for details on the packets)
-  //Serial.println("2");
-  packetBuffer[0] = 0b11100011;   // LI, Version, Mode
-  packetBuffer[1] = 0;     // Stratum, or type of clock
-  packetBuffer[2] = 6;     // Polling Interval
-  packetBuffer[3] = 0xEC;  // Peer Clock Precision
-  // 8 bytes of zero for Root Delay & Root Dispersion
-  packetBuffer[12]  = 49;
-  packetBuffer[13]  = 0x4E;
-  packetBuffer[14]  = 49;
-  packetBuffer[15]  = 52;
-
-  //Serial.println("3");
-
-  // all NTP fields have been given values, now
-  // you can send a packet requesting a timestamp:
-  Udp.beginPacket(address, 123); //NTP requests are to port 123
-  //Serial.println("4");
-  Udp.write(packetBuffer, NTP_PACKET_SIZE);
-  //Serial.println("5");
-  Udp.endPacket();
-  //Serial.println("6");
-}
-
-/*
-*******************************
-  Arduino program setup code.
-*******************************/
-void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(9600);
-
-  //Declaring I/O-ports.
-  pinMode(moistureSensorPort1, INPUT);
-  pinMode(moistureSensorPort2, INPUT);
-  pinMode(moistureSensorPort3, INPUT);
-  pinMode(moistureSensorPort4, INPUT);
-
-  pinMode(waterFlowSensor, INPUT);
-  pinMode(fanSpeedSensor, INPUT);
-
-  pinMode(waterLevelSensor, INPUT);
-
-  pinMode(rotaryEncoderOutpA, INPUT);
-  pinMode(rotaryEncoderOutpB, INPUT);
-  aLastState = digitalRead(rotaryEncoderOutpA);      //Read initial position value.
-
-  pinMode(resetButton, INPUT);
-  pinMode(modeButton, INPUT);
-
-  //Interupt pins.
-  attachInterrupt(13, fanRotationCount, RISING);  //Initialize interrupt to water flow sensor to calculate water flow pumped by water pump.
-  attachInterrupt(11, rotaryEncoderRead, LOW); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by modeButton being pressed.
-  attachInterrupt(3, waterFlowCount, RISING);  //Initialize interrupt to enable calculation of fan speed when it is running.
-  attachInterrupt(2, toggleDisplayMode, RISING); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by modeButton being pressed.
-
-  Wire.begin();
-
-  humiditySensor.begin();                 //Initializing humidity sensor.
-
-  lightSensor.Begin();                    //Initializing light sensor.
-
-  relay.begin(0x11);
-
-  while (!lightSensor.Begin()) {
-    Serial.println("lightSensor is not ready!");
-    delay(1000);
-  }
-  Serial.println("lightsensor is ready!");
-
-
-  if (Udp.begin(localPort) != 1) {
-    connectedToWifi = false;
-    //Enable time interrupt.
-    cli();                                              //Stop any external interrups.
-
-    //RTC setup:
-    while (RTC.STATUS != 0) {
-      //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register.
-    }
-    RTC.CLKSEL = 0x00;                                  //32.768 kHz signal from OSCULP32K selected.
-    RTC.PERL = 0xFE;                                    //Lower part of 32,768 value in PER-register (PERL) to be used as overflow value to reset the RTC counter.
-    RTC.PERH = 0x0C;                                    //Upper part of 32,768 value in PER-register (PERH) to be used as overflow value to reset the RTC counter.
-    RTC.INTCTRL = (RTC.INTCTRL & 0b11111100) | 0b01;    //Enable interrupt-on-counter overflow by setting OVF-bit in INCTRL register.
-    while (RTC.STATUS != 0) {
-      //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register.
-    }
-    RTC.CTRLA = 0x05;                                   //No using prescaler set, CORREN enabled (0b100),  RTCEN bit set to 1 (0b1).
-
-    while (RTC.STATUS != 0) {
-      //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register.
-    }
-    Serial.println("RTC config complete");
-
-    sei();                                              //Allow external interrupt again.
-  }
-
-  //resetStartupVariables();
-
+bool connectWiFi() {
+  bool cnt = false;
   // check for the WiFi module:
   if (WiFi.status() == WL_NO_MODULE) {
     Serial.println("Communication with WiFi module failed!");
@@ -1965,8 +1917,8 @@ void setup() {
   if (fv < "1.0.0") {
     Serial.println("Please upgrade the firmware");
   }
-
-  while (status != WL_CONNECTED) {
+  unsigned int tryConnectingCounter = 0;
+  while ((tryConnectingCounter++ < 10) && (status != WL_CONNECTED)) {
     Serial.print("Attempting to connect to SSID: ");
     Serial.println(ssid);
     // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
@@ -1980,20 +1932,46 @@ void setup() {
   printWifiStatus();
 
   Serial.println("\nStarting connection to server...");
-  Udp.begin(localPort);
+  if (1 == Udp.begin(localPort))cnt = true;
+  Serial.print(cnt);
+  Serial.println(" connectionStatus");
+  return cnt;
 }
 
-/*
-*******************************************
-  Arduino program main code to be looped.
-*******************************************/
-void loop() {
-  // put your main code here, to run repeatedly:
+void setupTimerInterrupt() {
+  // put your setup code here, to run once:
 
-  //Syncing clock with NTP-server.
+  cli();                                                                  //Stop any external interrups.
+
+  //RTC setup:
+
+  while (RTC.STATUS != 0) {
+    //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register.
+    Serial.println("waiting for 1");
+  }
+  RTC.CLKSEL = 0x00;        //32.768 kHz signal from OSCULP32K selected.
+  RTC.PERL = 0x0A;                         //Lower part of 16,384 value in PER-register (PERL) to be used as overflow value to reset the RTC counter.
+  RTC.PERH = 0x10;                         //Upper part of 16,384 value in PER-register (PERH) to be used as overflow value to reset the RTC counter.
+  RTC.INTCTRL = (RTC.INTCTRL & 0b11111100) | 0b01;      //Enable interrupt-on-counter overflow by setting OVF-bit in INCTRL register.
+  while (RTC.STATUS != 0) {
+    //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register.
+    Serial.println("waiting for 2");
+  }
+  RTC.CTRLA = 0x05;           //PRESCALER set to 1024 (0b0) Not using prescaler, CORREN enabled (0b100),  RTCEN bit set to 1 (0b1).
+
+  while (RTC.STATUS != 0) {
+    //Wait until the CTRLABUSY bit in register is cleared before writing to CTRLA register.
+    Serial.println("waiting for 3");
+  }
+  Serial.println("RTC config complete");
+
+  sei();                                                        //Allow external interrupt again.
+}
+
+void getTimeOverNetwork() {
   sendNTPpacket(timeServer); // send an NTP packet to a time server
   // wait to see if a reply is available
-  delay(100);
+  delay(500);
   if (Udp.parsePacket()) {
     Serial.println("packet received");
     // We've received a packet, read the data from it
@@ -2064,24 +2042,6 @@ void loop() {
       secondPointer1 = currentSecond;
     }
 
-    //Printing synced time.
-    Serial.print(hourPointer2);
-    Serial.print(hourPointer1);
-    Serial.print(":");
-    Serial.print(minutePointer2);
-    Serial.print(minutePointer1);
-    Serial.print(":");
-    Serial.print(secondPointer2);
-    Serial.println(secondPointer1);
-
-    //Replace clock time represenation. When current clock time is 24 hours is replaced with 00.
-    if (clockStartMode == true) {
-      if (hourPointer2 == 2 && hourPointer1 == 4) {               //If 10-digit hour pointer reaches a value of 2 and 1-digit hour pointer reaches a value of 4 (elapsed time is 24 hours).
-        hourPointer2 = 0;                                         //Clear both hour pointer values.
-        hourPointer1 = 0;
-      }
-    }
-
     //Convert clock pointer into single int variable. Value of this variable represent clock time.
     currentClockTime = 0;
     currentClockTime += (hourPointer2 * 1000);
@@ -2092,13 +2052,159 @@ void loop() {
     if (currentClockTime < 60) {          //Prevent clock time from seeing 00:00 as less than 23:00.
       currentClockTime += 2400;
     }
+    setTimeWifiCompleted = true;
+  }
+}
+
+void setTime() {
+  if (WiFiConnected) {
+    //check status
+    getTimeOverNetwork();
+    if (WiFi.status() != WL_CONNECTED) counterWifiDiscounected++;
+    else counterWifiDiscounected = 0;
+
+    Serial.println("hello");
+  } else if (!timerInterruptHasSetup) {
+
+    WiFi.end();
+    setupTimerInterrupt();
+    timerInterruptHasSetup = true;
+  }
+  if (counterWifiDiscounected > 10) WiFiConnected = false;
+}
+
+// send an NTP request to the time server at the given address
+unsigned long sendNTPpacket(IPAddress & address) {
+  //Serial.println("1");
+  // set all bytes in the buffer to 0
+  memset(packetBuffer, 0, NTP_PACKET_SIZE);
+  // Initialize values needed to form NTP request
+  // (see URL above for details on the packets)
+  //Serial.println("2");
+  packetBuffer[0] = 0b11100011;   // LI, Version, Mode
+  packetBuffer[1] = 0;     // Stratum, or type of clock
+  packetBuffer[2] = 6;     // Polling Interval
+  packetBuffer[3] = 0xEC;  // Peer Clock Precision
+  // 8 bytes of zero for Root Delay & Root Dispersion
+  packetBuffer[12]  = 49;
+  packetBuffer[13]  = 0x4E;
+  packetBuffer[14]  = 49;
+  packetBuffer[15]  = 52;
+
+  //Serial.println("3");
+
+  // all NTP fields have been given values, now
+  // you can send a packet requesting a timestamp:
+  Udp.beginPacket(address, 123); //NTP requests are to port 123
+  //Serial.println("4");
+  Udp.write(packetBuffer, NTP_PACKET_SIZE);
+  //Serial.println("5");
+  Udp.endPacket();
+  //Serial.println("6");
+}
+
+/*
+*******************************
+  Arduino program setup code.
+*******************************/
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+
+  //OLED display setup.
+  Wire.begin();
+  SeeedGrayOled.init(SH1107G);
+  SeeedGrayOled.clearDisplay();                         //Clear display.
+  SeeedGrayOled.setVerticalMode();
+  SeeedGrayOled.setNormalDisplay();                     //Set display to normal mode (non-inverse mode).
+  SeeedGrayOled.setTextXY(1, 0);                        //Set cordinates where to print text to display.
+  SeeedGrayOled.putString("Attempting to");             //Print text to display.
+  SeeedGrayOled.setTextXY(3, 0);
+  SeeedGrayOled.putString("connect to Wifi:");
+  SeeedGrayOled.setTextXY(5, 0);
+  SeeedGrayOled.putString(WiFi.SSID());
+  SeeedGrayOled.setTextXY(8, 0);
+  SeeedGrayOled.putString("Wifi credentials");
+  SeeedGrayOled.setTextXY(10, 0);
+  SeeedGrayOled.putString("must specified");
+  SeeedGrayOled.setTextXY(12, 0);
+  SeeedGrayOled.putString("in file:");
+  SeeedGrayOled.setTextXY(14, 0);
+  SeeedGrayOled.putString("arduino_secret.h");
+
+  //Wifi setup.
+  connectWiFi();
+  if (WiFi.status() != WL_CONNECTED) {
+    WiFi.end();
+    setupTimerInterrupt();
+    WiFiConnected = false;
+    timerInterruptHasSetup = true;
   }
 
+  //Declaring I/O-ports.
+  pinMode(moistureSensorPort1, INPUT);
+  pinMode(moistureSensorPort2, INPUT);
+  pinMode(moistureSensorPort3, INPUT);
+  pinMode(moistureSensorPort4, INPUT);
+
+  pinMode(waterFlowSensor, INPUT);
+  pinMode(fanSpeedSensor, INPUT);
+
+  pinMode(waterLevelSensor, INPUT);
+
+  pinMode(rotaryEncoderOutpA, INPUT);
+  pinMode(rotaryEncoderOutpB, INPUT);
+  aLastState = digitalRead(rotaryEncoderOutpA);      //Read initial position value.
+
+  pinMode(resetButton, INPUT);
+  pinMode(modeButton, INPUT);
+
+  //Interupt pins.
+  attachInterrupt(13, fanRotationCount, RISING);  //Initialize interrupt to water flow sensor to calculate water flow pumped by water pump.
+  attachInterrupt(11, rotaryEncoderRead, LOW); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by modeButton being pressed.
+  attachInterrupt(3, waterFlowCount, RISING);  //Initialize interrupt to enable calculation of fan speed when it is running.
+  attachInterrupt(2, toggleDisplayMode, RISING); //Initialize interrupt to toggle set modes when in clock set mode or toggling screen display mode when greenhouse program is running. Interrupt is triggered by modeButton being pressed.
+
+  humiditySensor.begin();                           //Initializing humidity sensor.
+
+  lightSensor.Begin();                              //Initializing light sensor.
+
+  relay.begin(0x11);
+
+  while (!lightSensor.Begin()) {
+    Serial.println("lightSensor is not ready!");
+    delay(1000);
+  }
+  Serial.println("lightsensor is ready!");
+}
+
+/*
+*******************************************
+  Arduino program main code to be looped.
+*******************************************/
+void loop() {
+  // put your main code here, to run repeatedly:
 
   //Set current time and toggle between different screen display modes.
   pushButton = digitalRead(resetButton);                        //Check if RESET-button is being pressed.
 
-  //Different functions to be run depending of which screen display mode that is currently active.
+  //Syncronize clock time with NTP-server or initiate and run using internal timer in case wifi is not available.
+
+  setTime();
+
+  //Print current clock time.
+  Serial.print(hourPointer2);
+  Serial.print(hourPointer1);
+  Serial.print(":");
+  Serial.print(minutePointer2);
+  Serial.print(minutePointer1);
+  Serial.print(":");
+  Serial.print(secondPointer2);
+  Serial.println(secondPointer1);
+  Serial.print("wifi:");
+  Serial.println(WiFi.SSID());    //FIXA SÅ ATT WIFI-NAMNET STÅR HÄR!!
+
+  //Different functions to run depending of which display mode that is currently active.
   if (startupImageDisplay == true) {
     viewStartupImage();                                             //Initialize the OLED Display and show startup images.
   }
@@ -2158,14 +2264,12 @@ void loop() {
       else if (ledLightEnabled == false) {
         ledLightStop();                               //Stop(OFF) LED lighting.
       }
-
       if (fanEnabled == true) {
         fanStart();                                   //Start(ON) fan.
       }
       else {
         fanStop();                                    //Stop(OFF) LED lighting.
       }
-
       checkLightNeedStart = millis();                 //Get current time stamp from millis() to make it loop.
     }
 
