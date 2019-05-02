@@ -83,6 +83,9 @@
   /////////////////////////////////////////////////////////////////////////////
   PARAMETERS ALLOWED TO BE CHANGED TO ALTER THE WAY GREENHOUSE PROGRAM RUNS. //
                                                                            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  */
+//IMPORTANT! Connect to sync internal clock otherwise program will not work properly.
+//Fill in username and password in the separate file: arduino_secrets.h
+
 //SOIL MOISTURE.
 const unsigned short MOISTURE_THRESHOLD_LOW = 660;                  //Set moisture interval values. When measured moisture value (how much water soil contains) is within this interval soil moisture is considered to be OK for plants.
 const unsigned short MOISTURE_THRESHOLD_HIGH = 700;                 //Same as above but upper threshold for what is considered to be OK soil moisture.
@@ -109,7 +112,7 @@ unsigned short pumpStopTime = 1500;                                 //Stop clock
 
 //LOOP TIME.
 //Loop time for how often certain readouts and/or motors  be activated.
-const unsigned int CHECK_MOISTURE_PERIOD = 20000;                   //Loop time (in milliseconds) how often soil moisture is being checked and hence water pump is activated (only when soil is too dry).
+const unsigned int CHECK_MOISTURE_PERIOD = 600000;                   //Loop time (in milliseconds) how often soil moisture is being checked and hence water pump is activated (only when soil is too dry).
 const unsigned short WATER_PUMP_TIME_PERIOD = 6000;                 //Set time (in milliseconds) how long water pump will run each time it is activated. Fan speed mode is also checked in same interval as water pump.
 const unsigned int CHECK_LIGHT_NEED_PERIOD = 5000;                  //Loop time (in milliseconds) how often ligtht and fan need is being checked. Light need is only checking if current time is in allowed interval meanwhile fan also checks if humidity level is too high.
 /*
@@ -231,7 +234,6 @@ unsigned short clockTime2 = 0;
 bool greenhouseProgramStart = false;        //If variable is set to 'true', automatic water and lighting control of greenhouse is turned on.
 static bool allowRestart = false;
 unsigned short actionRegister;
-unsigned short timeDiffClock = 0;
 
 //Water pump.
 bool waterPumpEnabled = false;              //Enable/Disable water pump to be activated to pump water.
@@ -442,9 +444,9 @@ void viewStartupImage() {
   SeeedGrayOled.clearDisplay();                         //Clear display.
 
   //Make everything is shut down.
-  //waterPumpStop();                                                //Stop(OFF) water pump.
-  //ledLightStop();                                                 //Stop(OFF) LED lighting.
-  //fanStop();                                                      //Stop(OFF) fan.
+  waterPumpStop();                                                //Stop(OFF) water pump.
+  ledLightStop();                                                 //Stop(OFF) LED lighting.
+  fanStop();                                                      //Stop(OFF) fan.
 
   /*
       //Startup image.
@@ -456,11 +458,13 @@ void viewStartupImage() {
   startupImageDisplay = false;                            //Clear current screen display state.
   setTimeDisplay = true;                                  //Set next display mode to be printed to display.
 
+  stringToDisplay(0, 0, "GREENHOUSE v.1");
+
   if (WiFiConnected == true) {    //Connected to wifi, print following to display.
-    stringToDisplay(0, 0, "Connected to");
-    stringToDisplay(2, 0, "Wifi!");
-    stringToDisplay(4, 0, "Internal clock");
-    stringToDisplay(6, 0, "is synced with");
+    stringToDisplay(2, 0, "is connected");
+    stringToDisplay(4, 0, "to Wifi.");
+    stringToDisplay(6, 0, "Internal clock");
+    stringToDisplay(7, 0, "is synced with");
     stringToDisplay(8, 0, "NTP-server.");
 
     //Set variables.
@@ -470,20 +474,21 @@ void viewStartupImage() {
     clockSetFinished = true;
   }
   else {                          //Not connected to wifi, print following to display.
-    stringToDisplay(0, 0, "NOT connected");
-    stringToDisplay(2, 0, "to Wifi!");
-    stringToDisplay(4, 0, "Internal clock");
-    stringToDisplay(6, 0, "must be set by");
+    stringToDisplay(2, 0, "is Not connected");
+    stringToDisplay(4, 0, "to Wifi!");
+    stringToDisplay(6, 0, "Internal clock");
+    stringToDisplay(7, 0, "must be set by");
     stringToDisplay(8, 0, "user input.");
 
     //Set variables.
     hour2InputMode = true;                                //Set state in next display mode.
   }
 
-  stringToDisplay(11, 0, "GREENHOUSE v.1");
-  stringToDisplay(13, 0, "is booting up..");
-  stringToDisplay(15, 0, "Alten, apr 2019");
-  delay(5000);
+  stringToDisplay(10, 0, "Program is");
+  stringToDisplay(11, 0, "booting up..");
+  stringToDisplay(14, 0, "           Alten");
+  stringToDisplay(15, 0, "      april 2019");
+  delay(9000);
   SeeedGrayOled.clearDisplay();
 }
 
@@ -898,162 +903,58 @@ void fanStop() {
 ISR(RTC_CNT_vect) {
   RTC.INTFLAGS = 0x3;  //Clearing OVF and CMP interrupt flags.
 
-  if (greenhouseProgramStart == true) {
-    divider10++;
+  //if (greenhouseProgramStart == true) {
+  divider10++;
 
-    //Timer interrupt triggered with a frequency of 10 Hz.
-    if (divider10 >= 10) {                  //This part of the function will run once every second and therefore will provide a 1 Hz pulse to feed the second pointer.
-      divider10 = 0;                       //Clear divider variable.
+  //Timer interrupt triggered with a frequency of 10 Hz.
+  if (divider10 >= 10) {                  //This part of the function will run once every second and therefore will provide a 1 Hz pulse to feed the second pointer.
+    divider10 = 0;                       //Clear divider variable.
 
-      //Internal clock.
-      secondPointer1++;                     //Increase second pointer every time this function runs.
+    //Internal clock.
+    secondPointer1++;                     //Increase second pointer every time this function runs.
 
-      //Second pointer.
-      if (secondPointer1 == 10) {           //If 1-digit second pointer reaches a value of 10 (elapsed time is 10 seconds).
-        secondPointer2++;                   //Increase 10-digit second pointer.
-        secondPointer1 = 0;                 //Clear 1-digit pointer.
-      }
-      if (secondPointer2 == 6) {            //If 10-digit pointer reaches a value of 6 (elapsed time is 60 seconds).
-        minutePointer1++;                   //Increase minute pointer.
-        secondPointer2 = 0;                 //Clear 10-digit second pointer.
-      }
-      //Minute pointer.
-      if (minutePointer1 == 10) {           //If 1-digit minute pointer reaches a value of 10 (elapsed time is 10 minutes).
-        minutePointer2++;                   //Increase 10-digit minute pointer.
-        minutePointer1 = 0;                 //Clear 1-digit minute pointer.
-      }
-      if (minutePointer2 == 6) {            //If 10-digit minute pointer reaches a value of 6 (elapsed time is 60 minutes).
-        hourPointer1++;                     //Increase 1-digit hour pointer.
-        minutePointer2 = 0;                 //Clear 10-digit minute pointer.
-      }
-      //Hour pointer.
-      if (hourPointer1 == 10) {             //If 1-digit hour pointer reaches a value of 10 (elapsed time is 10 hours).
-        hourPointer2++;                     //Increase 10-digit hour pointer.
-        hourPointer1 = 0;                   //Clear 1-digit hour pointer.
-      }
-      if (hourPointer2 == 2 && hourPointer1 == 4) { //If 1-digit and 10-digit hourPointer combined reaches 24 (elapsed time is 24 hours).
-        hourPointer1 = 0;                           //Clear both hour digits.
-        hourPointer2 = 0;
-      }
-
-      //Convert clock pointer into single int variable. Value of this variable represent clock time.
-      currentClockTime = 0;
-      currentClockTime += (hourPointer2 * 1000);
-      currentClockTime += (hourPointer1 * 100);
-      currentClockTime += (minutePointer2 * 10);
-      currentClockTime += minutePointer1;
-
-      if (currentClockTime < 60) {          //Prevent clock time from seeing 00:00 as less than 23:00.
-        currentClockTime += 2400;
-      }
+    //Second pointer.
+    if (secondPointer1 == 10) {           //If 1-digit second pointer reaches a value of 10 (elapsed time is 10 seconds).
+      secondPointer2++;                   //Increase 10-digit second pointer.
+      secondPointer1 = 0;                 //Clear 1-digit pointer.
     }
+    if (secondPointer2 == 6) {            //If 10-digit pointer reaches a value of 6 (elapsed time is 60 seconds).
+      minutePointer1++;                   //Increase minute pointer.
+      secondPointer2 = 0;                 //Clear 10-digit second pointer.
+    }
+    //Minute pointer.
+    if (minutePointer1 == 10) {           //If 1-digit minute pointer reaches a value of 10 (elapsed time is 10 minutes).
+      minutePointer2++;                   //Increase 10-digit minute pointer.
+      minutePointer1 = 0;                 //Clear 1-digit minute pointer.
+    }
+    if (minutePointer2 == 6) {            //If 10-digit minute pointer reaches a value of 6 (elapsed time is 60 minutes).
+      hourPointer1++;                     //Increase 1-digit hour pointer.
+      minutePointer2 = 0;                 //Clear 10-digit minute pointer.
+    }
+    //Hour pointer.
+    if (hourPointer1 == 10) {             //If 1-digit hour pointer reaches a value of 10 (elapsed time is 10 hours).
+      hourPointer2++;                     //Increase 10-digit hour pointer.
+      hourPointer1 = 0;                   //Clear 1-digit hour pointer.
+    }
+    if (hourPointer2 == 2 && hourPointer1 == 4) { //If 1-digit and 10-digit hourPointer combined reaches 24 (elapsed time is 24 hours).
+      hourPointer1 = 0;                           //Clear both hour digits.
+      hourPointer2 = 0;
+    }
+
+    //Convert clock pointer into single int variable. Value of this variable represent clock time.
+    currentClockTime = 0;
+    currentClockTime += (hourPointer2 * 1000);
+    currentClockTime += (hourPointer1 * 100);
+    currentClockTime += (minutePointer2 * 10);
+    currentClockTime += minutePointer1;
+
+    if (currentClockTime < 60) {          //Prevent clock time from seeing 00:00 as less than 23:00.
+      currentClockTime += 2400;
+    }
+    wifiClockCompleted = false;
   }
+  //}
 }
-
-
-//ISR(RTC_CNT_vect) {
-//Timer interrupt triggered with a frequency of 10 Hz.
-/***************************************************
-  |Internal clock used to keep track of current time.|
-****************************************************/
-/*  if (clockStartMode == true) {          //Check if internal clock is enabled to run.
-    divider10++;                            //Increase divider variable.
-
-    if (divider10 >= 10) {                  //This part of the function will run once every second and therefore will provide a 1 Hz pulse to feed the second pointer.
-      switch (toggle2) {
-        case false:
-          clockTime1 = millis();
-          toggle2 = true;
-          break;
-        case true:
-          clockTime2 = millis();
-          toggle2 = false;
-          timeDiffClock = clockTime2 - clockTime1;
-          Serial.print("timeDiffClock: ");
-          Serial.println(timeDiffClock);
-          break;
-      }
-
-      divider10 = 0;                        //Clear divider variable.
-
-      //Internal clock.
-      secondPointer1++;                     //Increase second pointer every time this function runs.
-
-      //Second pointer.
-      if (secondPointer1 == 10) {           //If 1-digit second pointer reaches a value of 10 (elapsed time is 10 seconds).
-        secondPointer2++;                   //Increase 10-digit second pointer.
-        secondPointer1 = 0;                 //Clear 1-digit pointer.
-      }
-      if (secondPointer2 == 6) {            //If 10-digit pointer reaches a value of 6 (elapsed time is 60 seconds).
-        minutePointer1++;                   //Increase minute pointer.
-        secondPointer2 = 0;                 //Clear 10-digit second pointer.
-      }
-      //Minute pointer.
-      if (minutePointer1 == 10) {           //If 1-digit minute pointer reaches a value of 10 (elapsed time is 10 minutes).
-        minutePointer2++;                   //Increase 10-digit minute pointer.
-        minutePointer1 = 0;                 //Clear 1-digit minute pointer.
-      }
-      if (minutePointer2 == 6) {            //If 10-digit minute pointer reaches a value of 6 (elapsed time is 60 minutes).
-        hourPointer1++;                     //Increase 1-digit hour pointer.
-        minutePointer2 = 0;                 //Clear 10-digit minute pointer.
-      }
-      //Hour pointer.
-      if (hourPointer1 == 10) {             //If 1-digit hour pointer reaches a value of 10 (elapsed time is 10 hours).
-        hourPointer2++;                     //Increase 10-digit hour pointer.
-        hourPointer1 = 0;                   //Clear 1-digit hour pointer.
-      }
-      if (hourPointer2 == 2 && hourPointer1 == 4) { //If 1-digit and 10-digit hourPointer combined reaches 24 (elapsed time is 24 hours).
-        hourPointer1 = 0;                           //Clear both hour digits.
-        hourPointer2 = 0;
-      }
-
-      //Convert clock pointer into single int variable. Value of this variable represent clock time.
-      currentClockTime = 0;
-      currentClockTime += (hourPointer2 * 1000);
-      currentClockTime += (hourPointer1 * 100);
-      currentClockTime += (minutePointer2 * 10);
-      currentClockTime += minutePointer1;
-
-      if (currentClockTime < 60) {          //Prevent clock time from seeing 00:00 as less than 23:00.
-        currentClockTime += 2400;
-      }
-
-      //Calculating fan speed on.
-      if (fanState == true) {
-        fanRpm();
-      }
-
-      //Time delay for calculating water flow.
-      if (waterPumpState == true) {
-        waterFlow();
-      }
-    }
-  }
-*/
-
-/**************************
-  |Flash clock digit cursor.|
-**************************/
-/*  static bool toggle = false;               //Initiate variable only once (instead of declaring it as a global variable).
-  divider5++;                               //Increase divider variable.
-
-  if (divider5 >= 5) {                    //This part of the function will run twice every second and therefore will provide a 2 Hz pulse to feed the toggling of flash variable below.
-    divider5 = 0;                         //Clear divider variable.
-
-    switch (toggle) {
-      case true:
-        flashClockPointer   = true;
-        toggle = false;
-        break;
-      case false:
-        flashClockPointer   = false;
-        toggle = true;
-        break;
-    }
-  }
-  RTC.INTFLAGS = 0x3;                       //Clearing OVF and CMP interrupt flags to enable new interrupt to take place according the preset time period.
-  }
-*/
 
 /*
   ===============================================================
@@ -1292,109 +1193,6 @@ void setClockDisplay() {
       SeeedGrayOled.putString("_");
     }
   }
-
-  /*
-    SeeedGrayOled.setTextXY(12, 0);
-    SeeedGrayOled.putString("timeDiff: ");
-    SeeedGrayOled.setTextXY(12, 10*8);
-    SeeedGrayOled.putNumber(timeDiffClock);              //Print first digit of second pointer value to display.
-  */
-
-  /*
-    stringToDisplay(0, 7, "SET CLOCK");     //Print current display state to upper right corner of display.
-
-    stringToDisplay(2, 0, "Set current time");
-    stringToDisplay(3, 0, "Use the buttons:");
-    stringToDisplay(5, 0, "SET = inc. value");
-    stringToDisplay(6, 0, "MODE = confirm");
-    stringToDisplay(7, 0, "       selection");
-
-    if (clockStartMode == false) {
-    stringToDisplay(9, 4, "HH MM SS");
-
-    //Pointer separator character.
-    stringToDisplay(10, 22, ":");
-    stringToDisplay(10, 25, ":");
-    }
-    //Print further instructions when clock start has been activated.
-    else if (clockStartMode == true) {
-    blankToDisplay(9, 0, 16);
-
-    //Pointer separater character flash.
-    if (flashClockPointer == true) {
-      SeeedGrayOled.setTextXY(10, 22 * 8);
-      SeeedGrayOled.putString(" ");
-
-      SeeedGrayOled.setTextXY(10, 25 * 8);
-      SeeedGrayOled.putString(" ");
-    }
-    else {
-      SeeedGrayOled.setTextXY(10, 22 * 8);
-      SeeedGrayOled.putString(":");
-
-      SeeedGrayOled.setTextXY(10, 25 * 8);
-      SeeedGrayOled.putString(":");
-    }
-
-    stringToDisplay(12, 0, "Clock is ticking");
-
-    stringToDisplay(14, 0, "Press MODE to");
-    stringToDisplay(15, 0, "continue.");
-    }
-
-    //Print and flash individual clock time pointers to display which clock parameter that is currently set.
-    //Hour pointer2
-    if (flashClockPointer == true && hour2InputMode == true) {
-    SeeedGrayOled.setTextXY(10, 20 * 8);
-    SeeedGrayOled.putString(" ");                             //Clear display where 10-digit hour pointer value is located.
-    }
-    else {
-    SeeedGrayOled.setTextXY(10, 20 * 8);                         //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-    SeeedGrayOled.putNumber(hourPointer2);                    //Print 10-digit hour pointer value to display.
-    }
-
-    //Hour pointer1.
-    if (flashClockPointer == true && hour1InputMode == true) {
-    SeeedGrayOled.setTextXY(10, 21 * 8);
-    SeeedGrayOled.putString(" ");                             //Clear display where 1-digit hour pointer value is located.
-
-    }
-    else {
-    SeeedGrayOled.setTextXY(10, 21 * 8);                         //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
-    SeeedGrayOled.putNumber(hourPointer1);                    //Print 1-digit hour pointer value to display.
-    }
-
-    //Minute pointer2.
-    if (flashClockPointer == true && minute2InputMode == true) {
-    SeeedGrayOled.setTextXY(10, 23 * 8);
-    SeeedGrayOled.putString(" ");
-    }
-    else {
-    SeeedGrayOled.setTextXY(10, 23 * 8);
-    SeeedGrayOled.putNumber(minutePointer2);
-    }
-
-    //Minute pointer1.
-    if (flashClockPointer == true && minute1InputMode == true) {
-    SeeedGrayOled.setTextXY(10, 24 * 8);
-    SeeedGrayOled.putString(" ");
-    }
-    else {
-    SeeedGrayOled.setTextXY(10, 24 * 8);
-    SeeedGrayOled.putNumber(minutePointer1);
-    }
-
-    //Second pointers.
-    SeeedGrayOled.setTextXY(10, 26 * 8);
-    SeeedGrayOled.putNumber(secondPointer2);                   //Print second digit of second pointer value to display.
-    SeeedGrayOled.setTextXY(10, 27 * 8);
-    SeeedGrayOled.putNumber(secondPointer1);                   //Print first digit of second pointer value to display.
-    /*
-    SeeedGrayOled.setTextXY(12, 0);
-    SeeedGrayOled.putString("timeDiff: ");
-    SeeedGrayOled.setTextXY(12, 10*8);
-    SeeedGrayOled.putNumber(timeDiffClock);              //Print first digit of second pointer value to display.
-  */
 }
 
 /*
@@ -1617,8 +1415,6 @@ void viewServiceMode() {
 
   blankToDisplay(13, 0, 16);
 
-  blankToDisplay(15, 0, 16);
-
   stringToDisplay(0, 4, "SERVICE MODE");  //Print current display state to upper right corner of display.
 
   //Display clock.
@@ -1701,12 +1497,20 @@ void viewServiceMode() {
   SeeedGrayOled.setTextXY(12, 12 * 8);                      //Set cordinates to where any text print will be printed to display. X = row (0-7), Y = column (0-127).
   SeeedGrayOled.putNumber(waterLevelFault);                 //Print waterLevelFault status.
 
-
   SeeedGrayOled.setTextXY(14, 0);
-  SeeedGrayOled.putString("Time accur.(ms):");
-  blankToDisplay(15, 10, 6);
-  SeeedGrayOled.setTextXY(15, 0);
-  SeeedGrayOled.putNumber(timeDiffClock);              //Print first digit of second pointer value to display.
+  SeeedGrayOled.putString("Wifi conn.: ");
+
+  SeeedGrayOled.setTextXY(14, 12 * 8);
+  if (wifiClockCompleted == true) {
+    SeeedGrayOled.putString("Yes");
+    SeeedGrayOled.setTextXY(15, 0);
+    SeeedGrayOled.putString("*Clock in sync ");
+  }
+  else {
+    SeeedGrayOled.putString("NO");
+    SeeedGrayOled.setTextXY(15, 0);
+    SeeedGrayOled.putString("*No clock sync!");
+  }
 }
 
 /*
@@ -1925,7 +1729,7 @@ bool connectWiFi() {
     Serial.println("Please upgrade the firmware");
   }
   unsigned int tryConnectingCounter = 0;
-  while ((tryConnectingCounter++ < 10) && (status != WL_CONNECTED)) {
+  while ((tryConnectingCounter++ < 5) && (status != WL_CONNECTED)) {
     Serial.print("Attempting to connect to SSID: ");
     Serial.println(ssid);
     // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
@@ -2126,18 +1930,18 @@ void setup() {
   SeeedGrayOled.setNormalDisplay();                     //Set display to normal mode (non-inverse mode).
   SeeedGrayOled.setTextXY(0, 0);                        //Set cordinates where to print text to display.
   SeeedGrayOled.putString("GREENHOUSE v.1");
-  SeeedGrayOled.setTextXY(3, 0);                        //Set cordinates where to print text to display.
+  SeeedGrayOled.setTextXY(2, 0);                        //Set cordinates where to print text to display.
   SeeedGrayOled.putString("Attempting to");             //Print text to display.
-  SeeedGrayOled.setTextXY(5, 0);
-  SeeedGrayOled.putString("connect to the");
+  SeeedGrayOled.setTextXY(4, 0);
+  SeeedGrayOled.putString("connect to Wifi");
   SeeedGrayOled.setTextXY(7, 0);
-  SeeedGrayOled.putString("wifi which");
+  SeeedGrayOled.putString("IMPORTANT!");
   SeeedGrayOled.setTextXY(9, 0);
-  SeeedGrayOled.putString("credentials are");
+  SeeedGrayOled.putString("Specify Wifi");
   SeeedGrayOled.setTextXY(11, 0);
-  SeeedGrayOled.putString("specified in");
+  SeeedGrayOled.putString("credentials in");
   SeeedGrayOled.setTextXY(13, 0);
-  SeeedGrayOled.putString("file: arduino_ -");
+  SeeedGrayOled.putString("file: arduino_-");
   SeeedGrayOled.setTextXY(15, 0);
   SeeedGrayOled.putString("secrets.h");
   delay(1000);
@@ -2329,9 +2133,9 @@ void loop() {
     unsigned long checkWaterFlowCurrent;
 
     if (waterPumpState == true) {
-      checkWaterFlowCurrent = millis();                 //Get current time stamp of millis().
+      //checkWaterFlowCurrent = millis();                 //Get current time stamp of millis().
       if (checkWaterFlowCurrent - checkWaterFlowStart >= CHECK_WATER_FLOW_PERIOD) {    //Check if time period has elapsed.
-        waterFlowCheck();                             //Time period has elapsed. Check water flow.
+        //waterFlowCheck();                             //Time period has elapsed. Check water flow.
       }
     }
   }
