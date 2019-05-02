@@ -277,7 +277,7 @@ static bool WiFiConnected = true;
 static bool timerInterruptHasSetup = false;
 static unsigned int counterRashid = 0;
 static unsigned int counterWifiDiscounected = 0;
-bool setTimeWifiCompleted = false;
+bool wifiClockCompleted = false;
 
 //Enter your sensitive data in the Secret tab/arduino_secrets.h.
 char ssid[] = SECRET_SSID;        // your network SSID (name)
@@ -452,32 +452,39 @@ void viewStartupImage() {
       delay(4000);                                    //Image shown for 4 seconds.
       SeeedGrayOled.clearDisplay();                       //Clear the display.
   */
-  stringToDisplay(1, 0, "GREENHOUSE v.1.0");
-  stringToDisplay(4, 0, "A colaboration  ");
-  stringToDisplay(5, 0, "project with:");
-  stringToDisplay(7, 0, "Alten");
-  stringToDisplay(9, 0, "Vastsvenska Han-");
-  stringToDisplay(10, 0, "delskammaren    ");
-  stringToDisplay(12, 0, "Mathivation     ");
-  stringToDisplay(14, 0, "      Gothenburg");
-  stringToDisplay(15, 0, "       apr, 2019");
-  delay(5000);
-  SeeedGrayOled.clearDisplay();
 
   startupImageDisplay = false;                            //Clear current screen display state.
   setTimeDisplay = true;                                  //Set next display mode to be printed to display.
 
-  if (setTimeWifiCompleted == true) {
-    //Clock has been synced with wifi. Set variables in order to skip the set clock mode.
+  if (WiFiConnected == true) {    //Connected to wifi, print following to display.
+    stringToDisplay(0, 0, "Connected to");
+    stringToDisplay(2, 0, "Wifi!");
+    stringToDisplay(4, 0, "Internal clock");
+    stringToDisplay(6, 0, "is synced with");
+    stringToDisplay(8, 0, "NTP-server.");
+
+    //Set variables.
     hour2InputMode = false;                               //Set state in next display mode.
     minute1InputMode = false;                             //Minute pointer1 has been set. Time set is done.
     clockStartMode = true;                                //Start clock. Clock starts ticking.
     clockSetFinished = true;
   }
-  else {
-    //Clock has not been synced with wifi.
+  else {                          //Not connected to wifi, print following to display.
+    stringToDisplay(0, 0, "NOT connected");
+    stringToDisplay(2, 0, "to Wifi!");
+    stringToDisplay(4, 0, "Internal clock");
+    stringToDisplay(6, 0, "must be set by");
+    stringToDisplay(8, 0, "user input.");
+
+    //Set variables.
     hour2InputMode = true;                                //Set state in next display mode.
   }
+
+  stringToDisplay(11, 0, "GREENHOUSE v.1");
+  stringToDisplay(13, 0, "is booting up..");
+  stringToDisplay(15, 0, "Alten, apr 2019");
+  delay(5000);
+  SeeedGrayOled.clearDisplay();
 }
 
 /*
@@ -1933,6 +1940,7 @@ bool connectWiFi() {
 
   Serial.println("\nStarting connection to server...");
   if (1 == Udp.begin(localPort))cnt = true;
+  //delay(10000);
   Serial.print(cnt);
   Serial.println(" connectionStatus");
   return cnt;
@@ -2052,7 +2060,7 @@ void getTimeOverNetwork() {
     if (currentClockTime < 60) {          //Prevent clock time from seeing 00:00 as less than 23:00.
       currentClockTime += 2400;
     }
-    setTimeWifiCompleted = true;
+    wifiClockCompleted = true;
   }
 }
 
@@ -2063,7 +2071,6 @@ void setTime() {
     if (WiFi.status() != WL_CONNECTED) counterWifiDiscounected++;
     else counterWifiDiscounected = 0;
 
-    Serial.println("hello");
   } else if (!timerInterruptHasSetup) {
 
     WiFi.end();
@@ -2117,24 +2124,27 @@ void setup() {
   SeeedGrayOled.clearDisplay();                         //Clear display.
   SeeedGrayOled.setVerticalMode();
   SeeedGrayOled.setNormalDisplay();                     //Set display to normal mode (non-inverse mode).
-  SeeedGrayOled.setTextXY(1, 0);                        //Set cordinates where to print text to display.
+  SeeedGrayOled.setTextXY(0, 0);                        //Set cordinates where to print text to display.
+  SeeedGrayOled.putString("GREENHOUSE v.1");
+  SeeedGrayOled.setTextXY(3, 0);                        //Set cordinates where to print text to display.
   SeeedGrayOled.putString("Attempting to");             //Print text to display.
-  SeeedGrayOled.setTextXY(3, 0);
-  SeeedGrayOled.putString("connect to Wifi:");
   SeeedGrayOled.setTextXY(5, 0);
-  SeeedGrayOled.putString(WiFi.SSID());
-  SeeedGrayOled.setTextXY(8, 0);
-  SeeedGrayOled.putString("Wifi credentials");
-  SeeedGrayOled.setTextXY(10, 0);
-  SeeedGrayOled.putString("must specified");
-  SeeedGrayOled.setTextXY(12, 0);
-  SeeedGrayOled.putString("in file:");
-  SeeedGrayOled.setTextXY(14, 0);
-  SeeedGrayOled.putString("arduino_secret.h");
-
+  SeeedGrayOled.putString("connect to the");
+  SeeedGrayOled.setTextXY(7, 0);
+  SeeedGrayOled.putString("wifi which");
+  SeeedGrayOled.setTextXY(9, 0);
+  SeeedGrayOled.putString("credentials are");
+  SeeedGrayOled.setTextXY(11, 0);
+  SeeedGrayOled.putString("specified in");
+  SeeedGrayOled.setTextXY(13, 0);
+  SeeedGrayOled.putString("file: arduino_ -");
+  SeeedGrayOled.setTextXY(15, 0);
+  SeeedGrayOled.putString("secrets.h");
+  delay(1000);
   //Wifi setup.
   connectWiFi();
   if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Wifi connection failed");
     WiFi.end();
     setupTimerInterrupt();
     WiFiConnected = false;
@@ -2189,19 +2199,18 @@ void loop() {
   pushButton = digitalRead(resetButton);                        //Check if RESET-button is being pressed.
 
   //Syncronize clock time with NTP-server or initiate and run using internal timer in case wifi is not available.
-
   setTime();
 
   //Print current clock time.
   Serial.print(hourPointer2);
   Serial.print(hourPointer1);
-  Serial.print(":");
+  Serial.print(": ");
   Serial.print(minutePointer2);
   Serial.print(minutePointer1);
-  Serial.print(":");
+  Serial.print(": ");
   Serial.print(secondPointer2);
   Serial.println(secondPointer1);
-  Serial.print("wifi:");
+  Serial.print("wifi: ");
   Serial.println(WiFi.SSID());    //FIXA SÅ ATT WIFI-NAMNET STÅR HÄR!!
 
   //Different functions to run depending of which display mode that is currently active.
