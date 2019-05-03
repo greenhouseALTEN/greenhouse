@@ -1902,16 +1902,20 @@ void setTime() {
   if (WiFiConnected) {
     //check status
     getTimeOverNetwork();
-    if (WiFi.status() != WL_CONNECTED) counterWifiDiscounected++;
-    else counterWifiDiscounected = 0;
-
-  } else if (!timerInterruptHasSetup) {
-
-    WiFi.end();
-    setupTimerInterrupt();
-    timerInterruptHasSetup = true;
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      WiFi.end();
+      status = WL_IDLE_STATUS;
+      connectWiFi();
+      if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("Wifi connection failed");
+        WiFi.end();
+        setupTimerInterrupt();
+        WiFiConnected = false;
+        timerInterruptHasSetup = true;
+      }
+    }
   }
-  if (counterWifiDiscounected > 10) WiFiConnected = false;
 }
 
 // send an NTP request to the time server at the given address
