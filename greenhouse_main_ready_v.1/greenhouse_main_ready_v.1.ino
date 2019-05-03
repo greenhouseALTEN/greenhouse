@@ -112,7 +112,7 @@ unsigned short pumpStopTime = 1500;                                 //Stop clock
 
 //LOOP TIME.
 //Loop time for how often certain readouts and/or motors  be activated.
-const unsigned int CHECK_MOISTURE_PERIOD = 600000;                   //Loop time (in milliseconds) how often soil moisture is being checked and hence water pump is activated (only when soil is too dry).
+const unsigned int CHECK_MOISTURE_PERIOD = 120000;                   //Loop time (in milliseconds) how often soil moisture is being checked and hence water pump is activated (only when soil is too dry).
 const unsigned short WATER_PUMP_TIME_PERIOD = 6000;                 //Set time (in milliseconds) how long water pump will run each time it is activated. Fan speed mode is also checked in same interval as water pump.
 const unsigned int CHECK_LIGHT_NEED_PERIOD = 5000;                  //Loop time (in milliseconds) how often ligtht and fan need is being checked. Light need is only checking if current time is in allowed interval meanwhile fan also checks if humidity level is too high.
 /*
