@@ -487,7 +487,7 @@ void viewStartupImage() {
   stringToDisplay(10, 0, "Program is");
   stringToDisplay(11, 0, "booting up..");
   stringToDisplay(14, 0, "           Alten");
-  stringToDisplay(15, 0, "      april 2019");
+  stringToDisplay(15, 0, "     april, 2019");
   delay(9000);
   SeeedGrayOled.clearDisplay();
 }
@@ -846,7 +846,12 @@ void fanRotationCount() {
 void fanRpm() {
   //Calculate fan rpm (rotations/minute) by counting number of rotations that fan blades make. Sensor is connected to interrupt pin.
   //Function called once every second only when fan is running.
-  fanSpeedValue = fanRotations * 60 / 2;           //Calculate number of rotations fan blade have made during the time that passed since last measurement.
+  if (wifiClockCompleted == true) {
+    fanSpeedValue = fanRotations * 60 / 4;           //Calculate number of rotations fan blade have made during the time that passed since last measurement.
+  }
+  else {
+    fanSpeedValue = fanRotations * 60 / 2;           //Calculate number of rotations fan blade have made during the time that passed since last measurement.
+  }
   fanRotations = 0;
 }
 
@@ -952,6 +957,17 @@ ISR(RTC_CNT_vect) {
       currentClockTime += 2400;
     }
     wifiClockCompleted = false;
+
+    //Functions for calculation fan speed and water flow is triggered every second. The delay time of one second is used as time base for the calculation.
+    //Calculating fan speed on.
+    if (fanState == true) {
+      fanRpm();
+    }
+
+    //Time delay for calculating water flow.
+    if (waterPumpState == true) {
+      waterFlow();
+    }
   }
   //}
 }
@@ -1417,6 +1433,10 @@ void viewServiceMode() {
 
   stringToDisplay(0, 4, "SERVICE MODE");  //Print current display state to upper right corner of display.
 
+  if (wifiClockCompleted == false) {
+    blankToDisplay(15, 0, 16);
+  }
+
   //Display clock.
   stringToDisplay(2, 0, "Clock:");
 
@@ -1507,7 +1527,7 @@ void viewServiceMode() {
     SeeedGrayOled.putString("*Clock in sync ");
   }
   else {
-    SeeedGrayOled.putString("NO");
+    SeeedGrayOled.putString("NO ");
     SeeedGrayOled.setTextXY(15, 0);
     SeeedGrayOled.putString("*No clock sync!");
   }
@@ -1729,7 +1749,7 @@ bool connectWiFi() {
     Serial.println("Please upgrade the firmware");
   }
   unsigned int tryConnectingCounter = 0;
-  while ((tryConnectingCounter++ < 5) && (status != WL_CONNECTED)) {
+  while ((tryConnectingCounter++ < 6) && (status != WL_CONNECTED)) {
     Serial.print("Attempting to connect to SSID: ");
     Serial.println(ssid);
     // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
@@ -1852,6 +1872,16 @@ void getTimeOverNetwork() {
     else {
       secondPointer2 = 0;
       secondPointer1 = currentSecond;
+    }
+
+
+    if (fanState == true) {
+      fanRpm();
+    }
+
+    //Time delay for calculating water flow.
+    if (waterPumpState == true) {
+      waterFlow();
     }
 
     //Convert clock pointer into single int variable. Value of this variable represent clock time.
@@ -2134,9 +2164,8 @@ void loop() {
 
     if (waterPumpState == true) {
       //checkWaterFlowCurrent = millis();                 //Get current time stamp of millis().
-      if (checkWaterFlowCurrent - checkWaterFlowStart >= CHECK_WATER_FLOW_PERIOD) {    //Check if time period has elapsed.
-        //waterFlowCheck();                             //Time period has elapsed. Check water flow.
-      }
+      //if (checkWaterFlowCurrent - checkWaterFlowStart >= CHECK_WATER_FLOW_PERIOD) {    //Check if time period has elapsed.
+      //waterFlowCheck();                             //Time period has elapsed. Check water flow.
     }
   }
 }
