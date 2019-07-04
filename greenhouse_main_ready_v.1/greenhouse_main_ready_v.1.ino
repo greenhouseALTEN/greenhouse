@@ -130,10 +130,10 @@ const unsigned int CHECK_LIGHT_NEED_PERIOD = 5000;                  //Loop time 
 */
 
 //Moisture sensors.
-MoistureSensor moistureSensor1(0x36);
-MoistureSensor moistureSensor2(0x37);
-MoistureSensor moistureSensor3(0x38);
-MoistureSensor moistureSensor4(0x39);
+MoistureSensor moistureSensor1;
+MoistureSensor moistureSensor2;
+MoistureSensor moistureSensor3;
+MoistureSensor moistureSensor4;
 int moistureValue1;                       //Individual moisture sensor value for moisture sensor 1.
 int moistureValue2;                       //Individual moisture sensor value for moisture sensor 2.
 int moistureValue3;                       //Individual moisture sensor value for moisture sensor 3.
@@ -1955,6 +1955,10 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
 
+  moistureSensor1.start(0x36);
+  moistureSensor2.start(0x37);
+  moistureSensor3.start(0x38);
+  moistureSensor4.start(0x39);
 
   //OLED display setup.
   Wire.begin();
