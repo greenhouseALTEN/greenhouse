@@ -10,9 +10,8 @@ class MoistureSensor {
 
   Adafruit_seesaw ss;
   
-  private:
   public:
-    MoistureSensor(byte address)
+    void start(byte address)
     {
       ss.begin(address);
     }
@@ -22,7 +21,6 @@ class MoistureSensor {
     {
       return ss.touchRead(0);
     }
-
 };
 
 
