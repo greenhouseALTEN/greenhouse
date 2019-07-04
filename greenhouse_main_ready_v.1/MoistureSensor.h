@@ -1,15 +1,27 @@
 #ifndef MoistureSensor_H_
 #define MoistureSensor_H_
 #include "Arduino.h"
-/*------------------------------------------------------// 
-Moisture sensors.
+#include "Adafruit_seesaw.h"
+/*------------------------------------------------------//
+  Moisture sensors.
 */
 
 class MoistureSensor {
- public:
-  //Declaring function below with all its variables.
-  int moistureRead(int moistureSensor);
- private:
+
+  Adafruit_seesaw ss;
+  
+  private:
+  public:
+    MoistureSensor(byte address)
+    {
+      ss.begin(address);
+    }
+  public:
+    //Declaring function below with all its variables.
+    int moistureRead()
+    {
+      return ss.touchRead(0);
+    }
 
 };
 
