@@ -18,16 +18,16 @@
   Pin setup for hardware connected to Arduino UNO base shield.
 ****************************************************************/
 //Pin setup Arduino UNO board.
-#define moistureSensorPort1 A0
-#define moistureSensorPort2 A1
-#define moistureSensorPort3 A2
-#define moistureSensorPort4 A3
+#define waterFlowSensor 3
+#define waterLevelSensor 12
+
+
 #define DHTPIN 4
 #define rotaryEncoderOutpA 11
 #define rotaryEncoderOutpB 10
-#define waterFlowSensor 3
+
 #define fanSpeedSensor 13
-#define waterLevelSensor 12
+
 #define resetButton 7
 #define modeButton 2
 
@@ -53,10 +53,10 @@
   ______________________________________________________________________________________________________________________________________________________________
   GROVE connectors                      | DIGITAL (PWM~)                                                                                                        |
   ****************                      | **************                                                                                                        |
-  A3:   Moisture Sensor4                | GND:  10 kohm resistor in in series with with 12 (I/O)                                                                |
-  A2:   Moisture Sensor3                | 13:   Fan signal cable in parallell with 10 kohm resistor to +5V                                                      |
-  A1:   Moisture Sensor2                | 12:   10 kohm resistor parallell with signal wire1 to water tank level switch. Resistor is in series with GND (I/O)   |
-  A0:   Moisture Sensor1                | 11~:  Signal wire1 to temperature rotary encoder                                                                      |
+  A3:   'EMPTY'                         | GND:  10 kohm resistor in in series with with 12 (I/O)                                                                |
+  A2:   'EMPTY'                         | 13:   Fan signal cable in parallell with 10 kohm resistor to +5V                                                      |
+  A1:   'EMPTY'                         | 12:   10 kohm resistor parallell with signal wire1 to water tank level switch. Resistor is in series with GND (I/O)   |
+  A0:   'EMPTY'                         | 11~:  Signal wire1 to temperature rotary encoder                                                                      |
   D4:   Humidity & Temperature Sensor   | 10~:  Signal wire2 to temperature rotary encoder                                                                      |
   D8:   'EMPTY'                         |                                                                                                                       |
   I2C:  4-Channel Relay                 | All other (unspecified) of its I/O:s are 'EMPTY'.                                                                     |
@@ -68,7 +68,7 @@
   I2C:  OLED Display (128x128 px)       | GND:  Ground wire to temperature rotary encoder.                                                                      |
   UART: 'EMPTY'                         |                                                                                                                       |
   D5:   'EMPTY'                         | All other (unspecified) of its I/O:s are 'EMPTY'.                                                                     |
-  I2C:  'EMPTY'                         |                                                                                                                       |
+  I2C:  Moisture Sensors                | Capacitive moisture sensors on address 0x36, 0x37, 0x38, 0x39                                                         |
                                         |                                                                                                                       |
                                         | ANALOG IN                                                                                                             |
                                         | *********                                                                                                             |
@@ -87,8 +87,8 @@
 //Fill in username and password in the separate file: arduino_secrets.h
 
 //SOIL MOISTURE.
-const unsigned short MOISTURE_THRESHOLD_LOW = 660;                  //Set moisture interval values. When measured moisture value (how much water soil contains) is within this interval soil moisture is considered to be OK for plants.
-const unsigned short MOISTURE_THRESHOLD_HIGH = 700;                 //Same as above but upper threshold for what is considered to be OK soil moisture.
+const unsigned short MOISTURE_THRESHOLD_LOW = 1000;                  //Set moisture interval values. When measured moisture value (how much water soil contains) is within this interval soil moisture is considered to be OK for plants.
+const unsigned short MOISTURE_THRESHOLD_HIGH = 1200;                 //Same as above but upper threshold for what is considered to be OK soil moisture.
 
 //FAN SPEED CONTROL.
 const unsigned short HUMIDITY_THRESHOLD_VALUE = 60;                 //Set air humidity threshold value (humidity in procentage, value < 100) for when fan should run at low speed. If measured air humidity is lower than specified value fan will run at low speed mode.
@@ -107,12 +107,12 @@ const unsigned short CHECK_LIGHT_FAULT_PERIOD = 3000;               //Set delay 
 //Specify clock time when fan, LED lighting and water pump is allowd to run. Clock time converted to an intiger (700 = 07:00 and 2335 = 23:35).
 unsigned short LIGHT_FAN_START_TIME = 700;                          //Start clock time (after specified time) fan and LED lighting is allowed to be activated (ON).
 unsigned short LIGHT_FAN_STOP_TIME = 2300;                          //Stop clock time (after specified time) for when fan and LED lighting is NOT allowed to be activated and is turned OFF if is currently running.
-unsigned short PUMP_START_TIME = 800;                               //Start clock time (after specified time) water pump is allowed to be activated (ON).
-unsigned short pumpStopTime = 1500;                                 //Stop clock time (after specified time) water pump is NOT allowed to run and is turned OFF.
+unsigned short PUMP_START_TIME = 900;                               //Start clock time (after specified time) water pump is allowed to be activated (ON).
+unsigned short pumpStopTime = 1600;                                 //Stop clock time (after specified time) water pump is NOT allowed to run and is turned OFF.
 
 //LOOP TIME.
 //Loop time for how often certain readouts and/or motors  be activated.
-const unsigned int CHECK_MOISTURE_PERIOD = 120000;                   //Loop time (in milliseconds) how often soil moisture is being checked and hence water pump is activated (only when soil is too dry).
+const unsigned int CHECK_MOISTURE_PERIOD = 30000;                   //Loop time (in milliseconds) how often soil moisture is being checked and hence water pump is activated (only when soil is too dry).
 const unsigned short WATER_PUMP_TIME_PERIOD = 6000;                 //Set time (in milliseconds) how long water pump will run each time it is activated. Fan speed mode is also checked in same interval as water pump.
 const unsigned int CHECK_LIGHT_NEED_PERIOD = 5000;                  //Loop time (in milliseconds) how often ligtht and fan need is being checked. Light need is only checking if current time is in allowed interval meanwhile fan also checks if humidity level is too high.
 /*
@@ -130,11 +130,10 @@ const unsigned int CHECK_LIGHT_NEED_PERIOD = 5000;                  //Loop time 
 */
 
 //Moisture sensors.
-MoistureSensor moistureSensor1;           //Create moistureSensor1 from the MoistureSensor class.
-MoistureSensor moistureSensor2;           //Create moistureSensor2 from the MoistureSensor class.
-MoistureSensor moistureSensor3;           //Create moistureSensor3 from the MoistureSensor class.
-MoistureSensor moistureSensor4;           //Create moistureSensor4 from the MoistureSensor class.
-MoistureSensor moistureSensor;            //Create a fictional mean value moisture sensor from the MoistureSensor class.
+MoistureSensor moistureSensor1(0x36);
+MoistureSensor moistureSensor2(0x37);
+MoistureSensor moistureSensor3(0x38);
+MoistureSensor moistureSensor4(0x39);
 int moistureValue1;                       //Individual moisture sensor value for moisture sensor 1.
 int moistureValue2;                       //Individual moisture sensor value for moisture sensor 2.
 int moistureValue3;                       //Individual moisture sensor value for moisture sensor 3.
@@ -1956,6 +1955,7 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
 
+
   //OLED display setup.
   Wire.begin();
   SeeedGrayOled.init(SH1107G);
@@ -1988,12 +1988,6 @@ void setup() {
     WiFiConnected = false;
     timerInterruptHasSetup = true;
   }
-
-  //Declaring I/O-ports.
-  pinMode(moistureSensorPort1, INPUT);
-  pinMode(moistureSensorPort2, INPUT);
-  pinMode(moistureSensorPort3, INPUT);
-  pinMode(moistureSensorPort4, INPUT);
 
   pinMode(waterFlowSensor, INPUT);
   pinMode(fanSpeedSensor, INPUT);
@@ -2076,11 +2070,16 @@ void loop() {
   //Greenhouse program start. When set to 'true' sensor readouts are enabled and automatic water and lighting control of greenhouse is turned ON.
   if (greenhouseProgramStart == true) {
     //Continuesly read out sensor values, calculate values and alert user if any fault code is set. This part of program is only run when greenhouse program has started, greenhouseProgramStart set 'true'.
-    moistureValue1 = moistureSensor1.moistureRead(moistureSensorPort1);                                   //Read moistureSensor1 value to check soil humidity.
-    moistureValue2 = moistureSensor2.moistureRead(moistureSensorPort2);                                   //Read moistureSensor2 value to check soil humidity.
-    moistureValue3 = moistureSensor3.moistureRead(moistureSensorPort3);                                   //Read moistureSensor3 value to check soil humidity.
-    moistureValue4 = moistureSensor4.moistureRead(moistureSensorPort4);                                   //Read moistureSensor4 value to check soil humidity.
+    moistureValue1 = moistureSensor1.moistureRead();                                   //Read moistureSensor1 value to check soil humidity.
+    moistureValue2 = moistureSensor2.moistureRead();                                   //Read moistureSensor2 value to check soil humidity.
+    moistureValue3 = moistureSensor3.moistureRead();                                   //Read moistureSensor3 value to check soil humidity.
+    moistureValue4 = moistureSensor4.moistureRead();                                   //Read moistureSensor4 value to check soil humidity.
     moistureMeanValue = calculateMoistureMean(moistureValue1, moistureValue2, moistureValue3, moistureValue4);    //Mean value from all sensor readouts.
+
+    Serial.print("Capacitive1: "); Serial.println(moistureValue1);
+    Serial.print("Capacitive2: "); Serial.println(moistureValue2);
+    Serial.print("Capacitive3: "); Serial.println(moistureValue3);
+    Serial.print("Capacitive4: "); Serial.println(moistureValue4);
 
     tempValue = humiditySensor.readTemperature(false);                                                    //Read temperature value from DHT-sensor. "false" gives the value in °C.
 
